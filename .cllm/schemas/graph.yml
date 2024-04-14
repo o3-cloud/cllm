@@ -1,0 +1,55 @@
+description: |
+  Create a graph schema from prompt
+prompt: |
+    Follow the instructions in the prompt and ouput the result using the provided schema.
+    Do not include ``` in the output. 
+schema: |
+  {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "SimpleGraphAssociation",
+    "type": "object",
+    "properties": {
+      "nodes": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "edges": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "source": {
+              "type": "string"
+            },
+            "target": {
+              "type": "string"
+            },
+            "relationship": {
+              "type": "string",
+              "description": "Defines the relationship between the source and target nodes."
+            }
+          },
+          "required": ["source", "target"]
+        }
+      }
+    },
+    "required": ["nodes", "edges"]
+  }
+example: |
+  {
+    "nodes": ["node1", "node2", "node3"],
+    "edges": [
+      {
+        "source": "node1",
+        "target": "node2",
+        "relationship": "connected_to"
+      },
+      {
+        "source": "node2",
+        "target": "node3",
+        "relationship": "connected_to"
+      }
+    ]
+  }

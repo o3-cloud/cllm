@@ -1,0 +1,17 @@
+tmp
+store
+scratch
+rag
+projects
+data
+contexts
+.DS_Store
+.pytest_cache
+.vscode
+.trash
+dist
+.vscode
+__pycache__
+projects
+.ignore
+doc

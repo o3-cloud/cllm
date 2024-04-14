@@ -1,0 +1,79 @@
+#!/bin/bash
+
+# Function to display usage information
+usage() {
+  echo "Usage: $0 [-y] [-h] parameter"
+  echo "  -y          Skip confirmation prompt"
+  echo "  -h          Display this help message"
+  exit 1
+}
+
+skip_confirmation_flag=false
+
+# Parse command-line arguments using getopts
+while getopts ":yh" opt; do
+  case ${opt} in
+    y ) skip_confirmation_flag=true
+      ;;
+    h ) usage
+      ;;
+    \? ) usage
+      ;;
+  esac
+done
+shift $((OPTIND -1))
+
+parameter=$1
+current_dir=$(pwd)
+os=$(uname -s)
+
+# Check if 'cllm' command is available
+if ! command -v cllm &> /dev/null; then
+  echo "Error: 'cllm' command not found. Please install it and try again."
+  exit 1
+fi
+
+# Check if 'jq' command is available
+if ! command -v jq &> /dev/null; then
+  echo "Error: 'jq' command not found. Please install it and try again."
+  exit 1
+fi
+
+# Generate command using 'cllm' and log output to a file
+cllm_output=$(cllm -pp "current_dir=${current_dir} os=${os}" -s bash gpt/4o "${parameter}" 2>&1)
+if [ $? -ne 0 ]; then
+  echo "Error: 'cllm' command failed. Output:"
+  echo "${cllm_output}"
+  exit 1
+fi
+
+cmd=$(echo "${cllm_output}" | jq -r '.code' 2>&1)
+if [ $? -ne 0 ]; then
+  echo "Error: 'jq' command failed. Output:"
+  echo "${cmd}"
+  exit 1
+fi
+
+# Function to run the generated command
+run_command() {
+  eval "${cmd}"
+  if [ $? -ne 0 ]; then
+    echo "Error: Command execution failed."
+    eval "${cmd}" 2>&1 | cllm gpt/4o "Explain this error. Suggest a solution."
+    exit 1
+  fi
+}
+
+# Confirm before running the command if not skipped
+if [ "${skip_confirmation_flag}" == true ]; then
+  run_command
+else
+  echo "Generated command: '${cmd}'"
+  read -p "Run command? (yes, no): " input
+  if [ "${input}" == "yes" ]; then
+    run_command
+  fi
+fi
+
+# Trap to handle script termination gracefully
+trap "echo 'Script terminated.'; exit 1" SIGINT SIGTERM

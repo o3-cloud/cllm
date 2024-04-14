@@ -1,0 +1,4 @@
+model: llama3
+description: A system that uses a local llm model for generating responses.
+temperature: 0
+base_url: http://localhost:11434/v1

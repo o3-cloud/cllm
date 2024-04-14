@@ -1,0 +1,3 @@
+model: gpt-4o
+description: A basic system. No system prompt is provided.
+temperature: 0

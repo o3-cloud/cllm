@@ -1,0 +1,42 @@
+[tool.poetry]
+name = "cllm"
+version = "0.1.0"
+description = "LLM Prompt Chaining in Bash"
+authors = ["owen.zanzal <ozanzal@gmail.com>"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+openai = "^1.30.1"
+requests = "^2.31.0"
+pyyaml = "^6.0.1"
+langchain = "^0.2.0"
+langchain-openai = "^0.1.7"
+selenium = "^4.21.0"
+jsonschema = "^4.22.0"
+langchain-community = "^0.2.0"
+faiss-cpu = "^1.8.0"
+tiktoken = "^0.7.0"
+pytest = "^8.2.1"
+tabulate = "^0.9.0"
+
+jinja2 = "^3.1.4"
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+cllm = 'cllm.cllm:main'
+cllm-splitter-text = 'cllm.toolkit.cllm_splitter_text:main'
+cllm-scraper = 'cllm.toolkit.scraper:main'
+cllm-search-google = 'cllm.toolkit.search_google:main'
+cllm-load-files = 'cllm.toolkit.load_files:main'
+cllm-vector-faiss-load = 'cllm.toolkit.vector_faiss_load:main'
+cllm-vector-faiss-write = 'cllm.toolkit.vector_faiss_write:main'
+cllm-splitter-docs = 'cllm.toolkit.splitter_docs:main'
+cllm-load-dir = 'cllm.toolkit.load_dir:main'
+cllm-gen-dalle = 'cllm.toolkit.gen_dalle:main'
+cllm-load-sitemap = 'cllm.toolkit.load_sitemap:main'
+cllm-output-code = 'cllm.toolkit.output_code:main'
+cllm-repeater = 'cllm.toolkit.repeater:main'

@@ -1,0 +1,34 @@
+#!/bin/bash
+
+p=$1
+skip_confirmation=false
+
+# Check for the -y flag
+for arg in "$@"; do
+  if [ "$arg" == "-y" ]; then
+    skip_confirmation=true
+    break
+  fi
+done
+
+command="docker"
+cmd=$(cllm -p "command=${command}" -s bash gpt/4o "{{$p}}" | jq -r '.code')
+
+run_command() {
+  eval "${cmd}"
+  if [ $? -ne 0 ]; then
+    echo "Error: Command execution failed"; 
+    eval "${cmd}" 2>&1 | cllm gpt/4o "Explain this error. Suggest a solution."
+    exit 1; 
+  fi
+}
+
+if [ "$skip_confirmation" == true ]; then
+  run_command
+else
+  echo "Created: '${cmd}'"
+  read -p "Run command? (yes, no): " input
+  if [ "$input" == "yes" ]; then
+    run_command
+  fi
+fi
