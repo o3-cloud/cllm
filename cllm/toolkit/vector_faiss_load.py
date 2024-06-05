@@ -1,43 +1,65 @@
 import json
 import os
+import logging
+from typing import List, Dict, Any
 from langchain_community.vectorstores import FAISS
 from langchain_openai import OpenAIEmbeddings
 
-AI_CLI_DIR = os.getenv("CLLM_DIR", f"{os.getcwd()}/.cllm")
+# Configure logging
+logging.basicConfig(level=os.getenv("CLLM_LOGLEVEL"))
 
-def faiss_read(faiss_index_name, query, results=5):
-    # Load the FAISS index
-    embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
+# Environment variables for configuration
+CLLM_DIR = os.getenv("CLLM_DIR", f"{os.getcwd()}/.cllm")
+
+def load_faiss_index(faiss_index_name: str, model_name: str) -> FAISS:
+    embeddings = OpenAIEmbeddings(model=model_name)
+    faiss_index = f"{CLLM_DIR}/rag/{faiss_index_name}"
     
-    faiss_index = f"{AI_CLI_DIR}/rag/{faiss_index_name}"
-    db = FAISS.load_local(faiss_index, embeddings, allow_dangerous_deserialization=True)
+    if not os.path.exists(faiss_index):
+        logging.error(f"FAISS index file {faiss_index} does not exist.")
+        raise FileNotFoundError(f"FAISS index file {faiss_index} does not exist.")
+    
+    try:
+        db = FAISS.load_local(faiss_index, embeddings, allow_dangerous_deserialization=True)
+    except Exception as e:
+        logging.error(f"Failed to load FAISS index: {e}")
+        raise e
+    
+    return db
 
-    # Perform the similarity search
-    docs = db.similarity_search(query, results)
+def perform_similarity_search(db: FAISS, query: str, results: int) -> List[Dict[str, Any]]:
+    try:
+        docs = db.similarity_search(query, results)
+    except Exception as e:
+        logging.error(f"Error during similarity search: {e}")
+        raise e
+    
+    return [{"page_content": doc.page_content, "metadata": doc.metadata} for doc in docs]
 
-    # Print the top document content
-    chucks = []
+def faiss_read(faiss_index_name: str, model_name: str, query: str, results: int = 5) -> None:
+    db = load_faiss_index(faiss_index_name, model_name)
+    docs = perform_similarity_search(db, query, results)
+    
     if docs:
-        for doc in docs:
-           chucks.append({"page_content": doc.page_content, "metadata": doc.metadata})
-        print(json.dumps(chucks))
+        print(json.dumps(docs))
     else:
         print("No documents found.")
 
-def main():
+def main() -> None:
     import argparse
-
-    parser = argparse.ArgumentParser(description="FAISS index search")
-    parser.add_argument('-i', '--index', type=str, required=True, help='Path to the FAISS index')
-    parser.add_argument('-k', '--results', type=int, help='Number of docs to return', default=5)
-    parser.add_argument("query", nargs='?', default=None)
-
+    
+    parser = argparse.ArgumentParser(description="FAISS index search tool")
+    parser.add_argument('-i', '--index', type=str, required=True, help='Name of the FAISS index to search')
+    parser.add_argument('-m', '--model', type=str, default="text-embedding-3-small", help='Name of the OpenAI embedding model to use')
+    parser.add_argument('-k', '--results', type=int, default=5, help='Number of documents to return (default: 5)')
+    parser.add_argument('query', type=str, help='Query string to search for')
+    
     args = parser.parse_args()
-    faiss_index = args.index
-    query = args.query
-    results = args.results
-
-    faiss_read(faiss_index, query, results)
+    
+    try:
+        faiss_read(args.index, args.model, args.query, args.results)
+    except Exception as e:
+        logging.error(f"An error occurred: {e}")
 
 if __name__ == "__main__":
     main()
