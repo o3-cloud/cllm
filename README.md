@@ -25,6 +25,11 @@ The `cllm` toolkit attempts to solve these issues by being bash centric. Allowin
 - jq
 - Ollama
 
+## Note
+
+So far this has only been verified on MacOS. It should work on Linux. It may work on Windows, but I have not tested it.
+
+
 ## Installation
 
 ```
@@ -33,6 +38,29 @@ git clone git@github.com:o3-cloud/cllm.git
 cd cllm
 
 poetry install
+poetry shell
+```
+
+### Installing `cllm` Command Globally
+
+For ease of use you can install the `cllm` command globally.
+
+bash
+```
+echo "export PATH=\$PATH:${VIRTUAL_ENV}/bin" >> ~/.bashrc
+echo "export CLLM_DIR=\$HOME/.cllm" >> ~/.bashrc
+```
+
+zsh
+```
+echo "export PATH=\$PATH:${VIRTUAL_ENV}/bin" >> ~/.zprofile
+echo "export CLLM_DIR=\$HOME/.cllm" >> ~/.zprofile
+```
+
+Copy the `.cllm` directory to your home directory.
+    
+```
+cp -r .cllm ~/.cllm
 ```
 
 ## CLLM Command
