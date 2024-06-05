@@ -42,7 +42,7 @@ temperature: 0
 - `-pe, --prompt-example`: Specify the example prompt.
 - `-tp, --temperature`: Specify the temperature.
 - `--dry-run`: Output the prompt without executing.
-- `--cllm-path`: Path to the CLLM directory. Default is the current working directory with `.cllm` appended.
+- `--cllm-dir`: Path to the CLLM directory. Default is the current working directory with `.cllm` appended.
 - `--cllm-trace-id`: Specify a trace ID.
 - `prompt_input`: Input for the prompt.
 
