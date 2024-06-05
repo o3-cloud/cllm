@@ -12,7 +12,7 @@ for arg in "$@"; do
 done
 
 command="docker"
-cmd=$(cllm -p "command=${command}" -s bash gpt/4o "{{$p}}" | jq -r '.code')
+cmd=$(cllm -pp "command=${command}" -s bash gpt/4o "{{$p}}" | jq -r '.code')
 
 run_command() {
   eval "${cmd}"

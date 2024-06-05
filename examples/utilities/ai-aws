@@ -31,7 +31,7 @@ done
 
 # Define the command to be executed
 command="aws"
-cmd=$(cllm -p "command=${command}" -s bash gpt/4o "{{$parameter}}" 2>/dev/null | jq -r '.code' 2>/dev/null)
+cmd=$(cllm -pp "command=${command}" -s bash gpt/4o "{{$parameter}}" 2>/dev/null | jq -r '.code' 2>/dev/null)
 
 # Check if the 'cllm' or 'jq' commands failed
 if [ $? -ne 0 ]; then
