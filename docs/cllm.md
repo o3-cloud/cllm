@@ -11,6 +11,23 @@ To use the CLLM interface, you can run the `cllm` command followed by the approp
 - `list`: Lists all available systems.
 - `schemas`: Lists all available schemas.
 
+if one of the built-in commands is not found, `cllm` will attempt to run the command as a system. System configurations are stored in the $CLLM_PATH/systems directory.
+
+For example if you call.
+
+```
+cllm base "What is the meaning of life?"
+
+```
+
+`cllm` will look for a system configuration in the $CLLM_PATH/systems/base.yml directory.
+
+```
+model: gpt-4o
+description: A basic system. No system prompt is provided.
+temperature: 0
+```
+
 ### Options
 
 - `-t, --template`: Define a prompt template. Default is `default`.

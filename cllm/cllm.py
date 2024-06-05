@@ -42,9 +42,9 @@ def list_available_items(directory: str, headers: list) -> None:
         table_data.append([name] + [data.get(header) for header in headers[1:]])
     print(tabulate(table_data, headers, tablefmt="grid"))
 
-def generate_prompt_from_template(template_name: str, cllm_path: str, context: Dict[str, Any]) -> str:
+def generate_prompt_from_template(template_name: str, cllm_dir: str, context: Dict[str, Any]) -> str:
     """Generate a prompt from a Jinja2 template."""
-    template_env = Environment(loader=FileSystemLoader(f"{cllm_path}/{TEMPLATES_DIR}"))
+    template_env = Environment(loader=FileSystemLoader(f"{cllm_dir}/{TEMPLATES_DIR}"))
     template = template_env.get_template(f"{template_name}.tpl")
     return template.render(**context)
 
@@ -55,9 +55,9 @@ def validate_response_with_schema(response_content: str, json_schema: str) -> No
     except jsonschema.ValidationError as e:
         raise ValueError(f"Schema validation error: {e.message}")
 
-def get_system_config(command: str, cllm_path: str) -> Optional[Dict[str, Any]]:
+def get_system_config(command: str, cllm_dir: str) -> Optional[Dict[str, Any]]:
     """Get the system configuration for a given command."""
-    system_config_path = f"{cllm_path}/{SYSTEMS_DIR}/{command}{CONFIG_FILE_EXTENSION}"
+    system_config_path = f"{cllm_dir}/{SYSTEMS_DIR}/{command}{CONFIG_FILE_EXTENSION}"
     if os.path.exists(system_config_path):
         return load_yaml_file(system_config_path)
     return None
@@ -69,20 +69,20 @@ def get_openai_client(base_url: Optional[str] = None) -> OpenAI:
         openai_config["base_url"] = base_url
     return OpenAI(**openai_config)
 
-def build_cllm_prompt(template: str, cllm_path: str, context: Dict[str, Any]) -> str:
+def build_cllm_prompt(template: str, cllm_dir: str, context: Dict[str, Any]) -> str:
     """Build the CLLM prompt based on the provided template and context."""
-    return generate_prompt_from_template(template, cllm_path, context)
+    return generate_prompt_from_template(template, cllm_dir, context)
 
-def handle_list_command(cllm_path: str) -> None:
+def handle_list_command(cllm_dir: str) -> None:
     """Handle the 'list' command by listing available systems."""
     print("Available systems:")
-    list_available_items(f"{cllm_path}/{SYSTEMS_DIR}", ["name", "description", "model"])
+    list_available_items(f"{cllm_dir}/{SYSTEMS_DIR}", ["name", "description", "model"])
     sys.exit(0)
 
-def handle_schemas_command(cllm_path: str) -> None:
+def handle_schemas_command(cllm_dir: str) -> None:
     """Handle the 'schemas' command by listing available schemas."""
     print("Available schemas:")
-    list_available_items(f"{cllm_path}/{SCHEMAS_DIR}", ["name", "description"])
+    list_available_items(f"{cllm_dir}/{SCHEMAS_DIR}", ["name", "description"])
     sys.exit(0)
 
 def cllm(command: str, 
@@ -97,7 +97,7 @@ def cllm(command: str,
          prompt_output: Optional[str], 
          prompt_example: Optional[str], 
          temperature: Optional[float], 
-         cllm_path: str, 
+         cllm_dir: str, 
          prompt_input: Optional[str],
          prompt_stdin: Optional[str],
          cllm_trace_id: Optional[str],
@@ -105,10 +105,10 @@ def cllm(command: str,
     """Main function to handle CLLM commands and generate prompts."""
     
     if command == 'list':
-        handle_list_command(cllm_path)
+        handle_list_command(cllm_dir)
 
     if command == 'schemas':
-        handle_schemas_command(cllm_path)
+        handle_schemas_command(cllm_dir)
 
     cllm_prompt = ""
     if template:
@@ -121,15 +121,15 @@ def cllm(command: str,
             "PROMPT_OUTPUT": prompt_output,
             "PROMPT_EXAMPLE": prompt_example
         }
-        cllm_prompt = build_cllm_prompt(template, cllm_path, context)
+        cllm_prompt = build_cllm_prompt(template, cllm_dir, context)
 
-    system_config = get_system_config(command, cllm_path)
+    system_config = get_system_config(command, cllm_dir)
     if not system_config:
         logger.error(f"No system configuration found for system '{command}'")
         sys.exit(1)
 
     if schema:
-        schema_path = f"{cllm_path}/{SCHEMAS_DIR}/{schema}{CONFIG_FILE_EXTENSION}"
+        schema_path = f"{cllm_dir}/{SCHEMAS_DIR}/{schema}{CONFIG_FILE_EXTENSION}"
         schema_config = load_yaml_file(schema_path)
         context = {
             "SCHEMA_JSON": schema_config.get('schema'),
@@ -141,7 +141,7 @@ def cllm(command: str,
             "PROMPT_INPUT": prompt_input,
             "PROMPT_STDIN": prompt_stdin,
         }
-        cllm_prompt = build_cllm_prompt("schema", cllm_path, context)
+        cllm_prompt = build_cllm_prompt("schema", cllm_dir, context)
 
     model = system_config.get('model')
     system_temperature = temperature if temperature is not None else system_config.get('temperature')
@@ -155,7 +155,7 @@ def cllm(command: str,
 
     if chat_context:
         try:
-            with open(f"{cllm_path}/{CONTEXTS_DIR}/{chat_context}{JSON_FILE_EXTENSION}", 'r') as f:
+            with open(f"{cllm_dir}/{CONTEXTS_DIR}/{chat_context}{JSON_FILE_EXTENSION}", 'r') as f:
                 messages = json.loads(f.read())
         except FileNotFoundError:
             pass
@@ -177,7 +177,7 @@ def cllm(command: str,
         
         if chat_context:
             messages.append({"role": "assistant", "content": response_message.content})
-            with open(f"{cllm_path}/{CONTEXTS_DIR}/{chat_context}{JSON_FILE_EXTENSION}", 'w') as f:
+            with open(f"{cllm_dir}/{CONTEXTS_DIR}/{chat_context}{JSON_FILE_EXTENSION}", 'w') as f:
                 f.write(json.dumps(messages, indent=4))
 
         return response_message.content
@@ -202,7 +202,7 @@ def main() -> None:
     parser.add_argument("-pe", "--prompt-example", help="Specify the example prompt")
     parser.add_argument("-tp", "--temperature", type=float, help="Specify the temperature")
     parser.add_argument("--dry-run", action="store_true", help="Output the prompt without executing")
-    parser.add_argument("--cllm-path", help="Path to the cllm directory", default=f"{os.getcwd()}/.cllm")
+    parser.add_argument("--cllm-dir", help="Path to the cllm directory", default=f"{os.getcwd()}/.cllm")
     parser.add_argument("--cllm-trace-id", help="Specify a trace id")
     parser.add_argument("prompt_input", nargs='?', help="Input for the prompt")
     args = parser.parse_args()
@@ -220,7 +220,7 @@ def main() -> None:
         "prompt_output": os.getenv('CLLM_PROMPT_OUTPUT', args.prompt_output),
         "prompt_example": os.getenv('CLLM_PROMPT_EXAMPLE', args.prompt_example),
         "temperature": os.getenv('CLLM_TEMPERATURE', args.temperature),
-        "cllm_path": os.getenv('CLLM_PATH', args.cllm_path),
+        "cllm_dir": os.getenv('CLLM_DIR', args.cllm_dir),
         "prompt_input": os.getenv('CLLM_PROMPT_INPUT', args.prompt_input),
         "prompt_stdin": None,
         "cllm_trace_id": os.getenv('CLLM_TRACE_ID', args.cllm_trace_id),
