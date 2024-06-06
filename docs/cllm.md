@@ -142,7 +142,7 @@ ANSWER:
 Using the `qa` template:
 
 ```bash
-cllm -t qa -pi gpt/3.5 "Who are the members of the Beatles?" -pc "I want to know more about british rock."
+cllm -t qa -pc "I want to know more about british rock." gpt/3.5 "Who are the members of the Beatles?"
 ```
 
 You can add custom templates by creating a new `.tpl` file in the $CLLM_PATH/templates directory.
@@ -151,7 +151,7 @@ Stdin can be used to provide additional context.
 Instruction can be passed to the model using quoted strings like this.
 
 ```bash
-echo "You want to know more about british rock." | cllm -t qa gpt/3.5 "Who are the members of the Beatles?"
+echo "I want to know more about british rock." | cllm -t qa gpt/3.5 "Who are the members of the Beatles?"
 ```
 
 ### Generating Consistant JSON with a Schema

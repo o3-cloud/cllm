@@ -67,6 +67,19 @@ Copy the `.cllm` directory to your home directory.
 cp -r .cllm ~/.cllm
 ```
 
+### Via Docker
+
+```
+docker build -t cllm .
+docker run -e OPENAI_API_KEY=$OPENAI_API_KEY --rm cllm gpt/3.5 "What is the meaning of life?"
+```
+
+Accepting stdin
+
+```
+cat README.md | docker run -e OPENAI_API_KEY=$OPENAI_API_KEY -i --rm cllm -t qa gpt/4o "How do I use cllm with docker and stdin?"
+```
+
 ## CLLM Command
 
 Here is an example of how you might use the `cllm` toolkit to generate text from a prompt.

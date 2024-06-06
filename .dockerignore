@@ -1,0 +1,8 @@
+.ignore
+.pytest_cache
+.vscode
+dist
+tmp
+.gitignore
+doc
+Dockerfile
