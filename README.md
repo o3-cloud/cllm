@@ -1,5 +1,9 @@
 # Command Line LLM (cllm) Toolkit
 
+![The CLLM Clam](images/logo.png)
+*imaged generated using [cllm-clam.sh](examples/logo/cllm-clam.sh)*
+
+
 Command Line LLM (cllm) Toolkit is a command line tool for interfacing with LLM models. It is designed to be a simple and easy to use tool for generating text from a prompts. It includes a suite of tools for interfacing with `cllm` output to build more complex prompt chaining processes.
 
 ## Why?

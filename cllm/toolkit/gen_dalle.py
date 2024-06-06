@@ -67,15 +67,15 @@ def main():
     parser.add_argument('-o', '--output-dir', type=str, default=None, help='Directory to save generated images')
     args = parser.parse_args()
 
+    prompts = []
     try:
         validate_args(args)
         input_data = sys.stdin.read()
         try:
             prompts = json.loads(input_data)
         except json.JSONDecodeError:
-            logging.error("Invalid JSON input")
-            print(json.dumps({"error": "Invalid JSON input"}))
-            return
+            logging.info("Invalid JSON input")
+            prompts.append(input_data)
 
         images = asyncio.run(generate_images(prompts, args.style, args.model, args.size, args.quality, args.number))
 
