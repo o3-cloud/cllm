@@ -1,0 +1,3 @@
+#!/bin/bash
+
+pbpaste | cllm -t qa gpt/3.5 "$1"
