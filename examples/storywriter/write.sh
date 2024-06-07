@@ -1,8 +1,10 @@
 #!/bin/bash
+set -e
 
 VERSION=v1
-FILE_PATH="story/${VERSION}"
+FILE_PATH="tmp/story/${VERSION}"
 CHAT_CONTEXT="story-${VERSION}"
+
 PROMPT_SYSTEM="You are a story book author." 
 PROMPT_CONTEXT="Your task is to gather information from the user 
 and write a story based on the information.
@@ -19,15 +21,18 @@ Say 'done' when you are finished. When finished do not output the story
 until the user asks for it.
 When you are ready introduce yourself and ask the first question."
 
+mkdir -p ${FILE_PATH}
+
 cllm \
 --chat-context "${CHAT_CONTEXT}" \
 --prompt-system "${PROMPT_SYSTEM}" \
 --prompt-instructions "${PROMPT_INSTRUCTIONS}" \
 gpt/4o "${PROMPT_CONTEXT}"
 
+echo "When done, type 'done' to quit"
 while true; do
     read -p "You: " input
-    if [ "$input" == "exit" ]; then
+    if [ "$input" == "done" ]; then
         break
     fi
     response=$(cllm -c ${CHAT_CONTEXT} gpt/4o "${input}")
@@ -37,26 +42,23 @@ while true; do
     fi
 done
 
-mkdir -p ${FILE_PATH}
-
 echo "Generating the story"
 cllm -c ${CHAT_CONTEXT} \
 --prompt-output "Markdown format" \
---prompt-example "# Title
-
+--prompt-example "
 Paragraph 1
 
 Paragraph 2
 
-# The End" \
+# The End
+" \
 --prompt-instructions "Output the story" \
 gpt/4o > ${FILE_PATH}/story.md
 
 STORY_PATH=${FILE_PATH}/story.md
 
 echo "Generating edit suggestions for the story"
-cat ${STORY_PATH} | \
-cllm \
+cat ${STORY_PATH} | cllm \
 --prompt-role "You are story book editor" \
 --prompt-instructions "Make suggestions on how to improve this story as a bullet list" \
 --prompt-output "Markdown format" \
@@ -65,13 +67,13 @@ cllm \
 - Suggestion 3" \
 gpt/4o > ${FILE_PATH}/suggestions.md
 
-cat ${FILE_PATH}/suggestions.md
+SUGGESTION_PATH=${FILE_PATH}/suggestions.md
 
+cat ${SUGGESTION_PATH}
 
 read -p "Do you want to apply the suggestions to the story? (yes/no): " apply_suggestions
 if [ "$apply_suggestions" == "yes" ]; then
-    cat ${STORY_PATH} | \
-    cllm \
+    cat ${SUGGESTION_PATH} | cllm \
     --prompt-role "You are story book editor" \
     --prompt-instructions "Apply the following suggestions to the story.
     $(cat ${FILE_PATH}/suggestions.md)
@@ -88,7 +90,6 @@ if [ "$apply_suggestions" == "yes" ]; then
 
     STORY_PATH=${FILE_PATH}/story-edit.md
 fi
-STORY_PATH=${FILE_PATH}/story-edit.md
 
 PROMPT_PATH=${FILE_PATH}/prompts.json
 
@@ -101,23 +102,15 @@ cllm \
 Be very detailed about the physical apperance of the characters in each prompt." \
 gpt/4o > ${PROMPT_PATH}
 
-
 echo "Generating images for the story"
 echo "This cloud take a while depending on the number of images"
-IMAGE_JSON_PATH=${FILE_PATH}/images.json
-cat ${PROMPT_PATH} | cllm_gen_dalle > ${IMAGE_JSON_PATH}
 
 IMAGE_PATH=${FILE_PATH}/images
-mkdir -p "${IMAGE_PATH}"
-index=0
-cat $IMAGE_JSON_PATH | jq -r '.[]' | while read -r url; do
-    curl -o "${IMAGE_PATH}/image_${index}.png" "$url"
-    index=$((index + 1))
-done
+mkdir -p ${IMAGE_PATH}
+cat ${PROMPT_PATH} | cllm-gen-dalle -o ${IMAGE_PATH}
 
 echo "Combining the story with the images and prompts to produce the final product"
-cat $STORY_PATH | \
-cllm \
+cat ${STORY_PATH} | cllm \
 --prompt-role "You are book editor" \
 --prompt-instructions "
 Combine the story with the images and prompts to produce the final product.
@@ -146,3 +139,5 @@ Paragraph 3
 
 # The End" \
 gpt/4o > ${FILE_PATH}/story-final.md
+
+cat ${FILE_PATH}/story-final.md
