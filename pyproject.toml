@@ -1,10 +1,13 @@
 [tool.poetry]
 name = "cllm"
-version = "0.1.0"
+version = "0.2.0"
 description = "LLM Prompt Chaining in Bash"
 authors = ["owen.zanzal <ozanzal@gmail.com>"]
 license = "MIT"
 readme = "README.md"
+
+[tool.project.scripts]
+cllm = "cllm.cllm:main"
 
 [tool.poetry.dependencies]
 python = "^3.10"
@@ -20,8 +23,8 @@ faiss-cpu = "^1.8.0"
 tiktoken = "^0.7.0"
 pytest = "^8.2.1"
 tabulate = "^0.9.0"
-
 jinja2 = "^3.1.4"
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
