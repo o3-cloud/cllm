@@ -29,7 +29,7 @@ build-backend = "poetry.core.masonry.api"
 [tool.poetry.scripts]
 cllm = 'cllm.cllm:main'
 cllm-splitter-text = 'cllm.toolkit.cllm_splitter_text:main'
-cllm-scraper = 'cllm.toolkit.scraper:main'
+cllm-load-website = 'cllm.toolkit.scraper:main'
 cllm-search-google = 'cllm.toolkit.search_google:main'
 cllm-load-files = 'cllm.toolkit.load_files:main'
 cllm-vector-faiss-load = 'cllm.toolkit.vector_faiss_load:main'
