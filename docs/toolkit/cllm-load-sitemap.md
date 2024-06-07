@@ -28,7 +28,7 @@ This script generates a sitemap from a given URL using Selenium WebDriver. It su
 ### Example
 
 ```sh
-cll-load-sitemap -u https://example.com -b chrome -l 2 -H
+cllm-load-sitemap -u https://example.com -b chrome -l 2 -H
 ```
 
 ## Logging

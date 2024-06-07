@@ -99,6 +99,6 @@ For more examples see the [examples](examples) directory.
 
 In addition to the `cllm` command, the `cllm` toolkit includes a suite of tools for interfacing with `cllm` output to build more complex prompt chaining processes.
 
-To learn more about the toolkit see the [toolkit](docs/toolkit/) documentation.
+To learn more about the toolkit see the [toolkit](docs/toolkit/README.md) documentation.
 
-See the [toolkit](docs/toolkit/) directory for more information on how to use the toolkit commands.
+For examples see the [examples](examples) directory.
