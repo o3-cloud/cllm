@@ -1,10 +1,8 @@
-#!/usr/bin/env python3
-
 import json
-from langchain_text_splitters import RecursiveCharacterTextSplitter
 import sys
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-def split_text_into_chunks(text, chunk_size=100, chunk_overlap=20, metadata=""):
+def split_text_into_chunks(text, chunk_size=100, chunk_overlap=20, metadata=None):
     """
     Splits the given text into chunks using RecursiveCharacterTextSplitter.
 
@@ -12,10 +10,14 @@ def split_text_into_chunks(text, chunk_size=100, chunk_overlap=20, metadata=""):
     - text (str): The text to be split into chunks.
     - chunk_size (int): The maximum size of each chunk.
     - chunk_overlap (int): The number of characters that overlap between chunks.
+    - metadata (dict): Metadata to be associated with each chunk.
 
     Returns:
-    - List[str]: A list of text chunks.
+    - List[dict]: A list of dictionaries, each containing chunked text and metadata.
     """
+    if metadata is None:
+        metadata = {}
+    
     text_splitter = RecursiveCharacterTextSplitter(
         chunk_size=chunk_size,
         chunk_overlap=chunk_overlap,
@@ -25,14 +27,7 @@ def split_text_into_chunks(text, chunk_size=100, chunk_overlap=20, metadata=""):
     
     texts = text_splitter.split_text(text)
 
-    chucks = []
-    
-    for c in texts:
-        chucks.append({
-            "page_content": c,
-            "metadata": metadata
-        })
-    return chucks
+    return [{"page_content": c, "metadata": metadata} for c in texts]
 
 def main():
     import argparse
@@ -40,7 +35,7 @@ def main():
     parser = argparse.ArgumentParser(description="Split text into chunks")
     parser.add_argument('-s', '--chunk_size', type=int, default=100, help='Size of each chunk')
     parser.add_argument('-o', '--chunk_overlap', type=int, default=20, help='Number of characters that overlap between chunks')
-    parser.add_argument('-m', '--metadata', type=json.loads, help='Assoicated metadata', default={})
+    parser.add_argument('-m', '--metadata', type=json.loads, help='Associated metadata', default='{}')
     args = parser.parse_args()
 
     # Read text from stdin
@@ -55,6 +50,5 @@ def main():
     # Print the chunks
     print(json.dumps(chunks))
     
-# Example usage
 if __name__ == "__main__":
     main()

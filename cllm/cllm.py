@@ -139,6 +139,7 @@ def cllm(command: str,
             "PROMPT_INSTRUCTIONS": prompt_instructions,
             "PROMPT_CONTEXT": prompt_context,
             "PROMPT_INPUT": prompt_input,
+            "PROMPT_OUTPUT": prompt_output,
             "PROMPT_STDIN": prompt_stdin,
         }
         cllm_prompt = build_cllm_prompt("schema", cllm_dir, context)

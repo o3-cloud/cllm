@@ -14,16 +14,10 @@ from requests.exceptions import RequestException
 logging.basicConfig(level=os.environ.get("CLLM_LOGLEVEL"))
 
 def create_driver(browser, headless):
-    if browser == 'chrome':
-        options = ChromeOptions()
-        if headless:
-            options.add_argument('--headless')
-        return webdriver.Chrome(options=options)
-    else:
-        options = FirefoxOptions()
-        if headless:
-            options.add_argument('--headless')
-        return webdriver.Firefox(options=options)
+    options = ChromeOptions() if browser == 'chrome' else FirefoxOptions()
+    if headless:
+        options.add_argument('--headless')
+    return webdriver.Chrome(options=options) if browser == 'chrome' else webdriver.Firefox(options=options)
 
 def is_valid_url(url):
     try:
@@ -34,29 +28,26 @@ def is_valid_url(url):
 
 def generate_sitemap(start_url, browser, delay, headless):
     driver = create_driver(browser, headless)
-    domain = urlparse(start_url).netloc
-    domain = "https://" + domain
-    visited_urls = set()
+    domain = "https://" + urlparse(start_url).netloc
+    visited_urls = {start_url}
     sitemap = []
 
-
-    visited_urls.add(start_url)
     try:
         driver.get(start_url)
         time.sleep(delay)
+        elements = driver.find_elements(By.TAG_NAME, 'a')
+        for element in elements:
+            href = element.get_attribute('href')
+            if href and href.startswith(domain):
+                full_url = urljoin(domain, href)
+                if full_url not in visited_urls:
+                    sitemap.append(full_url)
+                    visited_urls.add(full_url)
     except Exception as e:
         logging.error(f"Error accessing {start_url}: {e}")
-        return
+    finally:
+        driver.quit()
 
-    elements = driver.find_elements(By.TAG_NAME, 'a')
-    for element in elements:
-        href = element.get_attribute('href')
-        if href and href.startswith(domain):
-            full_url = urljoin(domain, href)
-            if full_url not in visited_urls:
-                sitemap.append(full_url)
-
-    driver.quit()
     return sitemap
 
 def main():

@@ -23,7 +23,7 @@ def validate_args(args):
     if args.number < 1:
         raise ValueError("Number of images must be at least 1.")
 
-async def fetch_image(prompt, style, model, size, quality, n):
+async def fetch_image(session, prompt, style, model, size, quality, n):
     image_prompt = f"{prompt} {style}"
     logging.info(f"Generating image for prompt '{image_prompt}'")
     try:
@@ -41,9 +41,8 @@ async def fetch_image(prompt, style, model, size, quality, n):
     return url
 
 async def generate_images(prompts, style, model="dall-e-3", size="1024x1024", quality="standard", n=1):
-    image_urls = []
-    async with aiohttp.ClientSession():
-        tasks = [fetch_image(prompt, style, model, size, quality, n) for prompt in prompts]
+    async with aiohttp.ClientSession() as session:
+        tasks = [fetch_image(session, prompt, style, model, size, quality, n) for prompt in prompts]
         image_urls = await asyncio.gather(*tasks)
     return image_urls
 
@@ -67,7 +66,6 @@ def main():
     parser.add_argument('-o', '--output-dir', type=str, default=None, help='Directory to save generated images')
     args = parser.parse_args()
 
-    prompts = []
     try:
         validate_args(args)
         input_data = sys.stdin.read()
@@ -75,7 +73,7 @@ def main():
             prompts = json.loads(input_data)
         except json.JSONDecodeError:
             logging.info("Invalid JSON input")
-            prompts.append(input_data)
+            prompts = [input_data]
 
         images = asyncio.run(generate_images(prompts, args.style, args.model, args.size, args.quality, args.number))
 
@@ -89,4 +87,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

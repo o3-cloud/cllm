@@ -24,12 +24,10 @@ def directory_load(directory: str, glob_pattern: str = "**/*", chunk_size: int =
     return documents
 
 def convert_docs_to_json(documents: List[Dict[str, Any]]) -> str:
-    docs_list = []
-    for doc in documents:
-        docs_list.append({
-            "page_content": doc.page_content,
-            "metadata": doc.metadata,
-        })
+    docs_list = [{
+        "page_content": doc.page_content,
+        "metadata": doc.metadata,
+    } for doc in documents]
     return json.dumps(docs_list, indent=2)
 
 def save_json_to_file(json_data: str, output_file: str) -> None:
@@ -45,11 +43,11 @@ def main() -> None:
     parser.add_argument('-g', '--glob_pattern', type=str, default="**/*", help='Glob pattern to match files')
     parser.add_argument('-s', '--chunk_size', type=int, default=1000, help='Size of each chunk')
     parser.add_argument('-o', '--chunk_overlap', type=int, default=10, help='Number of characters that overlap between chunks')
-    parser.add_argument('-m', '--use_multithreading', type=bool, default=True, help='Use multithreading for loading files')
+    parser.add_argument('-m', '--use_multithreading', action='store_true', help='Use multithreading for loading files')
     parser.add_argument('-f', '--output_file', type=str, help='Output file for the JSON data')
     args = parser.parse_args()
 
-    logging.basicConfig(level=os.environ.get("LOGLEVEL"))
+    logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO"))
 
     documents = directory_load(args.directory, args.glob_pattern, args.chunk_size, args.chunk_overlap, args.use_multithreading)
     json_data = convert_docs_to_json(documents)

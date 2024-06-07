@@ -6,7 +6,7 @@ from selenium.webdriver.firefox.options import Options as FirefoxOptions
 import json
 import argparse
 
-def scrape_webpages(search_urls, debug_mode, output_type, browser_type):
+def scrape_webpages(search_urls, output_type, browser_type):
     # Initialize the driver
     if browser_type == 'firefox':
         options = FirefoxOptions()
@@ -14,10 +14,6 @@ def scrape_webpages(search_urls, debug_mode, output_type, browser_type):
     else:
         options = Options()
         driver = webdriver.Chrome(options=options)
-
-    if debug_mode:
-        print("Debugging mode enabled")
-        options.add_experimental_option("debuggerAddress", "127.0.0.1:9222")
 
     results = []
     # For each search query
@@ -41,18 +37,21 @@ def main():
     parser.add_argument('-d', '--debug', action='store_true', help='Enable debugging mode')
     parser.add_argument('-o', '--output', help='Output type (text or html)', default='text')
     parser.add_argument('-b', '--browser', help='Browser type (chrome or firefox)', default='chrome')
+    parser.add_argument('-u', '--url', help='URL to scrape', default=None)
     args = parser.parse_args()
 
-    try:
-        import sys
-        input_data = sys.stdin.read()
-        search_urls = json.loads(input_data)
-        print(scrape_webpages(search_urls, args.debug, args.output, args.browser))
-    except Exception as e:
-        search_urls = []
-        search_urls.append(input_data)
-        print(scrape_webpages(search_urls, args.debug, args.output, args.browser))
+    search_urls = []
+    if args.url:
+        search_urls.append(args.url)
+    else:
+        try:
+            import sys
+            input_data = sys.stdin.read()
+            search_urls = json.loads(input_data)
+        except Exception as e:
+            search_urls.append(input_data)
+
+    print(scrape_webpages(search_urls, args.output, args.browser))
 
 if __name__ == "__main__":
     main()
-
