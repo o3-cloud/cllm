@@ -185,7 +185,6 @@ EXAMPLE:
 ## Environment Variables
 
 You can also set environment variables to provide default values for the options.
-Environment variables take precedence over command line options.
 
 - `CLLM_COMMAND`
 - `CLLM_TEMPLATE`
@@ -210,4 +209,12 @@ export CLLM_TEMPLATE="default"
 export CLLM_PROMPT_INSTRUCTIONS="These are the instructions"
 cllm gpt/3.5
 ```
+
+### Variable Precedence
+
+The order of precedence for variables is as follows:
+
+- Command line options
+- Environment variables
+- Default values
 

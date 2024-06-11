@@ -10,6 +10,7 @@ import os
 import yaml
 from typing import Optional, Dict, Any
 import logging
+from .constants import *
 
 # Constants
 SYSTEMS_DIR = "systems"
@@ -189,41 +190,41 @@ def cllm(command: str,
 def main() -> None:
     """Main entry point for the CLLM command-line interface."""
     parser = argparse.ArgumentParser(description="Command Line Language Model (CLLM) Interface")
-    parser.add_argument("command", nargs='?', help="Command to execute")
-    parser.add_argument("-t", "--template", help="Define a prompt template", default=DEFAULT_TEMPLATE)
-    parser.add_argument("-s", "--schema", help="Specify the schema file")
-    parser.add_argument("-c", "--chat-context", help="Specify the chat context")
-    parser.add_argument("-pp", "--prompt-primer", help="Primer prompt input")
-    parser.add_argument("-ps", "--prompt-system", help="Specify the system prompt")
-    parser.add_argument("-pr", "--prompt-role", help="Specify the role prompt")
-    parser.add_argument("-pi", "--prompt-instructions", help="Specify the instructions prompt")
-    parser.add_argument("-pc", "--prompt-context", help="Specify the context prompt")
-    parser.add_argument("-po", "--prompt-output", help="Specify the output prompt")
-    parser.add_argument("-pe", "--prompt-example", help="Specify the example prompt")
-    parser.add_argument("-tp", "--temperature", type=float, help="Specify the temperature")
+    parser.add_argument("command", nargs='?', help="Command to execute", default=COMMAND)
+    parser.add_argument("-t", "--template", help="Define a prompt template", default=TEMPLATE)
+    parser.add_argument("-s", "--schema", help="Specify the schema file", default=SCHEMA)
+    parser.add_argument("-c", "--chat-context", help="Specify the chat context", default=CHAT_CONTEXT)
+    parser.add_argument("-pp", "--prompt-primer", help="Primer prompt input", default=PROMPT_PRIMER)
+    parser.add_argument("-ps", "--prompt-system", help="Specify the system prompt", default=PROMPT_SYSTEM)
+    parser.add_argument("-pr", "--prompt-role", help="Specify the role prompt", default=PROMPT_ROLE)
+    parser.add_argument("-pi", "--prompt-instructions", help="Specify the instructions prompt", default=PROMPT_INSTRUCTIONS)
+    parser.add_argument("-pc", "--prompt-context", help="Specify the context prompt", default=PROMPT_CONTEXT)
+    parser.add_argument("-po", "--prompt-output", help="Specify the output prompt", default=PROMPT_OUTPUT)
+    parser.add_argument("-pe", "--prompt-example", help="Specify the example prompt", default=PROMPT_EXAMPLE)
+    parser.add_argument("-tp", "--temperature", type=float, help="Specify the temperature", default=TEMPERATURE)
     parser.add_argument("--dry-run", action="store_true", help="Output the prompt without executing")
-    parser.add_argument("--cllm-dir", help="Path to the cllm directory", default=f"{os.getcwd()}/.cllm")
-    parser.add_argument("--cllm-trace-id", help="Specify a trace id")
-    parser.add_argument("prompt_input", nargs='?', help="Input for the prompt")
+    parser.add_argument("--cllm-dir", help="Path to the cllm directory", default=CLLM_DIR)
+    parser.add_argument("--cllm-trace-id", help="Specify a trace id", default=CLLM_TRACE_ID)
+    parser.add_argument("prompt_input", nargs='?', help="Input for the prompt", default=PROMPT_INPUT)
     args = parser.parse_args()
 
     config = {
-        "command": os.getenv('CLLM_COMMAND', args.command),
-        "template": os.getenv('CLLM_TEMPLATE', args.template),
-        "schema": os.getenv('CLLM_SCHEMA', args.schema),
-        "chat_context": os.getenv('CLLM_CHAT_CONTEXT', args.chat_context),
-        "prompt_primer": os.getenv('CLLM_PROMPT_PRIMER', args.prompt_primer),
-        "prompt_system": os.getenv('CLLM_PROMPT_SYSTEM', args.prompt_system),
-        "prompt_role": os.getenv('CLLM_PROMPT_ROLE', args.prompt_role),
-        "prompt_instructions": os.getenv('CLLM_PROMPT_INSTRUCTIONS', args.prompt_instructions),
-        "prompt_context": os.getenv('CLLM_PROMPT_CONTEXT', args.prompt_context),
-        "prompt_output": os.getenv('CLLM_PROMPT_OUTPUT', args.prompt_output),
-        "prompt_example": os.getenv('CLLM_PROMPT_EXAMPLE', args.prompt_example),
-        "temperature": os.getenv('CLLM_TEMPERATURE', args.temperature),
-        "cllm_dir": os.getenv('CLLM_DIR', args.cllm_dir),
-        "prompt_input": os.getenv('CLLM_PROMPT_INPUT', args.prompt_input),
+        "command": args.command,
+        "template": args.template,
+        "schema": args.schema,
+        "chat_context": args.chat_context,
+        "prompt_primer": args.prompt_primer,
+        "prompt_system": args.prompt_system,
+        "prompt_role": args.prompt_role,
+        "prompt_instructions": args.prompt_instructions,
+        "prompt_context": args.prompt_context,
+        "prompt_output": args.prompt_output,
+        "prompt_example": args.prompt_example,
+        "temperature": args.temperature,
+        "cllm_dir": args.cllm_dir,
+        "prompt_input": args.prompt_input,
         "prompt_stdin": None,
-        "cllm_trace_id": os.getenv('CLLM_TRACE_ID', args.cllm_trace_id),
+        "cllm_trace_id": args.cllm_trace_id,
         "dry_run": args.dry_run
     }
 
