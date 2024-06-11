@@ -37,40 +37,52 @@ The `cllm` toolkit attempts to solve these issues by being bash centric. Allowin
 So far this has only been verified on MacOS. It should work on Linux. It may work on Windows, but I have not tested it.
 
 
-## Installation
+## Getting Started
 
-```
+```bash
 git clone git@github.com:o3-cloud/cllm.git
 
 cd cllm
 
 poetry install
 poetry shell
+
+cllm
 ```
 
-### Installing `cllm` Command Globally
+## Installing `cllm` Globally
 
-For ease of use you can install the `cllm` command globally.
+To install the command to your default python environment, run a poetry build, then install the project's wheel.
 
-bash
 ```
-echo "export PATH=\$PATH:${VIRTUAL_ENV}/bin" >> ~/.bashrc
-echo "export CLLM_DIR=\$HOME/.cllm" >> ~/.bashrc
-```
+rm -rf dist
 
-zsh
-```
-echo "export PATH=\$PATH:${VIRTUAL_ENV}/bin" >> ~/.zprofile
-echo "export CLLM_DIR=\$HOME/.cllm" >> ~/.zprofile
+poetry build
+pip install dist/*.whl
+
+cllm --help
 ```
 
 Copy the `.cllm` directory to your home directory.
-    
+
 ```
 cp -r .cllm ~/.cllm
 ```
 
-### Via Docker
+Then initialize the `CLLM_DIR` environment variable in your
+`.bashrc` or `.zshrc`.
+
+bash
+```bash
+echo "export CLLM_DIR=\$HOME/.cllm" >> ~/.bashrc
+```
+
+zsh
+```bash
+echo "export CLLM_DIR=\$HOME/.cllm" >> ~/.zshrc
+```
+
+## Running Via Docker
 
 ```
 docker build -t cllm .
@@ -95,7 +107,7 @@ To learn more about the `cllm` command see the [cllm](docs/cllm.md) documentatio
 
 For more examples see the [examples](examples) directory.
 
-# Toolkit
+## Toolkit
 
 In addition to the `cllm` command, the `cllm` toolkit includes a suite of tools for interfacing with `cllm` output to build more complex prompt chaining processes.
 

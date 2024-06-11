@@ -6,3 +6,4 @@ tmp
 .gitignore
 doc
 Dockerfile
+images
