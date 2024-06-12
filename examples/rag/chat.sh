@@ -11,7 +11,7 @@ mkdir -p tmp
 if [ ! -d "${RAG_DIR}" ]; then
     echo "Scraper URL: ${URL}"
     cllm-load-sitemap -u "${URL}" > tmp/${RAG}-sitemap.json
-    cat tmp/${RAG}-sitemap.json | cllm-scraper > tmp/${RAG}-scrape.json
+    cat tmp/${RAG}-sitemap.json | cllm-load-website > tmp/${RAG}-scrape.json
 
     echo "Adding text to RAG store ${RAG}"
     cat tmp/${RAG}-scrape.json | cllm-splitter-docs > tmp/${RAG}-split.json

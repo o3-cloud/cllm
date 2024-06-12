@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import json
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 import sys
