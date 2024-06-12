@@ -15,7 +15,7 @@ if [ ! -d "${RAG_DIR}" ]; then
 
     echo "Adding text to RAG store ${RAG}"
     cat tmp/${RAG}-scrape.json | cllm-splitter-docs > tmp/${RAG}-split.json
-    cat tmp/${RAG}-split.json | cllm-vector-faiss-write -i "${RAG}"
+    cat tmp/${RAG}-split.json | cllm-vector-faiss -i "${RAG}" write
 fi
 
 
@@ -26,7 +26,7 @@ while true; do
         break
     fi
     echo ""
-    res="$(cllm-vector-faiss-load -k ${K} -i ${RAG} "${input}")"
+    res="$(cllm-vector-faiss -k ${K} -i ${RAG} read "${input}")"
     echo "Bot: $(cllm -pc "${res}" -t rag-qa gpt/4o "${input}")"
     echo ""
 done
