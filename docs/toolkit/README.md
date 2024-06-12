@@ -6,9 +6,7 @@ This toolkit consists of several command-line tools designed to assist with vari
 
 [cllm-splitter-text](cllm-splitter-text.md): A tool for splitting text into chunks using the RecursiveCharacterTextSplitter.
 
-[cllm-load-website](cllm-load-website.md): A tool for scraping webpages and outputting their content in either text or HTML format.
-
-[cllm-vector-faiss-write](cllm-vector-faiss-write.md): A script for saving data to a FAISS index using OpenAI embeddings.
+[cllm-load-website](cllm-load-webpages.md): A tool for scraping webpages and outputting their content in either text or HTML format.
 
 [cllm-output-code](cllm-output-code.md): A tool for processing and optionally installing dependencies for code provided via standard input.
 
@@ -16,7 +14,7 @@ This toolkit consists of several command-line tools designed to assist with vari
 
 [cllm-load-files](cllm-load-files.md): A tool for loading and splitting files into chunks.
 
-[cllm-vector-faiss-load](cllm-vector-faiss-load.md): A tool for performing similarity searches on a FAISS index using OpenAI embeddings.
+[cllm-vector-faiss](cllm-vector-faiss.md): A tool for read and writing to a FAISS index using OpenAI embeddings.
 
 [cllm-gen-dalle](cllm-gen-dalle.md): A tool for generating images using OpenAI's DALL-E model.
 

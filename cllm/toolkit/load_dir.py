@@ -49,7 +49,7 @@ def main() -> None:
     parser.add_argument('-f', '--output_file', type=str, help='Output file for the JSON data')
     args = parser.parse_args()
 
-    logging.basicConfig(level=os.environ.get("LOGLEVEL"))
+    logging.basicConfig(level=os.environ.get("CLLM_LOGLEVEL"))
 
     documents = directory_load(args.directory, args.glob_pattern, args.chunk_size, args.chunk_overlap, args.use_multithreading)
     json_data = convert_docs_to_json(documents)
