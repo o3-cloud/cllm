@@ -95,6 +95,11 @@ Accepting stdin
 cat README.md | docker run -e OPENAI_API_KEY=$OPENAI_API_KEY -i --rm cllm -t qa gpt/4o "How do I use cllm with docker and stdin?"
 ```
 
+## CLLM Directory
+
+The `cllm` toolkit uses a `.cllm` directory in your home directory to store configuration files and data.
+By default it checks the current working directory for a `.cllm` directory. If it does not find one, it will then use the one provided by the `CLLM_DIR` environment variable.
+
 ## CLLM Command
 
 Here is an example of how you might use the `cllm` toolkit to generate text from a prompt.
