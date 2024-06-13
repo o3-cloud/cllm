@@ -1,4 +1,4 @@
 model: llama3
-description: A system that uses a local llm model for generating responses.
+provider: ollama
+description: Llama3 7b model locally provided by Ollama 
 temperature: 0
-base_url: http://localhost:11434/v1

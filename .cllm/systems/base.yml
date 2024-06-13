@@ -1,3 +1,4 @@
 model: gpt-4o
-description: A basic system. No system prompt is provided.
+provider: openai
+description: GPT-4o model provided by OpenAI
 temperature: 0

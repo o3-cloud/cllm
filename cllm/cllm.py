@@ -20,6 +20,8 @@ CONTEXTS_DIR = "contexts"
 DEFAULT_TEMPLATE = "default"
 CONFIG_FILE_EXTENSION = ".yml"
 JSON_FILE_EXTENSION = ".json"
+BASE_URL_GROQ = "https://api.groq.com/openai/v1"
+BASE_URL_OLLAMA = "http://localhost:11434/v1"
 
 # Configure logging
 logging.basicConfig(level=os.environ.get("CLLM_LOGLEVEL"))
@@ -63,21 +65,29 @@ def get_system_config(command: str, cllm_dir: str) -> Optional[Dict[str, Any]]:
         return load_yaml_file(system_config_path)
     return None
 
-def get_openai_client(base_url: Optional[str] = None) -> OpenAI:
+def get_openai_client() -> OpenAI:
     """Get an OpenAI client instance."""
     openai_config = {"api_key": os.getenv("OPENAI_API_KEY")}
-    if base_url:
-        openai_config["base_url"] = base_url
     return OpenAI(**openai_config)
+
+def get_ollama_client() -> OpenAI:
+    """Get an Ollama client instance."""
+    openai_config = {"api_key": os.getenv("OPENAI_API_KEY"), "base_url": BASE_URL_OLLAMA}
+    return OpenAI(**openai_config)
+
+def get_groq_client() -> OpenAI:
+    """Get a Groq client instance."""
+    groq_config = {"api_key": os.getenv("GROQ_API_KEY"), "base_url": BASE_URL_GROQ}
+    return OpenAI(**groq_config)
 
 def build_cllm_prompt(template: str, cllm_dir: str, context: Dict[str, Any]) -> str:
     """Build the CLLM prompt based on the provided template and context."""
     return generate_prompt_from_template(template, cllm_dir, context)
 
-def handle_list_command(cllm_dir: str) -> None:
-    """Handle the 'list' command by listing available systems."""
+def handle_systems_command(cllm_dir: str) -> None:
+    """Handle the 'systems' command by listing available systems."""
     print("Available systems:")
-    list_available_items(f"{cllm_dir}/{SYSTEMS_DIR}", ["name", "description", "model"])
+    list_available_items(f"{cllm_dir}/{SYSTEMS_DIR}", ["name", "description", "provider", "model"])
     sys.exit(0)
 
 def handle_schemas_command(cllm_dir: str) -> None:
@@ -85,6 +95,23 @@ def handle_schemas_command(cllm_dir: str) -> None:
     print("Available schemas:")
     list_available_items(f"{cllm_dir}/{SCHEMAS_DIR}", ["name", "description"])
     sys.exit(0)
+
+def get_client(provider: str) -> OpenAI:
+    """Get a client instance based on the provider."""
+
+    client = None
+    if provider == 'openai':
+        client = get_openai_client()
+    elif provider == 'ollama':
+        client = get_ollama_client()
+    elif provider == 'groq':
+        client = get_groq_client()
+    else:
+        logger.error(f"Provider '{provider}' not supported")
+        sys.exit(1)
+
+    return client
+
 
 def cllm(command: str, 
          template: Optional[str], 
@@ -105,8 +132,8 @@ def cllm(command: str,
          dry_run: bool) -> str:
     """Main function to handle CLLM commands and generate prompts."""
     
-    if command == 'list':
-        handle_list_command(cllm_dir)
+    if command == 'systems':
+        handle_systems_command(cllm_dir)
 
     if command == 'schemas':
         handle_schemas_command(cllm_dir)
@@ -147,8 +174,9 @@ def cllm(command: str,
     model = system_config.get('model')
     system_temperature = temperature if temperature is not None else system_config.get('temperature')
     system_prompt = prompt_system if prompt_system is not None else system_config.get('system_prompt')
+    provider = system_config.get('provider', 'openai')
 
-    client = get_openai_client(system_config.get('base_url'))
+    client = get_client(provider)
 
     messages = []
     if system_prompt:
