@@ -31,6 +31,7 @@ The `cllm` toolkit attempts to solve these issues by being bash centric. Allowin
 
 - jq
 - Ollama
+- Groq API Key set as `GROQ_API_KEY` environment variable
 
 ## Note
 
@@ -117,3 +118,13 @@ For more examples see the [examples](examples) directory.
 In addition to the `cllm` command, the `cllm` toolkit includes a suite of tools for interfacing with `cllm` output to build more complex prompt chaining processes.
 
 To learn more about the toolkit see the [toolkit](docs/toolkit/README.md) documentation.
+
+
+## LLM Model Provides
+
+The `cllm` command currently supports the following models providers:
+
+- OpenAI - https://platform.openai.com/docs/introduction
+- Ollama - https://www.ollama.com/
+- Groq - https://groq.com/
+

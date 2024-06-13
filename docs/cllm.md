@@ -2,13 +2,14 @@
 
 The Command Line Language Model (CLLM) Interface is a tool designed to facilitate interactions with language models via the command line. It provides various functionalities such as listing available systems and schemas, generating prompts from templates, and validating responses against schemas.
 
+
 ## Usage
 
 To use the CLLM interface, you can run the `cllm` command followed by the appropriate arguments and options. Below is a detailed explanation of the available commands and options.
 
 ### Commands
 
-- `list`: Lists all available systems.
+- `systems`: Lists all available systems.
 - `schemas`: Lists all available schemas.
 
 if one of the built-in commands is not found, `cllm` will attempt to run the command as a system. System configurations are stored in the $CLLM_PATH/systems directory.
@@ -50,10 +51,28 @@ temperature: 0
 
 By default `cllm` expects that a `.cllm` folder exists in the current working directory. This folder should contain the `systems`, `templates` and `schemas` directories. You can override this by setting the `CLLM_PATH` environment variable.
 
-#### Listing Available Systems
+#### Systems Files
+
+The system files are stored in the $CLLM_PATH/systems directory. The system files are YAML files that contain the configuration for the system.
+
+Example:
+
+`$CLLM_PATH/systems/base.yml`
+
+```yaml
+
+model: gpt-4o
+provider: openai
+description: A basic system. No system prompt is provided.
+system_prompt: A system prompt is provided.
+temperature: 0
+
+```
+
+### Listing Available Systems
 
 ```bash
-cllm list
+cllm systems
 ```
 
 #### Listing Available Schemas
@@ -67,6 +86,7 @@ cllm schemas
 ```bash
 cllm gpt/3.5 -pi "Who are the members of the Beatles?"
 ```
+
 
 ## Persistent Context
 
