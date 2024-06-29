@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "cllm"
-version = "0.1.0"
+version = "0.1.1"
 description = "LLM Prompt Chaining in Bash"
 authors = ["owen.zanzal <ozanzal@gmail.com>"]
 license = "MIT"
@@ -24,6 +24,7 @@ jinja2 = "^3.1.4"
 unstructured = "^0.14.5"
 
 webdriver-manager = "^4.0.1"
+litellm = "^1.41.0"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"

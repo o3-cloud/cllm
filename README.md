@@ -30,8 +30,7 @@ The `cllm` toolkit attempts to solve these issues by being bash centric. Allowin
 ### Recommended
 
 - jq
-- Ollama
-- Groq API Key set as `GROQ_API_KEY` environment variable
+- Additional LLM API Keys
 
 ## Note
 
@@ -122,9 +121,22 @@ To learn more about the toolkit see the [toolkit](docs/toolkit/README.md) docume
 
 ## LLM Model Provides
 
-The `cllm` command currently supports the following models providers:
+The `cllm` command currently supports a large number of model providers:
 
-- OpenAI - https://platform.openai.com/docs/introduction
-- Ollama - https://www.ollama.com/
-- Groq - https://groq.com/
+| name          | description                                   | provider   | model                      |
+|---------------|-----------------------------------------------|------------|----------------------------|
+| gpt/4         | OpenAI gpt-4-turbo for general purpose.       | openai     | gpt-4-turbo                |
+| gpt/3.5       | OpenAI gpt-3.5-turbo for general purpose.     | openai     | gpt-3.5-turbo              |
+| gpt/4o        | OpenAI gpt-4o for general purpose.            | openai     | gpt-4o                     |
+| claude/opus   | Claude 3.5 Opus model provided by Anthropic   | anthropic  | claude-3-opus-20240229     |
+| claude/sonnet | Claude 3.5 Sonnet model provided by Anthropic | anthropic  | claude-3-5-sonnet-20240620 |
+| claude/haiku  | Claude Haiku model provided by Anthropic      | anthropic  | claude-3-haiku-20240307    |
+| groq/llama    | Llama3 70b model provided by Groq             | groq       | llama3-70b-8192            |
+| groq/gemma    | Gemma 7b model provided by Groq               | groq       | gemma-7b-it                |
+| groq/mixtral  | Mixtral 8x7b model provided by Groq           | groq       | mixtral-8x7b-32768         |
+| l/qwen        | Qwen 0.5b model locally provided by Ollama    | ollama     | qwen:0.5b                  |
+| l/llama       | Llama3 7b model locally provided by Ollama    | ollama     | llama3                     |
+| l/phi         | Phi3 7b model locally provided by Ollama      | ollama     | phi3                       |
 
+
+Additional models can be added by adding a new system.yml file to the `~/.cllm/systems` directory.

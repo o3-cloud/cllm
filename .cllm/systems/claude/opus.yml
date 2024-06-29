@@ -1,0 +1,4 @@
+model: claude-3-opus-20240229
+provider: anthropic
+description: Claude 3.5 Opus model provided by Anthropic
+temperature: 0
