@@ -1,0 +1,4 @@
+model: qwen:0.5b
+provider: ollama
+description: Qwen 0.5b model locally provided by Ollama 
+temperature: 0

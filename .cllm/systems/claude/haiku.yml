@@ -1,0 +1,4 @@
+model: claude-3-haiku-20240307
+provider: anthropic
+description: Claude Haiku model provided by Anthropic
+temperature: 0

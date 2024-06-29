@@ -4,6 +4,7 @@ from pathlib import Path
 import sys
 import jsonschema
 from openai import OpenAI
+from litellm import completion
 from tabulate import tabulate
 from jinja2 import Environment, FileSystemLoader
 import os
@@ -96,23 +97,6 @@ def handle_schemas_command(cllm_dir: str) -> None:
     list_available_items(f"{cllm_dir}/{SCHEMAS_DIR}", ["name", "description"])
     sys.exit(0)
 
-def get_client(provider: str) -> OpenAI:
-    """Get a client instance based on the provider."""
-
-    client = None
-    if provider == 'openai':
-        client = get_openai_client()
-    elif provider == 'ollama':
-        client = get_ollama_client()
-    elif provider == 'groq':
-        client = get_groq_client()
-    else:
-        logger.error(f"Provider '{provider}' not supported")
-        sys.exit(1)
-
-    return client
-
-
 def cllm(command: str, 
          template: Optional[str], 
          schema: Optional[str], 
@@ -171,12 +155,11 @@ def cllm(command: str,
         }
         cllm_prompt = build_cllm_prompt("schema", cllm_dir, context)
 
+    provider = system_config.get('provider')
     model = system_config.get('model')
+    model = f"{provider}/{model}"
     system_temperature = temperature if temperature is not None else system_config.get('temperature')
     system_prompt = prompt_system if prompt_system is not None else system_config.get('system_prompt')
-    provider = system_config.get('provider', 'openai')
-
-    client = get_client(provider)
 
     messages = []
     if system_prompt:
@@ -198,7 +181,7 @@ def cllm(command: str,
         return cllm_prompt
 
     try:
-        response = client.chat.completions.create(model=model, temperature=system_temperature, messages=messages)
+        response = completion(model=model, temperature=system_temperature, messages=messages)
         response_message = response.choices[0].message
 
         if schema:
