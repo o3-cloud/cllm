@@ -3,7 +3,6 @@ import json
 from pathlib import Path
 import sys
 import jsonschema
-from openai import OpenAI
 from litellm import completion
 from tabulate import tabulate
 from jinja2 import Environment, FileSystemLoader
@@ -65,21 +64,6 @@ def get_system_config(command: str, cllm_dir: str) -> Optional[Dict[str, Any]]:
     if os.path.exists(system_config_path):
         return load_yaml_file(system_config_path)
     return None
-
-def get_openai_client() -> OpenAI:
-    """Get an OpenAI client instance."""
-    openai_config = {"api_key": os.getenv("OPENAI_API_KEY")}
-    return OpenAI(**openai_config)
-
-def get_ollama_client() -> OpenAI:
-    """Get an Ollama client instance."""
-    openai_config = {"api_key": os.getenv("OPENAI_API_KEY"), "base_url": BASE_URL_OLLAMA}
-    return OpenAI(**openai_config)
-
-def get_groq_client() -> OpenAI:
-    """Get a Groq client instance."""
-    groq_config = {"api_key": os.getenv("GROQ_API_KEY"), "base_url": BASE_URL_GROQ}
-    return OpenAI(**groq_config)
 
 def build_cllm_prompt(template: str, cllm_dir: str, context: Dict[str, Any]) -> str:
     """Build the CLLM prompt based on the provided template and context."""
