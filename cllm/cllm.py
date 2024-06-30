@@ -97,7 +97,8 @@ def cllm(command: str,
          prompt_input: Optional[str],
          prompt_stdin: Optional[str],
          cllm_trace_id: Optional[str],
-         dry_run: bool) -> str:
+         dry_run: bool,
+         max_messages: Optional[int] = None) -> str:
     """Main function to handle CLLM commands and generate prompts."""
     
     if command == 'systems':
@@ -161,6 +162,9 @@ def cllm(command: str,
 
     messages.append({"role": "user", "content": cllm_prompt})
 
+    if max_messages is not None and len(messages) > max_messages:
+        messages = messages[-max_messages:]
+
     if dry_run:
         return cllm_prompt
 
@@ -173,6 +177,8 @@ def cllm(command: str,
         
         if chat_context:
             messages.append({"role": "assistant", "content": response_message.content})
+            if max_messages is not None and len(messages) > max_messages:
+                messages = messages[-max_messages:]
             with open(f"{cllm_dir}/{CONTEXTS_DIR}/{chat_context}{JSON_FILE_EXTENSION}", 'w') as f:
                 f.write(json.dumps(messages, indent=4))
 
@@ -200,6 +206,7 @@ def main() -> None:
     parser.add_argument("--dry-run", action="store_true", help="Output the prompt without executing")
     parser.add_argument("--cllm-dir", help="Path to the cllm directory", default=CLLM_DIR)
     parser.add_argument("--cllm-trace-id", help="Specify a trace id", default=CLLM_TRACE_ID)
+    parser.add_argument("-mm", "--max-messages", type=int, help="Limit the number of saved messages in the chat context", default=None)
     parser.add_argument("prompt_input", nargs='?', help="Input for the prompt", default=PROMPT_INPUT)
     args = parser.parse_args()
 
@@ -220,7 +227,8 @@ def main() -> None:
         "prompt_input": args.prompt_input,
         "prompt_stdin": None,
         "cllm_trace_id": args.cllm_trace_id,
-        "dry_run": args.dry_run
+        "dry_run": args.dry_run,
+        "max_messages": args.max_messages
     }
 
     if not sys.stdin.isatty():
