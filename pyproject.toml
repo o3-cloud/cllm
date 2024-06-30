@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "cllm"
-version = "0.1.1"
+version = "0.1.2"
 description = "LLM Prompt Chaining in Bash"
 authors = ["owen.zanzal <ozanzal@gmail.com>"]
 license = "MIT"
