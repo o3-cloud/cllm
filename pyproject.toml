@@ -31,6 +31,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
 cllm = 'cllm.cllm:main'
+cllm-prompt = 'cllm.toolkit.prompt:main'
 cllm-gen-dalle = 'cllm.toolkit.gen_dalle:main'
 cllm-load-dir = 'cllm.toolkit.load_dir:main'
 cllm-load-files = 'cllm.toolkit.load_files:main'
