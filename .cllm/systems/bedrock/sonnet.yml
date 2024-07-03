@@ -1,0 +1,4 @@
+model: anthropic.claude-3-5-sonnet-20240620-v1:0
+provider: bedrock
+description: Antropic Claude Sonnet 3.5 model provided by AWS bedrock
+temperature: 0
