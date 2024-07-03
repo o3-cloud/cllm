@@ -1,0 +1,4 @@
+model: gemini-1.5-pro
+provider: gemini
+description: Gemini Pro 1.5 model provided by Google gemini
+temperature: 0

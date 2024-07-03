@@ -1,0 +1,4 @@
+model: mistral.mixtral-8x7b-instruct-v0:1
+provider: bedrock
+description: Mistral Mixtral 8x7b model provided by AWS bedrock
+temperature: 0

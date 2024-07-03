@@ -1,0 +1,4 @@
+model: meta.llama3-70b-instruct-v1:0
+provider: bedrock
+description: Llama3 70b model provided by AWS bedrock
+temperature: 0
