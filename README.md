@@ -123,20 +123,29 @@ To learn more about the toolkit see the [toolkit](docs/toolkit/README.md) docume
 
 The `cllm` command currently supports a large number of model providers:
 
-| name          | description                                   | provider   | model                      |
-|---------------|-----------------------------------------------|------------|----------------------------|
-| gpt/4         | OpenAI gpt-4-turbo for general purpose.       | openai     | gpt-4-turbo                |
-| gpt/3.5       | OpenAI gpt-3.5-turbo for general purpose.     | openai     | gpt-3.5-turbo              |
-| gpt/4o        | OpenAI gpt-4o for general purpose.            | openai     | gpt-4o                     |
-| claude/opus   | Claude 3.5 Opus model provided by Anthropic   | anthropic  | claude-3-opus-20240229     |
-| claude/sonnet | Claude 3.5 Sonnet model provided by Anthropic | anthropic  | claude-3-5-sonnet-20240620 |
-| claude/haiku  | Claude Haiku model provided by Anthropic      | anthropic  | claude-3-haiku-20240307    |
-| groq/llama    | Llama3 70b model provided by Groq             | groq       | llama3-70b-8192            |
-| groq/gemma    | Gemma 7b model provided by Groq               | groq       | gemma-7b-it                |
-| groq/mixtral  | Mixtral 8x7b model provided by Groq           | groq       | mixtral-8x7b-32768         |
-| l/qwen        | Qwen 0.5b model locally provided by Ollama    | ollama     | qwen:0.5b                  |
-| l/llama       | Llama3 7b model locally provided by Ollama    | ollama     | llama3                     |
-| l/phi         | Phi3 7b model locally provided by Ollama      | ollama     | phi3                       |
+| name | description | provider | model |
+|------|-------------|----------|-------|
+| base2 | A basic system. No system prompt is provided. | openai | gpt-4o |
+| base | GPT-4o model provided by OpenAI | openai | gpt-4o |
+| gemini/pro | Gemini Pro 1.5 model provided by Google gemini | gemini | gemini-1.5-pro |
+| gemini/flash | Gemini Flash 1.5 model provided by Google Gemini | gemini | gemini-1.5-flash |
+| gpt/4 | OpenAI gpt-4-turbo for general purpose. | openai | gpt-4-turbo |
+| gpt/3.5 | OpenAI gpt-3.5-turbo for general purpose. | openai | gpt-3.5-turbo |
+| gpt/4o | OpenAI gpt-4o for general purpose. | openai | gpt-4o |
+| claude/opus | Claude 3.5 Opus model provided by Anthropic | anthropic | claude-3-opus-20240229 |
+| claude/sonnet | Claude 3.5 Sonnet model provided by Anthropic | anthropic | claude-3-5-sonnet-20240620 |
+| claude/haiku | Claude Haiku model provided by Anthropic | anthropic | claude-3-haiku-20240307 |
+| groq/llama | Llama3 70b model provided by Groq | groq | llama3-70b-8192 |
+| groq/gemma | Gemma 7b model provided by Groq | groq | gemma-7b-it |
+| groq/mixtral | Mixtral 8x7b model provided by Groq | groq | mixtral-8x7b-32768 |
+| bedrock/command-r | Cohere Command-R+ model provided by AWS bedrock | bedrock | cohere.command-r-plus-v1:0 |
+| bedrock/llama | Llama3 70b model provided by AWS bedrock | bedrock | meta.llama3-70b-instruct-v1:0 |
+| bedrock/sonnet | Antropic Claude Sonnet 3.5 model provided by AWS bedrock | bedrock | anthropic.claude-3-5-sonnet-20240620-v1:0 |
+| bedrock/mistral | Mistral Mixtral 8x7b model provided by AWS bedrock | bedrock | mistral.mixtral-8x7b-instruct-v0:1 |
+| bedrock/haiku | Anthropic Claude Haiku 3 model provided by AWS bedrock | bedrock | anthropic.claude-3-haiku-20240307-v1:0 |
+| l/qwen | Qwen 0.5b model locally provided by Ollama | ollama | qwen:0.5b |
+| l/llama | Llama3 7b model locally provided by Ollama | ollama | llama3 |
+| l/phi | Phi3 7b model locally provided by Ollama | ollama | phi3 |            |
 
 
 Additional models can be added by adding a new system.yml file to the `~/.cllm/systems` directory.
