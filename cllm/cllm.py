@@ -1,4 +1,5 @@
 import argparse
+import base64
 import json
 from pathlib import Path
 import sys
@@ -20,8 +21,6 @@ CONTEXTS_DIR = "contexts"
 DEFAULT_TEMPLATE = "default"
 CONFIG_FILE_EXTENSION = ".yml"
 JSON_FILE_EXTENSION = ".json"
-BASE_URL_GROQ = "https://api.groq.com/openai/v1"
-BASE_URL_OLLAMA = "http://localhost:11434/v1"
 
 # Configure logging
 logging.basicConfig(level=os.environ.get("CLLM_LOGLEVEL"))
@@ -80,25 +79,30 @@ def handle_schemas_command(cllm_dir: str) -> None:
     print("Available schemas:")
     list_available_items(f"{cllm_dir}/{SCHEMAS_DIR}", ["name", "description"])
     sys.exit(0)
+    
+def is_file(file_path: str) -> bool:
+    """Check if a file exists."""
+    return os.path.exists(file_path)
 
 def cllm(command: str, 
-         template: Optional[str], 
-         schema: Optional[str], 
-         chat_context: Optional[str],
-         prompt_primer: Optional[str], 
-         prompt_system: Optional[str], 
-         prompt_role: Optional[str], 
-         prompt_instructions: Optional[str], 
-         prompt_context: Optional[str], 
-         prompt_output: Optional[str], 
-         prompt_example: Optional[str], 
-         temperature: Optional[float], 
-         cllm_dir: str, 
-         prompt_input: Optional[str],
-         prompt_stdin: Optional[str],
-         cllm_trace_id: Optional[str],
-         dry_run: bool,
-         max_messages: Optional[int] = None) -> str:
+        template: Optional[str], 
+        schema: Optional[str], 
+        chat_context: Optional[str],
+        prompt_primer: Optional[str], 
+        prompt_system: Optional[str], 
+        prompt_role: Optional[str], 
+        prompt_instructions: Optional[str], 
+        prompt_context: Optional[str], 
+        prompt_output: Optional[str], 
+        prompt_example: Optional[str], 
+        temperature: Optional[float], 
+        cllm_dir: str, 
+        prompt_input: Optional[str],
+        prompt_stdin: Optional[str],
+        image_prompt: Optional[str],
+        cllm_trace_id: Optional[str],
+        dry_run: bool,
+        max_messages: Optional[int] = None) -> str:
     """Main function to handle CLLM commands and generate prompts."""
     
     if command == 'systems':
@@ -160,7 +164,27 @@ def cllm(command: str,
     if prompt_primer:
         messages.append({"role": "user", "content": prompt_primer})
 
-    messages.append({"role": "user", "content": cllm_prompt})
+
+    if image_prompt:
+        
+        if is_file(image_prompt):
+            with open(image_prompt, "rb") as image_file:
+                image_prompt = f"data:image/png;base64,{base64.b64encode(image_file.read()).decode()}"
+        
+        messages.append({"role": "user", "content": [
+            {
+                "type": "text",
+                "text": cllm_prompt},
+            {
+                "type": "image_url",
+                "image_url": {
+                    "url": image_prompt
+                }
+            }
+        ]
+        })
+    else:
+        messages.append({"role": "user", "content": cllm_prompt})
 
     if max_messages is not None and len(messages) > max_messages:
         messages = messages[-max_messages:]
@@ -201,6 +225,7 @@ def main() -> None:
     parser.add_argument("-pi", "--prompt-instructions", help="Specify the instructions prompt", default=PROMPT_INSTRUCTIONS)
     parser.add_argument("-pc", "--prompt-context", help="Specify the context prompt", default=PROMPT_CONTEXT)
     parser.add_argument("-po", "--prompt-output", help="Specify the output prompt", default=PROMPT_OUTPUT)
+    parser.add_argument("-i", "--image", help="Specify an image path or URL for the prompt", default=IMAGE_PROMPT)
     parser.add_argument("-pe", "--prompt-example", help="Specify the example prompt", default=PROMPT_EXAMPLE)
     parser.add_argument("-tp", "--temperature", type=float, help="Specify the temperature", default=TEMPERATURE)
     parser.add_argument("--dry-run", action="store_true", help="Output the prompt without executing")
@@ -222,6 +247,7 @@ def main() -> None:
         "prompt_context": args.prompt_context,
         "prompt_output": args.prompt_output,
         "prompt_example": args.prompt_example,
+        "image_prompt": args.image,
         "temperature": args.temperature,
         "cllm_dir": args.cllm_dir,
         "prompt_input": args.prompt_input,

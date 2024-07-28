@@ -44,6 +44,7 @@ temperature: 0
 - `--cllm-dir`: Path to the CLLM directory. Default is the current working directory with `.cllm` appended.
 - `--cllm-trace-id`: Specify a trace ID.
 - `--max-messages`: Limit the number of saved messages in the chat context.
+- `--image`: Specify an image file path or URL to include in the prompt.
 - `prompt_input`: Input for the prompt.
 
 ### Example Usage
@@ -83,6 +84,18 @@ cllm schemas
 ```bash
 cllm gpt/3.5 -pi "Who are the members of the Beatles?"
 ```
+
+### Including Images in Prompts
+
+You can now include images in your prompts using the `--image` option. The image can be specified as a file path or a URL.
+
+```bash
+cllm gpt/4o -pi "Describe this image." --image /path/to/image.jpg
+```
+
+If the image is a file, it will be encoded to base64 and included in the prompt.
+
+**Note:** Not all models support image prompts. Check the model documentation for compatibility.
 
 ## Persistent Context
 
