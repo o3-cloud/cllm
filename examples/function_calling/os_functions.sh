@@ -58,8 +58,8 @@ availableFunctions='
         }
     },
     {
-        "name": "getTime",
-        "description": "Get the current time.",
+        "name": "getDateAndTime",
+        "description": "Get the current date and time.",
         "parameters": {}
     }
 ]
@@ -116,7 +116,7 @@ getFileContents() {
   echo "Contents of file ${directoryPath}: $(eval $cmd)"
 }
 
-getTime() {
+getDateAndTime() {
   echo "Current time: $(date +"%Y-%m-%d %H:%M:%S")"
 }
 

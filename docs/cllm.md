@@ -45,6 +45,7 @@ temperature: 0
 - `--cllm-trace-id`: Specify a trace ID.
 - `--max-messages`: Limit the number of saved messages in the chat context.
 - `--image`: Specify an image file path or URL to include in the prompt.
+- `--streaming`: Enable streaming output.
 - `prompt_input`: Input for the prompt.
 
 ### Example Usage
@@ -96,6 +97,18 @@ cllm gpt/4o -pi "Describe this image." --image /path/to/image.jpg
 If the image is a file, it will be encoded to base64 and included in the prompt.
 
 **Note:** Not all models support image prompts. Check the model documentation for compatibility.
+
+## Enabling Streaming
+To enable streaming, you can use the `--streaming` flag when executing the CLLM command. This flag can be added to any command that generates a response from the model.
+
+#### Example Usage
+Here’s how you can use the streaming feature in a command:
+
+```bash
+cllm --streaming gpt/4o "What is the weather like today?"
+```
+
+In this example, the `--streaming` flag is included, which will cause the bot to output its response in real-time as it is generated.
 
 ## Persistent Context
 
@@ -241,6 +254,7 @@ You can also set environment variables to provide default values for the options
 - `CLLM_PATH`
 - `CLLM_TRACE_ID`
 - `CLLM_PROMPT_INPUT`
+- `CLLM_STREAMING`
 
 ### Example with Environment Variables
 
