@@ -26,6 +26,7 @@ JSON_FILE_EXTENSION = ".json"
 logging.basicConfig(level=os.environ.get("CLLM_LOGLEVEL"))
 logger = logging.getLogger(__name__)
 
+
 def load_yaml_file(file_path: str) -> Dict[str, Any]:
     """Load a YAML file and return its contents as a dictionary."""
     try:
@@ -34,6 +35,7 @@ def load_yaml_file(file_path: str) -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Error loading YAML file {file_path}: {e}")
         sys.exit(1)
+
 
 def list_available_items(directory: str, headers: list) -> None:
     """List available items in a directory and print them in a table format."""
@@ -44,11 +46,13 @@ def list_available_items(directory: str, headers: list) -> None:
         table_data.append([name] + [data.get(header) for header in headers[1:]])
     print(tabulate(table_data, headers, tablefmt="grid"))
 
+
 def generate_prompt_from_template(template_name: str, cllm_dir: str, context: Dict[str, Any]) -> str:
     """Generate a prompt from a Jinja2 template."""
     template_env = Environment(loader=FileSystemLoader(f"{cllm_dir}/{TEMPLATES_DIR}"))
     template = template_env.get_template(f"{template_name}.tpl")
     return template.render(**context)
+
 
 def validate_response_with_schema(response_content: str, json_schema: str) -> None:
     """Validate a JSON response against a schema."""
@@ -57,6 +61,7 @@ def validate_response_with_schema(response_content: str, json_schema: str) -> No
     except jsonschema.ValidationError as e:
         raise ValueError(f"Schema validation error: {e.message}")
 
+
 def get_system_config(command: str, cllm_dir: str) -> Optional[Dict[str, Any]]:
     """Get the system configuration for a given command."""
     system_config_path = f"{cllm_dir}/{SYSTEMS_DIR}/{command}{CONFIG_FILE_EXTENSION}"
@@ -64,9 +69,11 @@ def get_system_config(command: str, cllm_dir: str) -> Optional[Dict[str, Any]]:
         return load_yaml_file(system_config_path)
     return None
 
+
 def build_cllm_prompt(template: str, cllm_dir: str, context: Dict[str, Any]) -> str:
     """Build the CLLM prompt based on the provided template and context."""
     return generate_prompt_from_template(template, cllm_dir, context)
+
 
 def handle_systems_command(cllm_dir: str) -> None:
     """Handle the 'systems' command by listing available systems."""
@@ -74,37 +81,41 @@ def handle_systems_command(cllm_dir: str) -> None:
     list_available_items(f"{cllm_dir}/{SYSTEMS_DIR}", ["name", "description", "provider", "model"])
     sys.exit(0)
 
+
 def handle_schemas_command(cllm_dir: str) -> None:
     """Handle the 'schemas' command by listing available schemas."""
     print("Available schemas:")
     list_available_items(f"{cllm_dir}/{SCHEMAS_DIR}", ["name", "description"])
     sys.exit(0)
-    
+
+
 def is_file(file_path: str) -> bool:
     """Check if a file exists."""
     return os.path.exists(file_path)
 
-def cllm(command: str, 
-        template: Optional[str], 
-        schema: Optional[str], 
-        chat_context: Optional[str],
-        prompt_primer: Optional[str], 
-        prompt_system: Optional[str], 
-        prompt_role: Optional[str], 
-        prompt_instructions: Optional[str], 
-        prompt_context: Optional[str], 
-        prompt_output: Optional[str], 
-        prompt_example: Optional[str], 
-        temperature: Optional[float], 
-        cllm_dir: str, 
-        prompt_input: Optional[str],
-        prompt_stdin: Optional[str],
-        image_prompt: Optional[str],
-        cllm_trace_id: Optional[str],
-        dry_run: bool,
-        max_messages: Optional[int] = None) -> str:
+
+def cllm(command: str,
+         template: Optional[str], 
+         schema: Optional[str], 
+         chat_context: Optional[str],
+         prompt_primer: Optional[str], 
+         prompt_system: Optional[str], 
+         prompt_role: Optional[str],
+         prompt_instructions: Optional[str],
+         prompt_context: Optional[str],
+         prompt_output: Optional[str],
+         prompt_example: Optional[str],
+         temperature: Optional[float],
+         cllm_dir: str,
+         prompt_input: Optional[str],
+         prompt_stdin: Optional[str],
+         image_prompt: Optional[str],
+         cllm_trace_id: Optional[str],
+         dry_run: bool,
+         max_messages: Optional[int] = None,
+         streaming: bool = False) -> str:
     """Main function to handle CLLM commands and generate prompts."""
-    
+
     if command == 'systems':
         handle_systems_command(cllm_dir)
 
@@ -164,9 +175,7 @@ def cllm(command: str,
     if prompt_primer:
         messages.append({"role": "user", "content": prompt_primer})
 
-
     if image_prompt:
-        
         if is_file(image_prompt):
             with open(image_prompt, "rb") as image_file:
                 image_prompt = f"data:image/png;base64,{base64.b64encode(image_file.read()).decode()}"
@@ -193,29 +202,48 @@ def cllm(command: str,
         return cllm_prompt
 
     try:
-        response = completion(model=model, temperature=system_temperature, messages=messages)
-        response_message = response.choices[0].message
+        response = completion(model=model,
+                              temperature=system_temperature,
+                              messages=messages,
+                              stream=streaming)
 
-        if schema:
-            validate_response_with_schema(response_message.content, schema_config.get('schema'))
-        
+        response_message = []
+        if streaming:
+
+            for part in response:
+                message = part.choices[0].delta.content or ""
+                if message:
+                    response_message.append(message)
+                    print(message, end="")
+
+            response_message = "".join(response_message)
+                
+        else:
+            response_message = response.choices[0].message.content
+
+            if schema:
+                validate_response_with_schema(response_message, schema_config.get('schema'))
+            
         if chat_context:
-            messages.append({"role": "assistant", "content": response_message.content})
+            messages.append({"role": "assistant", "content": response_message})
             if max_messages is not None and len(messages) > max_messages:
                 messages = messages[-max_messages:]
             with open(f"{cllm_dir}/{CONTEXTS_DIR}/{chat_context}{JSON_FILE_EXTENSION}", 'w') as f:
                 f.write(json.dumps(messages, indent=4))
-
-        return response_message.content
+                
+        return response_message
 
     except Exception as e:
         logger.error(f"Failed to call OpenAI API: {e}")
         sys.exit(1)
 
+
 def main() -> None:
     """Main entry point for the CLLM command-line interface."""
     parser = argparse.ArgumentParser(description="Command Line Language Model (CLLM) Interface")
-    parser.add_argument("command", nargs='?', help="Command to execute", default=COMMAND)
+    parser.add_argument("command", nargs='?',
+                        help="Command to execute", 
+                        default=COMMAND)
     parser.add_argument("-t", "--template", help="Define a prompt template", default=TEMPLATE)
     parser.add_argument("-s", "--schema", help="Specify the schema file", default=SCHEMA)
     parser.add_argument("-c", "--chat-context", help="Specify the chat context", default=CHAT_CONTEXT)
@@ -233,6 +261,7 @@ def main() -> None:
     parser.add_argument("--cllm-trace-id", help="Specify a trace id", default=CLLM_TRACE_ID)
     parser.add_argument("-mm", "--max-messages", type=int, help="Limit the number of saved messages in the chat context", default=None)
     parser.add_argument("prompt_input", nargs='?', help="Input for the prompt", default=PROMPT_INPUT)
+    parser.add_argument("--streaming", type=bool, help="Enable streaming mode", default=STREAMING)
     args = parser.parse_args()
 
     config = {
@@ -254,13 +283,17 @@ def main() -> None:
         "prompt_stdin": None,
         "cllm_trace_id": args.cllm_trace_id,
         "dry_run": args.dry_run,
-        "max_messages": args.max_messages
+        "max_messages": args.max_messages,
+        "streaming": args.streaming
     }
 
     if not sys.stdin.isatty():
         config['prompt_stdin'] = sys.stdin.read().strip()
 
-    print(cllm(**config))
+    response = cllm(**config)
+    if not config.get("streaming"):
+        print(response)
+
 
 if __name__ == '__main__':
     main()
