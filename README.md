@@ -19,7 +19,7 @@ Notebooks are great for documentation prototyping and sharing, but they are not 
 
 Agent frameworks are great for getting complex agent workflows up and running quickly, but they hide a lot of what is happening under the hood. Their configuration can be complex and very opinionated.
 
-The `cllm` toolkit attempts to solve these issues by being bash centric. Allowing you to chain LLM inference process with all the bash commands you are familiar using bash pipeing. Also giving you a suite of tools such as Vector Stores, Text Splitters, Data Loaders, and Ouput Parsers for building more complex prompt chaining flows all using bash scripting.
+The `cllm` toolkit attempts to solve these issues by being bash centric, allowing you to chain LLM inference processes with all the bash commands you are familiar with using bash piping. It also gives you a suite of tools such as Vector Stores, Text Splitters, Data Loaders, and Output Parsers for building more complex prompt chaining flows all using bash scripting.
 
 ## Requirements
 
