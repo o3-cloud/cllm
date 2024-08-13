@@ -261,7 +261,7 @@ def main() -> None:
     parser.add_argument("--cllm-trace-id", help="Specify a trace id", default=CLLM_TRACE_ID)
     parser.add_argument("-mm", "--max-messages", type=int, help="Limit the number of saved messages in the chat context", default=None)
     parser.add_argument("prompt_input", nargs='?', help="Input for the prompt", default=PROMPT_INPUT)
-    parser.add_argument("--streaming", type=bool, help="Enable streaming mode", default=STREAMING)
+    parser.add_argument("--streaming", action="store_true", help="Enable streaming mode", default=STREAMING)
     args = parser.parse_args()
 
     config = {
