@@ -98,6 +98,7 @@ def cllm(command: str,
          template: Optional[str], 
          schema: Optional[str], 
          chat_context: Optional[str],
+         chat_context_path: Optional[str],
          prompt_primer: Optional[str], 
          prompt_system: Optional[str], 
          prompt_role: Optional[str],
@@ -165,9 +166,14 @@ def cllm(command: str,
     if system_prompt:
         messages.append({"role": "system", "content": system_prompt})
 
+    if chat_context_path:
+        chat_context_path = f"{chat_context_path}/{chat_context}{JSON_FILE_EXTENSION}"
+    else:
+        chat_context_path = f"{cllm_dir}/{CONTEXTS_DIR}/{chat_context}{JSON_FILE_EXTENSION}"
+
     if chat_context:
         try:
-            with open(f"{cllm_dir}/{CONTEXTS_DIR}/{chat_context}{JSON_FILE_EXTENSION}", 'r') as f:
+            with open(chat_context_path, 'r') as f:
                 messages = json.loads(f.read())
         except FileNotFoundError:
             pass
@@ -228,7 +234,7 @@ def cllm(command: str,
             messages.append({"role": "assistant", "content": response_message})
             if max_messages is not None and len(messages) > max_messages:
                 messages = messages[-max_messages:]
-            with open(f"{cllm_dir}/{CONTEXTS_DIR}/{chat_context}{JSON_FILE_EXTENSION}", 'w') as f:
+            with open(chat_context_path, 'w') as f:
                 f.write(json.dumps(messages, indent=4))
                 
         return response_message
@@ -247,6 +253,7 @@ def main() -> None:
     parser.add_argument("-t", "--template", help="Define a prompt template", default=TEMPLATE)
     parser.add_argument("-s", "--schema", help="Specify the schema file", default=SCHEMA)
     parser.add_argument("-c", "--chat-context", help="Specify the chat context", default=CHAT_CONTEXT)
+    parser.add_argument("-cp", "--chat-context-path", help="Specify the chat context path", default=None)
     parser.add_argument("-pp", "--prompt-primer", help="Primer prompt input", default=PROMPT_PRIMER)
     parser.add_argument("-ps", "--prompt-system", help="Specify the system prompt", default=PROMPT_SYSTEM)
     parser.add_argument("-pr", "--prompt-role", help="Specify the role prompt", default=PROMPT_ROLE)
@@ -269,6 +276,7 @@ def main() -> None:
         "template": args.template,
         "schema": args.schema,
         "chat_context": args.chat_context,
+        "chat_context_path": args.chat_context_path,
         "prompt_primer": args.prompt_primer,
         "prompt_system": args.prompt_system,
         "prompt_role": args.prompt_role,
