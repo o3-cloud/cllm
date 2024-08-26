@@ -99,6 +99,7 @@ def cllm(command: str,
          schema: Optional[str], 
          chat_context: Optional[str],
          chat_context_path: Optional[str],
+         disable_chat_context_write: Optional[bool],
          prompt_primer: Optional[str], 
          prompt_system: Optional[str], 
          prompt_role: Optional[str],
@@ -230,7 +231,7 @@ def cllm(command: str,
             if schema:
                 validate_response_with_schema(response_message, schema_config.get('schema'))
             
-        if chat_context:
+        if chat_context and not disable_chat_context_write:
             messages.append({"role": "assistant", "content": response_message})
             if max_messages is not None and len(messages) > max_messages:
                 messages = messages[-max_messages:]
@@ -248,12 +249,13 @@ def main() -> None:
     """Main entry point for the CLLM command-line interface."""
     parser = argparse.ArgumentParser(description="Command Line Language Model (CLLM) Interface")
     parser.add_argument("command", nargs='?',
-                        help="Command to execute", 
+                        help="Command to execute",
                         default=COMMAND)
     parser.add_argument("-t", "--template", help="Define a prompt template", default=TEMPLATE)
     parser.add_argument("-s", "--schema", help="Specify the schema file", default=SCHEMA)
     parser.add_argument("-c", "--chat-context", help="Specify the chat context", default=CHAT_CONTEXT)
     parser.add_argument("-cp", "--chat-context-path", help="Specify the chat context path", default=None)
+    parser.add_argument("--disable-chat-context-write", action="store_true", help="Disable writing to the chat context")
     parser.add_argument("-pp", "--prompt-primer", help="Primer prompt input", default=PROMPT_PRIMER)
     parser.add_argument("-ps", "--prompt-system", help="Specify the system prompt", default=PROMPT_SYSTEM)
     parser.add_argument("-pr", "--prompt-role", help="Specify the role prompt", default=PROMPT_ROLE)
@@ -292,7 +294,8 @@ def main() -> None:
         "cllm_trace_id": args.cllm_trace_id,
         "dry_run": args.dry_run,
         "max_messages": args.max_messages,
-        "streaming": args.streaming
+        "streaming": args.streaming,
+        "disable_chat_context_write": args.disable_chat_context_write
     }
 
     if not sys.stdin.isatty():
