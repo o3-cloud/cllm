@@ -1,4 +1,4 @@
-model: gpt-4-turbo
+model: gpt-4o-mini
 provider: openai
-description: OpenAI gpt-4-turbo for general purpose.
+description: OpenAI GPT 4o mini for general purpose.
 temperature: 0
