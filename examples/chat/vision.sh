@@ -1,6 +1,6 @@
 #!/bin/bash
 
-CHAT_CONTEXT="chat-basic"
+CHAT_CONTEXT="chat-vision"
 
 echo "When you are done chatting type 'exit' to exit."
 while true; do
@@ -9,6 +9,7 @@ while true; do
         break
     fi
     echo -n "$(tput setaf 4)Bot: $(tput sgr0)"
-    cllm --streaming -c ${CHAT_CONTEXT} gpt/4o "${input}"
+    screencapture -x screenshot.png
+    cllm --streaming -i screenshot.png -c ${CHAT_CONTEXT} gpt/4o "${input}"
     echo ""
 done
