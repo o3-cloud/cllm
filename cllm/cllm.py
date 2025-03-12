@@ -124,6 +124,25 @@ def cllm(command: str,
     if command == 'schemas':
         handle_schemas_command(cllm_dir)
 
+    system_config = get_system_config(command, cllm_dir)
+    if not system_config:
+        logger.error(f"No system configuration found for system '{command}'")
+        sys.exit(1)
+
+    provider = system_config.get('provider')
+    model = system_config.get('model')
+    model = f"{provider}/{model}"
+    schema = schema if schema else system_config.get('schema')
+    system_temperature = temperature if temperature is not None else system_config.get('temperature')
+    system_prompt = prompt_system if prompt_system is not None else system_config.get('system_prompt')
+    prompt_primer = prompt_primer if prompt_primer is not None else system_config.get('prompt_primer')
+    prompt_role = prompt_role if prompt_role is not None else system_config.get('prompt_role')
+    prompt_instructions = prompt_instructions if prompt_instructions is not None else system_config.get('prompt_instructions')
+    prompt_context = prompt_context if prompt_context is not None else system_config.get('prompt_context')
+    prompt_output = prompt_output if prompt_output is not None else system_config.get('prompt_output')
+    prompt_example = prompt_example if prompt_example is not None else system_config.get('prompt_example')
+    streaming = streaming if streaming is not False else system_config.get('streaming')
+
     cllm_prompt = ""
     if template:
         context = {
@@ -136,11 +155,6 @@ def cllm(command: str,
             "PROMPT_EXAMPLE": prompt_example
         }
         cllm_prompt = build_cllm_prompt(template, cllm_dir, context)
-
-    system_config = get_system_config(command, cllm_dir)
-    if not system_config:
-        logger.error(f"No system configuration found for system '{command}'")
-        sys.exit(1)
 
     if schema:
         schema_path = f"{cllm_dir}/{SCHEMAS_DIR}/{schema}{CONFIG_FILE_EXTENSION}"
@@ -156,12 +170,6 @@ def cllm(command: str,
             "PROMPT_STDIN": prompt_stdin,
         }
         cllm_prompt = build_cllm_prompt("schema", cllm_dir, context)
-
-    provider = system_config.get('provider')
-    model = system_config.get('model')
-    model = f"{provider}/{model}"
-    system_temperature = temperature if temperature is not None else system_config.get('temperature')
-    system_prompt = prompt_system if prompt_system is not None else system_config.get('system_prompt')
 
     messages = []
     if system_prompt:
