@@ -1,4 +1,0 @@
-model: phi3
-provider: ollama
-description: Phi3 7b model locally provided by Ollama
-temperature: 0

@@ -1,3 +1,0 @@
-#!/bin/bash 
-
-pbpaste | cllm gpt/3.5 "summarize this"

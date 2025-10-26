@@ -1,4 +1,0 @@
-model: llama3
-provider: ollama
-description: Llama3 7b model locally provided by Ollama 
-temperature: 0

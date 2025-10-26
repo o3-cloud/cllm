@@ -1,4 +1,0 @@
-model: gemma-7b-it
-provider: groq
-description: Gemma 7b model provided by Groq
-temperature: 0

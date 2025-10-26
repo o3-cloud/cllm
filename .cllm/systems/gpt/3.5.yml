@@ -1,4 +1,0 @@
-model: gpt-3.5-turbo
-provider: openai
-description: OpenAI gpt-3.5-turbo for general purpose.
-temperature: 0

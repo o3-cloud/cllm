@@ -1,4 +1,0 @@
-model: mixtral-8x7b-32768
-provider: groq
-description: Mixtral 8x7b model provided by Groq
-temperature: 0

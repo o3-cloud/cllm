@@ -1,4 +1,0 @@
-model: gemini-1.5-flash
-provider: gemini
-description: Gemini Flash 1.5 model provided by Google Gemini
-temperature: 0

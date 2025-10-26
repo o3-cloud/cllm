@@ -1,4 +1,0 @@
-model: anthropic.claude-3-haiku-20240307-v1:0
-provider: bedrock
-description: Anthropic Claude Haiku 3 model provided by AWS bedrock
-temperature: 0

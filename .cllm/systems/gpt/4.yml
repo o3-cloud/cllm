@@ -1,4 +1,0 @@
-model: gpt-4o-mini
-provider: openai
-description: OpenAI GPT 4o mini for general purpose.
-temperature: 0

@@ -1,4 +1,0 @@
-model: llama3-70b-8192
-provider: groq
-description: Llama3 70b model provided by Groq
-temperature: 0

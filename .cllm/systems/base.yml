@@ -1,4 +1,0 @@
-model: gpt-4o
-provider: openai
-description: GPT-4o model provided by OpenAI
-temperature: 0
