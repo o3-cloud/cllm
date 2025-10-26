@@ -20,7 +20,12 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
 ]
-dependencies = []
+dependencies = [
+    "litellm>=1.79.0",
+]
+
+[project.scripts]
+cllm = "cllm.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/o3-cloud/cllm"
@@ -31,3 +36,12 @@ Issues = "https://github.com/o3-cloud/cllm/issues"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/cllm"]
+
+[tool.uv]
+dev-dependencies = [
+    "pytest>=8.3.5",
+    "pytest-asyncio>=0.24.0",
+]

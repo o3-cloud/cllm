@@ -59,36 +59,98 @@ docker run -it o3cloud/cllm:latest
 ### Basic Usage
 
 ```bash
-# Simple prompt
+# Simple prompt (uses gpt-3.5-turbo by default)
 cllm "What is the capital of France?"
 
 # Use a specific model
 cllm --model gpt-4 "Explain quantum computing"
 
-# Use a different provider
-cllm --provider anthropic --model claude-3-sonnet "Write a haiku"
+# Use a different provider (same interface!)
+cllm --model claude-3-opus-20240229 "Write a haiku"
+cllm --model gemini-pro "Tell me a joke"
+
+# Stream the response as it's generated
+cllm --model gpt-4 --stream "Tell me a story"
+
+# Read from stdin (pipe-friendly!)
+echo "What is 2+2?" | cllm --model gpt-4
+
+# Control creativity with temperature
+cllm --model gpt-4 --temperature 1.5 "Write a creative story"
+
+# Limit response length
+cllm --model gpt-4 --max-tokens 100 "Explain quantum computing"
 ```
 
 ### Configuration
 
-Create a `.cllm` directory in your home or project directory:
+Set up API keys as environment variables (LiteLLM conventions):
 
 ```bash
-mkdir -p ~/.cllm
+# OpenAI
+export OPENAI_API_KEY="sk-..."
+
+# Anthropic
+export ANTHROPIC_API_KEY="sk-ant-..."
+
+# Google/Gemini
+export GOOGLE_API_KEY="..."
+
+# Other providers follow similar patterns
+# See: https://docs.litellm.ai/docs/providers
 ```
 
-Add your API keys to `~/.cllm/config.json`:
+**Note**: CLLM uses [LiteLLM](https://github.com/BerriAI/litellm) for provider abstraction, supporting 100+ LLM providers with a unified interface. See [ADR-0002](docs/decisions/0002-use-litellm-for-llm-provider-abstraction.md) for details.
 
-```json
-{
-  "openai_api_key": "sk-...",
-  "anthropic_api_key": "sk-ant-...",
-  "google_api_key": "...",
-  "groq_api_key": "gsk_...",
-  "default_provider": "openai",
-  "default_model": "gpt-4-turbo"
-}
+### Python API
+
+CLLM can also be used as a Python library:
+
+```python
+from cllm import LLMClient
+
+# Initialize client
+client = LLMClient()
+
+# Simple completion
+response = client.complete(
+    model="gpt-4",
+    messages="What is the capital of France?"
+)
+print(response)  # "Paris"
+
+# Switch provider (same code!)
+response = client.complete(
+    model="claude-3-opus-20240229",
+    messages="What is the capital of France?"
+)
+
+# Multi-turn conversation
+conversation = [
+    {"role": "user", "content": "Hello!"},
+    {"role": "assistant", "content": "Hi! How can I help?"},
+    {"role": "user", "content": "What's 2+2?"}
+]
+response = client.chat(model="gpt-4", messages=conversation)
+
+# Streaming
+for chunk in client.complete(model="gpt-4", messages="Count to 5", stream=True):
+    print(chunk, end="", flush=True)
+
+# Async support
+import asyncio
+
+async def main():
+    response = await client.acomplete(
+        model="gpt-4",
+        messages="Hello!"
+    )
+    print(response)
+
+asyncio.run(main())
 ```
+
+See the [`examples/`](examples/) directory for more usage patterns.
 
 ## Advanced Usage
 
