@@ -26,8 +26,7 @@ def main():
     print("-" * 60)
     try:
         response = client.complete(
-            model="gpt-4",
-            messages="What is the capital of France? Answer in one word."
+            model="gpt-4", messages="What is the capital of France? Answer in one word."
         )
         print(f"Response: {response}")
     except Exception as e:
@@ -39,7 +38,7 @@ def main():
     try:
         response = client.complete(
             model="claude-3-opus-20240229",
-            messages="What is the capital of France? Answer in one word."
+            messages="What is the capital of France? Answer in one word.",
         )
         print(f"Response: {response}")
     except Exception as e:
@@ -51,7 +50,7 @@ def main():
     try:
         response = client.complete(
             model="gemini-pro",
-            messages="What is the capital of France? Answer in one word."
+            messages="What is the capital of France? Answer in one word.",
         )
         print(f"Response: {response}")
     except Exception as e:
@@ -63,12 +62,14 @@ def main():
     try:
         conversation = [
             {"role": "user", "content": "Hello! Can you help me?"},
-            {"role": "assistant", "content": "Of course! I'd be happy to help. What do you need?"},
-            {"role": "user", "content": "What's 2+2?"}
+            {
+                "role": "assistant",
+                "content": "Of course! I'd be happy to help. What do you need?",
+            },
+            {"role": "user", "content": "What's 2+2?"},
         ]
         response = client.chat(
-            model="gpt-4",  # Can switch to any provider
-            messages=conversation
+            model="gpt-4", messages=conversation  # Can switch to any provider
         )
         print(f"Response: {response}")
     except Exception as e:
@@ -80,9 +81,7 @@ def main():
     try:
         print("Response: ", end="", flush=True)
         for chunk in client.complete(
-            model="gpt-4",
-            messages="Count from 1 to 5.",
-            stream=True
+            model="gpt-4", messages="Count from 1 to 5.", stream=True
         ):
             print(chunk, end="", flush=True)
         print()  # New line after streaming
@@ -96,7 +95,7 @@ def main():
         response = client.complete(
             model="gpt-4",
             messages="Write a one-sentence creative story about a robot.",
-            temperature=1.5
+            temperature=1.5,
         )
         print(f"Response: {response}")
     except Exception as e:

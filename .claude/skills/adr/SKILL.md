@@ -40,16 +40,16 @@ Use this template when creating ADRs:
 
 ## Decision Drivers
 
-* {decision driver 1, e.g., a force, facing concern, …}
-* {decision driver 2, e.g., a force, facing concern, …}
-* … <!-- numbers of drivers can vary -->
+- {decision driver 1, e.g., a force, facing concern, …}
+- {decision driver 2, e.g., a force, facing concern, …}
+- … <!-- numbers of drivers can vary -->
 
 ## Considered Options
 
-* {title of option 1}
-* {title of option 2}
-* {title of option 3}
-* … <!-- numbers of options can vary -->
+- {title of option 1}
+- {title of option 2}
+- {title of option 3}
+- … <!-- numbers of options can vary -->
 
 ## Decision Outcome
 
@@ -57,9 +57,9 @@ Chosen option: "{title of option 1}", because {justification. e.g., only option,
 
 ### Consequences
 
-* Good, because {positive consequence, e.g., improvement of one or more desired qualities, …}
-* Bad, because {negative consequence, e.g., compromising one or more desired qualities, …}
-* … <!-- numbers of consequences can vary -->
+- Good, because {positive consequence, e.g., improvement of one or more desired qualities, …}
+- Bad, because {negative consequence, e.g., compromising one or more desired qualities, …}
+- … <!-- numbers of consequences can vary -->
 
 ### Confirmation
 
@@ -71,31 +71,31 @@ Chosen option: "{title of option 1}", because {justification. e.g., only option,
 
 {example | description | pointer to more information | …}
 
-* Good, because {argument a}
-* Good, because {argument b}
-* Neutral, because {argument c}
-* Bad, because {argument d}
-* … <!-- numbers of pros and cons can vary -->
+- Good, because {argument a}
+- Good, because {argument b}
+- Neutral, because {argument c}
+- Bad, because {argument d}
+- … <!-- numbers of pros and cons can vary -->
 
 ### {title of option 2}
 
 {example | description | pointer to more information | …}
 
-* Good, because {argument a}
-* Good, because {argument b}
-* Neutral, because {argument c}
-* Bad, because {argument d}
-* … <!-- numbers of pros and cons can vary -->
+- Good, because {argument a}
+- Good, because {argument b}
+- Neutral, because {argument c}
+- Bad, because {argument d}
+- … <!-- numbers of pros and cons can vary -->
 
 ### {title of option 3}
 
 {example | description | pointer to more information | …}
 
-* Good, because {argument a}
-* Good, because {argument b}
-* Neutral, because {argument c}
-* Bad, because {argument d}
-* … <!-- numbers of pros and cons can vary -->
+- Good, because {argument a}
+- Good, because {argument b}
+- Neutral, because {argument c}
+- Bad, because {argument d}
+- … <!-- numbers of pros and cons can vary -->
 
 ## More Information
 
@@ -109,9 +109,9 @@ Chosen option: "{title of option 1}", because {justification. e.g., only option,
 
 {Specify how much autonomy AI agents have when implementing this decision:}
 
-* **Strict**: Follow the decision exactly as specified with minimal deviation
-* **Flexible**: Adapt implementation details while maintaining core principles
-* **Exploratory**: Research and propose alternative approaches if better options emerge
+- **Strict**: Follow the decision exactly as specified with minimal deviation
+- **Flexible**: Adapt implementation details while maintaining core principles
+- **Exploratory**: Research and propose alternative approaches if better options emerge
 
 {Chosen level: [strict|flexible|exploratory]}
 
@@ -119,64 +119,66 @@ Chosen option: "{title of option 1}", because {justification. e.g., only option,
 
 {Document which AI systems should execute this decision and their configuration:}
 
-* Preferred AI tools: {e.g., Claude Code, GitHub Copilot, etc.}
-* Model parameters: {e.g., temperature, max tokens, etc.}
-* Special instructions: {any specific guidance for AI tools}
+- Preferred AI tools: {e.g., Claude Code, GitHub Copilot, etc.}
+- Model parameters: {e.g., temperature, max tokens, etc.}
+- Special instructions: {any specific guidance for AI tools}
 
 ### Test Expectations
 
 {Define validation criteria that should be met (TDD-oriented):}
 
-* {Expected test 1}
-* {Expected test 2}
-* {Performance criteria}
-* {Quality metrics}
+- {Expected test 1}
+- {Expected test 2}
+- {Performance criteria}
+- {Quality metrics}
 
 ### Dependencies
 
 {List related ADRs, system components, and external requirements:}
 
-* Related ADRs: {links to other ADRs}
-* System components: {affected modules, services, etc.}
-* External dependencies: {libraries, services, APIs, etc.}
+- Related ADRs: {links to other ADRs}
+- System components: {affected modules, services, etc.}
+- External dependencies: {libraries, services, APIs, etc.}
 
 ### Timeline
 
 {Implementation deadlines and review dates:}
 
-* Implementation deadline: {date}
-* First review: {date}
-* Revision triggers: {conditions that would require revisiting this decision}
+- Implementation deadline: {date}
+- First review: {date}
+- Revision triggers: {conditions that would require revisiting this decision}
 
 ### Risk Assessment
 
 {Identify and assess risks:}
 
 #### Technical Risks
-* {Risk 1}: {description and mitigation strategy}
-* {Risk 2}: {description and mitigation strategy}
+
+- {Risk 1}: {description and mitigation strategy}
+- {Risk 2}: {description and mitigation strategy}
 
 #### Business Risks
-* {Risk 1}: {description and mitigation strategy}
-* {Risk 2}: {description and mitigation strategy}
+
+- {Risk 1}: {description and mitigation strategy}
+- {Risk 2}: {description and mitigation strategy}
 
 ### Human Review
 
 {Specify approval requirements:}
 
-* Review required: {before implementation | after implementation | both}
-* Reviewers: {list of required approvers}
-* Approval criteria: {what needs to be verified}
+- Review required: {before implementation | after implementation | both}
+- Reviewers: {list of required approvers}
+- Approval criteria: {what needs to be verified}
 
 ### Feedback Log
 
 {Post-implementation notes - fill this out after implementation:}
 
-* Implementation date: {date}
-* Actual outcomes: {what actually happened}
-* Challenges encountered: {issues faced}
-* Lessons learned: {organizational learning}
-* Suggested improvements: {for future similar decisions}
+- Implementation date: {date}
+- Actual outcomes: {what actually happened}
+- Challenges encountered: {issues faced}
+- Lessons learned: {organizational learning}
+- Suggested improvements: {for future similar decisions}
 ```
 
 ## Best Practices
@@ -193,6 +195,7 @@ Chosen option: "{title of option 1}", because {justification. e.g., only option,
 **User request**: "Create an ADR for choosing PostgreSQL as our database"
 
 **Your response should**:
+
 1. Find the next ADR number
 2. Create a file like `docs/decisions/0005-use-postgresql-for-primary-database.md`
 3. Fill in the template with relevant information

@@ -5,6 +5,7 @@ This directory contains example scripts demonstrating how to use CLLM with diffe
 ## Prerequisites
 
 1. Install CLLM:
+
    ```bash
    uv pip install -e .
    ```
@@ -20,7 +21,9 @@ This directory contains example scripts demonstrating how to use CLLM with diffe
 ## Examples
 
 ### basic_usage.py
+
 Demonstrates basic usage patterns including:
+
 - Simple completions with different providers
 - Multi-turn conversations
 - Streaming responses
@@ -31,6 +34,7 @@ python examples/basic_usage.py
 ```
 
 ### async_usage.py
+
 Shows how to use async/await for concurrent queries to multiple providers.
 
 ```bash
@@ -38,6 +42,7 @@ python examples/async_usage.py
 ```
 
 ### provider_comparison.py
+
 Compares responses from different providers to the same prompt, demonstrating how easy it is to switch providers.
 
 ```bash
@@ -47,6 +52,7 @@ python examples/provider_comparison.py
 ## Key Concepts
 
 ### Switching Providers
+
 The main benefit of LiteLLM is that you use the same code for all providers:
 
 ```python
@@ -65,7 +71,9 @@ response = client.complete("gemini-pro", "Hello!")
 ```
 
 ### Model Names
+
 LiteLLM uses provider-specific model names:
+
 - OpenAI: `gpt-4`, `gpt-3.5-turbo`, etc.
 - Anthropic: `claude-3-opus-20240229`, `claude-3-sonnet-20240229`, etc.
 - Google: `gemini-pro`, `gemini-pro-vision`, etc.

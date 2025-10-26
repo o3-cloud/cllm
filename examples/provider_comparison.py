@@ -6,8 +6,9 @@ This example demonstrates how easy it is to switch between providers
 and compare their responses to the same prompt.
 """
 
-from cllm import LLMClient
 import time
+
+from cllm import LLMClient
 
 
 def compare_providers(client: LLMClient, prompt: str, models: dict):
@@ -30,9 +31,7 @@ def compare_providers(client: LLMClient, prompt: str, models: dict):
         try:
             start_time = time.time()
             response = client.complete(
-                model=model_name,
-                messages=prompt,
-                max_tokens=100
+                model=model_name, messages=prompt, max_tokens=100
             )
             elapsed_time = time.time() - start_time
 
@@ -41,15 +40,11 @@ def compare_providers(client: LLMClient, prompt: str, models: dict):
             results[provider_name] = {
                 "response": response,
                 "time": elapsed_time,
-                "error": None
+                "error": None,
             }
         except Exception as e:
             print(f"Error: {e}")
-            results[provider_name] = {
-                "response": None,
-                "time": 0,
-                "error": str(e)
-            }
+            results[provider_name] = {"response": None, "time": 0, "error": str(e)}
 
     return results
 
@@ -60,7 +55,9 @@ def main():
     print("=" * 80)
     print("CLLM - Provider Comparison Example")
     print("=" * 80)
-    print("\nThis demonstrates the key benefit of LiteLLM: same code, different providers!")
+    print(
+        "\nThis demonstrates the key benefit of LiteLLM: same code, different providers!"
+    )
 
     # Define providers to compare
     # Note: Only providers with valid API keys will work
@@ -74,9 +71,7 @@ def main():
 
     # Test with a simple question
     results = compare_providers(
-        client,
-        "Explain what an API is in one sentence.",
-        models
+        client, "Explain what an API is in one sentence.", models
     )
 
     # Summary

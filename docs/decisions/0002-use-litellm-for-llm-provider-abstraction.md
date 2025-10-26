@@ -8,19 +8,19 @@ We need a lightweight Python library that can be embedded directly in our applic
 
 ## Decision Drivers
 
-* **API Abstraction**: Need a consistent interface across 100+ LLM providers to simplify integration
-* **Developer Experience**: Reduce cognitive load by using a single, well-documented API format
-* **Provider Flexibility**: Enable easy switching between providers without code rewrites
-* **Maintenance Burden**: Minimize the number of provider-specific SDKs to maintain and update
-* **OpenAI Compatibility**: Leverage the widely-known OpenAI API format as a standard
-* **Future-Proofing**: Support for emerging LLM providers without major refactoring
+- **API Abstraction**: Need a consistent interface across 100+ LLM providers to simplify integration
+- **Developer Experience**: Reduce cognitive load by using a single, well-documented API format
+- **Provider Flexibility**: Enable easy switching between providers without code rewrites
+- **Maintenance Burden**: Minimize the number of provider-specific SDKs to maintain and update
+- **OpenAI Compatibility**: Leverage the widely-known OpenAI API format as a standard
+- **Future-Proofing**: Support for emerging LLM providers without major refactoring
 
 ## Considered Options
 
-* LiteLLM (Unified LLM API abstraction layer)
-* Direct provider SDKs (OpenAI, Anthropic, etc.)
-* LangChain (Comprehensive LLM orchestration framework)
-* Custom abstraction layer (Building our own wrapper)
+- LiteLLM (Unified LLM API abstraction layer)
+- Direct provider SDKs (OpenAI, Anthropic, etc.)
+- LangChain (Comprehensive LLM orchestration framework)
+- Custom abstraction layer (Building our own wrapper)
 
 ## Decision Outcome
 
@@ -28,25 +28,25 @@ Chosen option: "LiteLLM Python SDK", because it provides a battle-tested, OpenAI
 
 ### Consequences
 
-* Good, because we can interact with 100+ LLM providers using a single `litellm.completion()` function
-* Good, because it uses the OpenAI API format, which is widely understood by developers
-* Good, because switching between providers requires minimal code changes (often just changing the model name)
-* Good, because it handles provider-specific quirks, authentication, and error handling internally
-* Good, because it supports streaming (`stream=True`), async operations (`acompletion()`), embeddings, and function calling
-* Good, because the library is actively maintained by BerriAI with strong community support
-* Good, because it's a lightweight SDK that embeds directly in application code (no separate services needed)
-* Good, because responses are standardized across all providers (OpenAI format)
-* Neutral, because it adds another dependency to the project
-* Bad, because it abstracts away some provider-specific features that may not map 1:1 across all providers
-* Bad, because debugging may require understanding both LiteLLM and underlying provider APIs
+- Good, because we can interact with 100+ LLM providers using a single `litellm.completion()` function
+- Good, because it uses the OpenAI API format, which is widely understood by developers
+- Good, because switching between providers requires minimal code changes (often just changing the model name)
+- Good, because it handles provider-specific quirks, authentication, and error handling internally
+- Good, because it supports streaming (`stream=True`), async operations (`acompletion()`), embeddings, and function calling
+- Good, because the library is actively maintained by BerriAI with strong community support
+- Good, because it's a lightweight SDK that embeds directly in application code (no separate services needed)
+- Good, because responses are standardized across all providers (OpenAI format)
+- Neutral, because it adds another dependency to the project
+- Bad, because it abstracts away some provider-specific features that may not map 1:1 across all providers
+- Bad, because debugging may require understanding both LiteLLM and underlying provider APIs
 
 ### Confirmation
 
-* Verify successful integration with at least 3 different LLM providers (OpenAI, Anthropic, Google)
-* Measure developer time saved when adding new provider support
-* Monitor error rates and API compatibility across different providers
-* Track community feedback on ease of switching between providers
-* Confirm that provider-specific features we need are supported through LiteLLM
+- Verify successful integration with at least 3 different LLM providers (OpenAI, Anthropic, Google)
+- Measure developer time saved when adding new provider support
+- Monitor error rates and API compatibility across different providers
+- Track community feedback on ease of switching between providers
+- Confirm that provider-specific features we need are supported through LiteLLM
 
 ## Pros and Cons of the Options
 
@@ -57,6 +57,7 @@ LiteLLM is a lightweight Python SDK that provides OpenAI-compatible access to 10
 **Installation**: `pip install litellm`
 
 **Basic usage**:
+
 ```python
 from litellm import completion
 response = completion(
@@ -65,63 +66,63 @@ response = completion(
 )
 ```
 
-* Good, because it supports 100+ LLM providers with a single `completion()` function
-* Good, because it uses the familiar OpenAI API format (`messages`, `response['choices'][0]['message']['content']`)
-* Good, because switching providers is as simple as changing the model name (e.g., `"gpt-4"` → `"claude-3-opus"`)
-* Good, because it handles authentication, retries, and error handling consistently
-* Good, because it's lightweight and focused on API abstraction (not full orchestration)
-* Good, because it supports streaming (`stream=True`), async (`acompletion()`), embeddings, and function calling
-* Good, because it maps all provider errors to OpenAI exception types for unified error handling
-* Good, because it's actively maintained with regular updates for new providers
-* Good, because it has observability callbacks for logging to Langfuse, MLflow, Helicone, etc.
-* Good, because it has strong community adoption and documentation
-* Neutral, because it's an additional dependency to maintain
-* Bad, because some provider-specific advanced features may not be exposed
-* Bad, because abstraction can occasionally hide provider-specific error details
+- Good, because it supports 100+ LLM providers with a single `completion()` function
+- Good, because it uses the familiar OpenAI API format (`messages`, `response['choices'][0]['message']['content']`)
+- Good, because switching providers is as simple as changing the model name (e.g., `"gpt-4"` → `"claude-3-opus"`)
+- Good, because it handles authentication, retries, and error handling consistently
+- Good, because it's lightweight and focused on API abstraction (not full orchestration)
+- Good, because it supports streaming (`stream=True`), async (`acompletion()`), embeddings, and function calling
+- Good, because it maps all provider errors to OpenAI exception types for unified error handling
+- Good, because it's actively maintained with regular updates for new providers
+- Good, because it has observability callbacks for logging to Langfuse, MLflow, Helicone, etc.
+- Good, because it has strong community adoption and documentation
+- Neutral, because it's an additional dependency to maintain
+- Bad, because some provider-specific advanced features may not be exposed
+- Bad, because abstraction can occasionally hide provider-specific error details
 
 ### Direct provider SDKs (OpenAI, Anthropic, etc.)
 
 Using each provider's official Python SDK directly without abstraction.
 
-* Good, because it provides direct access to all provider-specific features
-* Good, because official SDKs are maintained by the providers themselves
-* Good, because debugging is straightforward with provider-native tools
-* Good, because no abstraction layer means no translation overhead
-* Neutral, because developers need to learn each provider's API
-* Bad, because each provider has different API formats, authentication, and patterns
-* Bad, because switching providers requires significant code refactoring
-* Bad, because implementing fallback logic requires managing multiple SDK versions
-* Bad, because we need to maintain compatibility with multiple SDK update cycles
-* Bad, because common functionality (retry logic, streaming patterns) must be reimplemented per provider
+- Good, because it provides direct access to all provider-specific features
+- Good, because official SDKs are maintained by the providers themselves
+- Good, because debugging is straightforward with provider-native tools
+- Good, because no abstraction layer means no translation overhead
+- Neutral, because developers need to learn each provider's API
+- Bad, because each provider has different API formats, authentication, and patterns
+- Bad, because switching providers requires significant code refactoring
+- Bad, because implementing fallback logic requires managing multiple SDK versions
+- Bad, because we need to maintain compatibility with multiple SDK update cycles
+- Bad, because common functionality (retry logic, streaming patterns) must be reimplemented per provider
 
 ### LangChain (Comprehensive LLM orchestration framework)
 
 LangChain is a full-featured framework for building LLM applications with chains, agents, and tools.
 
-* Good, because it provides LLM provider abstraction along with orchestration features
-* Good, because it has a large ecosystem of integrations and community plugins
-* Good, because it includes advanced patterns like chains, agents, and memory
-* Good, because it's well-documented and widely adopted
-* Neutral, because it's a comprehensive framework (may be overkill for simple API abstraction)
-* Bad, because it has a steeper learning curve than simple API wrappers
-* Bad, because it introduces significant additional complexity for basic LLM calls
-* Bad, because it has more dependencies and a larger footprint
-* Bad, because the abstraction is heavier and may impact performance for simple use cases
+- Good, because it provides LLM provider abstraction along with orchestration features
+- Good, because it has a large ecosystem of integrations and community plugins
+- Good, because it includes advanced patterns like chains, agents, and memory
+- Good, because it's well-documented and widely adopted
+- Neutral, because it's a comprehensive framework (may be overkill for simple API abstraction)
+- Bad, because it has a steeper learning curve than simple API wrappers
+- Bad, because it introduces significant additional complexity for basic LLM calls
+- Bad, because it has more dependencies and a larger footprint
+- Bad, because the abstraction is heavier and may impact performance for simple use cases
 
 ### Custom abstraction layer (Building our own wrapper)
 
 Creating our own internal wrapper around provider APIs.
 
-* Good, because we have complete control over the interface design
-* Good, because we can optimize for our specific use cases
-* Good, because we only include features we actually need
-* Good, because no external dependency on third-party abstraction libraries
-* Neutral, because it requires time investment to build and maintain
-* Bad, because we need to implement and maintain support for each provider ourselves
-* Bad, because we duplicate work that existing libraries have already solved
-* Bad, because we need to handle provider API changes and updates manually
-* Bad, because we miss out on community testing and bug fixes
-* Bad, because it diverts development time from core CLLM features
+- Good, because we have complete control over the interface design
+- Good, because we can optimize for our specific use cases
+- Good, because we only include features we actually need
+- Good, because no external dependency on third-party abstraction libraries
+- Neutral, because it requires time investment to build and maintain
+- Bad, because we need to implement and maintain support for each provider ourselves
+- Bad, because we duplicate work that existing libraries have already solved
+- Bad, because we need to handle provider API changes and updates manually
+- Bad, because we miss out on community testing and bug fixes
+- Bad, because it diverts development time from core CLLM features
 
 ## More Information
 
@@ -161,6 +162,7 @@ print(response['choices'][0]['message']['content'])
 For the CLLM project, the LiteLLM Python SDK provides exactly the level of abstraction needed: unified API access without the overhead of full orchestration frameworks or separate proxy services.
 
 Related resources:
+
 - LiteLLM GitHub repository: https://github.com/BerriAI/litellm
 - LiteLLM Python SDK documentation: https://docs.litellm.ai/docs/#basic-usage
 - Supported providers list: https://docs.litellm.ai/docs/providers
@@ -176,8 +178,8 @@ Related resources:
 
 ### AI Tool Preferences
 
-* Preferred AI tools: Claude Code, GitHub Copilot
-* Special instructions:
+- Preferred AI tools: Claude Code, GitHub Copilot
+- Special instructions:
   - Install via: `uv add litellm` (per ADR-0001)
   - Always use `litellm.completion()` instead of direct provider SDKs for standard LLM calls
   - Use `litellm.acompletion()` for async operations
@@ -189,27 +191,27 @@ Related resources:
 
 ### Test Expectations
 
-* Integration tests should verify functionality with multiple providers (minimum: OpenAI, Anthropic, Google)
-* Tests should confirm streaming works across different providers
-* Error handling tests should cover provider-specific error scenarios
-* Performance benchmarks should compare LiteLLM overhead vs direct SDK calls
-* Provider switching tests should verify code changes are minimal when changing providers
+- Integration tests should verify functionality with multiple providers (minimum: OpenAI, Anthropic, Google)
+- Tests should confirm streaming works across different providers
+- Error handling tests should cover provider-specific error scenarios
+- Performance benchmarks should compare LiteLLM overhead vs direct SDK calls
+- Provider switching tests should verify code changes are minimal when changing providers
 
 ### Dependencies
 
-* Related ADRs:
+- Related ADRs:
   - ADR-0001: Use uv as Package Manager (for installing LiteLLM dependency via `uv add litellm`)
-* System components: Core LLM interaction layer, provider configuration, API key management
-* External dependencies:
+- System components: Core LLM interaction layer, provider configuration, API key management
+- External dependencies:
   - litellm Python SDK (`uv add litellm`)
   - Provider-specific API keys (configured via environment variables)
   - No additional provider SDKs required (LiteLLM handles provider communication)
 
 ### Timeline
 
-* Implementation deadline: Initial integration within first sprint
-* First review: 30 days after initial integration across 3+ providers
-* Revision triggers:
+- Implementation deadline: Initial integration within first sprint
+- First review: 30 days after initial integration across 3+ providers
+- Revision triggers:
   - LiteLLM project becomes unmaintained or deprecated
   - Discovery of critical performance or compatibility issues
   - Major provider releases features that LiteLLM cannot support
@@ -219,33 +221,33 @@ Related resources:
 
 #### Technical Risks
 
-* **Abstraction layer limitations**: Some provider-specific features may not be available
+- **Abstraction layer limitations**: Some provider-specific features may not be available
   - Mitigation: Evaluate critical features upfront; maintain option to use direct SDKs for specific edge cases
   - Impact: Low - LiteLLM supports most common LLM features across providers
 
-* **Provider API changes**: Providers may change APIs in ways LiteLLM hasn't updated for
+- **Provider API changes**: Providers may change APIs in ways LiteLLM hasn't updated for
   - Mitigation: Monitor LiteLLM releases; contribute fixes upstream if needed; maintain provider SDK fallback option
   - Impact: Low - LiteLLM team is responsive to provider updates
 
-* **Performance overhead**: Abstraction layer may add latency
+- **Performance overhead**: Abstraction layer may add latency
   - Mitigation: Benchmark performance; LiteLLM is lightweight with minimal overhead
   - Impact: Very Low - abstraction overhead is negligible for network-bound LLM calls
 
 #### Business Risks
 
-* **Dependency on third-party library**: Reliance on BerriAI's maintenance
+- **Dependency on third-party library**: Reliance on BerriAI's maintenance
   - Mitigation: LiteLLM is open source and widely adopted; we can fork if necessary
   - Impact: Low - strong community support and active development
 
-* **Learning curve for contributors**: Team needs to learn LiteLLM API
+- **Learning curve for contributors**: Team needs to learn LiteLLM API
   - Mitigation: LiteLLM uses OpenAI format which is widely known; provide documentation
   - Impact: Very Low - OpenAI API format is industry standard
 
 ### Human Review
 
-* Review required: After initial multi-provider integration
-* Reviewers: Project maintainer, senior developer
-* Approval criteria:
+- Review required: After initial multi-provider integration
+- Reviewers: Project maintainer, senior developer
+- Approval criteria:
   - Successfully integrated with at least 3 different providers
   - Streaming and async operations work correctly
   - Error handling is consistent across providers
@@ -346,6 +348,7 @@ Related resources:
 #### Suggested Improvements
 
 **For This Implementation:**
+
 1. **Add Performance Benchmarks** (Low Priority)
    - Compare LiteLLM overhead vs direct SDK calls
    - Document latency characteristics
@@ -367,6 +370,7 @@ Related resources:
    - Example: Try GPT-4, fallback to Claude on failure
 
 **For Future ADRs:**
+
 1. **ADR-First Approach Validated**
    - Creating ADR before implementation provided excellent roadmap
    - Clear success criteria made review straightforward
@@ -383,28 +387,29 @@ Related resources:
 
 #### Confirmation Status
 
-| Criterion | Status | Evidence |
-|-----------|--------|----------|
-| **Confirmation Criteria** | | |
-| Verify successful integration with at least 3 different LLM providers (OpenAI, Anthropic, Google) | ✅ **Met** | Examples demonstrate all 3 providers; tests verify multi-provider interface works identically |
-| Measure developer time saved when adding new provider support | ✅ **Met** | `provider_comparison.py` shows same code for 5 models; switching = changing model name only |
-| Monitor error rates and API compatibility across different providers | ✅ **Met** | Tests verify error handling; LiteLLM maps all errors to OpenAI exception types |
-| Track community feedback on ease of switching between providers | ⏳ **Pending** | Awaiting real-world usage feedback (expected within 30 days) |
-| Confirm provider-specific features we need are supported through LiteLLM | ✅ **Met** | All required features implemented: streaming, async, temperature, max_tokens |
-| **Test Expectations** | | |
-| Integration tests should verify functionality with multiple providers | ✅ **Met** | `test_multiple_providers_same_interface` validates 3 providers (src/cllm/tests/test_client.py:268) |
-| Tests should confirm streaming works across different providers | ✅ **Met** | `test_streaming_response` (src/cllm/tests/test_client.py:181) |
-| Error handling tests should cover provider-specific error scenarios | ✅ **Met** | Mock-based tests handle exception scenarios |
-| Performance benchmarks should compare LiteLLM overhead vs direct SDK calls | ❌ **Not Met** | Not implemented (documented as low priority; deferred) |
-| Provider switching tests should verify code changes are minimal when changing providers | ✅ **Met** | `test_multiple_providers_same_interface` uses identical code for 3 providers |
-| **Human Review Approval Criteria** | | |
-| Successfully integrated with at least 3 different providers | ✅ **Met** | OpenAI, Anthropic, Google all demonstrated in examples |
-| Streaming and async operations work correctly | ✅ **Met** | Tests passing for both features |
-| Error handling is consistent across providers | ✅ **Met** | LiteLLM's error mapping provides consistency |
-| No significant performance degradation compared to direct SDK calls | ⏳ **Not Measured** | Benchmarks not run; assumed acceptable for network-bound operations |
-| Documentation is clear for adding new providers | ✅ **Met** | Examples and README demonstrate clear patterns |
+| Criterion                                                                                         | Status              | Evidence                                                                                           |
+| ------------------------------------------------------------------------------------------------- | ------------------- | -------------------------------------------------------------------------------------------------- |
+| **Confirmation Criteria**                                                                         |                     |                                                                                                    |
+| Verify successful integration with at least 3 different LLM providers (OpenAI, Anthropic, Google) | ✅ **Met**          | Examples demonstrate all 3 providers; tests verify multi-provider interface works identically      |
+| Measure developer time saved when adding new provider support                                     | ✅ **Met**          | `provider_comparison.py` shows same code for 5 models; switching = changing model name only        |
+| Monitor error rates and API compatibility across different providers                              | ✅ **Met**          | Tests verify error handling; LiteLLM maps all errors to OpenAI exception types                     |
+| Track community feedback on ease of switching between providers                                   | ⏳ **Pending**      | Awaiting real-world usage feedback (expected within 30 days)                                       |
+| Confirm provider-specific features we need are supported through LiteLLM                          | ✅ **Met**          | All required features implemented: streaming, async, temperature, max_tokens                       |
+| **Test Expectations**                                                                             |                     |                                                                                                    |
+| Integration tests should verify functionality with multiple providers                             | ✅ **Met**          | `test_multiple_providers_same_interface` validates 3 providers (src/cllm/tests/test_client.py:268) |
+| Tests should confirm streaming works across different providers                                   | ✅ **Met**          | `test_streaming_response` (src/cllm/tests/test_client.py:181)                                      |
+| Error handling tests should cover provider-specific error scenarios                               | ✅ **Met**          | Mock-based tests handle exception scenarios                                                        |
+| Performance benchmarks should compare LiteLLM overhead vs direct SDK calls                        | ❌ **Not Met**      | Not implemented (documented as low priority; deferred)                                             |
+| Provider switching tests should verify code changes are minimal when changing providers           | ✅ **Met**          | `test_multiple_providers_same_interface` uses identical code for 3 providers                       |
+| **Human Review Approval Criteria**                                                                |                     |                                                                                                    |
+| Successfully integrated with at least 3 different providers                                       | ✅ **Met**          | OpenAI, Anthropic, Google all demonstrated in examples                                             |
+| Streaming and async operations work correctly                                                     | ✅ **Met**          | Tests passing for both features                                                                    |
+| Error handling is consistent across providers                                                     | ✅ **Met**          | LiteLLM's error mapping provides consistency                                                       |
+| No significant performance degradation compared to direct SDK calls                               | ⏳ **Not Measured** | Benchmarks not run; assumed acceptable for network-bound operations                                |
+| Documentation is clear for adding new providers                                                   | ✅ **Met**          | Examples and README demonstrate clear patterns                                                     |
 
 **Overall Implementation Score**: 15/17 criteria met (88%)
+
 - 15 criteria fully met ✅
 - 2 criteria pending/deferred ⏳
 - 0 criteria failed ❌

@@ -6,9 +6,10 @@ It provides a unified interface for interacting with 100+ LLM providers
 using the OpenAI-compatible API format.
 """
 
-from typing import Any, Dict, List, Optional, Union, Iterator
 import os
-from litellm import completion, acompletion
+from typing import Any, Dict, Iterator, List, Optional, Union
+
+from litellm import acompletion, completion
 
 
 class LLMClient:
@@ -117,7 +118,7 @@ class LLMClient:
             return response
 
         # Extract and return the text content
-        return response['choices'][0]['message']['content']
+        return response["choices"][0]["message"]["content"]
 
     async def acomplete(
         self,
@@ -171,7 +172,7 @@ class LLMClient:
             return response
 
         # Extract and return the text content
-        return response['choices'][0]['message']['content']
+        return response["choices"][0]["message"]["content"]
 
     def _stream_response(self, response: Any) -> Iterator[str]:
         """
@@ -184,15 +185,10 @@ class LLMClient:
             Text chunks from the streaming response
         """
         for chunk in response:
-            if chunk['choices'][0].get('delta', {}).get('content'):
-                yield chunk['choices'][0]['delta']['content']
+            if chunk["choices"][0].get("delta", {}).get("content"):
+                yield chunk["choices"][0]["delta"]["content"]
 
-    def chat(
-        self,
-        model: str,
-        messages: List[Dict[str, str]],
-        **kwargs: Any
-    ) -> str:
+    def chat(self, model: str, messages: List[Dict[str, str]], **kwargs: Any) -> str:
         """
         Convenience method for multi-turn chat conversations.
 

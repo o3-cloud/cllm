@@ -7,17 +7,17 @@ to multiple providers.
 """
 
 import asyncio
+
 from cllm import LLMClient
 
 
-async def query_provider(client: LLMClient, model: str, prompt: str, provider_name: str):
+async def query_provider(
+    client: LLMClient, model: str, prompt: str, provider_name: str
+):
     """Query a single provider asynchronously."""
     try:
         print(f"\n[{provider_name}] Sending request...")
-        response = await client.acomplete(
-            model=model,
-            messages=prompt
-        )
+        response = await client.acomplete(model=model, messages=prompt)
         print(f"[{provider_name}] Response: {response}")
         return provider_name, response
     except Exception as e:

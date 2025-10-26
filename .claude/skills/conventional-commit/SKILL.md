@@ -40,6 +40,7 @@ When creating a commit using Conventional Commits, follow these steps:
    - MUST also include `BREAKING CHANGE:` footer with description
 
 5. **Construct the commit message**:
+
    ```
    <type>[optional scope][!]: <description>
 
@@ -58,6 +59,7 @@ When creating a commit using Conventional Commits, follow these steps:
 
 7. **Create the commit**:
    - Use a heredoc for proper formatting:
+
    ```bash
    git commit -m "$(cat <<'EOF'
    type(scope): description
@@ -74,6 +76,7 @@ When creating a commit using Conventional Commits, follow these steps:
 ## Commit Message Format
 
 ### Header
+
 ```
 <type>[optional scope][!]: <description>
 ```
@@ -84,12 +87,14 @@ When creating a commit using Conventional Commits, follow these steps:
 - **description**: Required. Brief summary in present tense
 
 ### Body
+
 - Optional
 - Provides additional context about the changes
 - Separated from header by one blank line
 - Can contain multiple paragraphs
 
 ### Footers
+
 - Optional
 - Separated from body (or header if no body) by one blank line
 - Follow git trailer format
@@ -103,16 +108,19 @@ When creating a commit using Conventional Commits, follow these steps:
 ## Examples
 
 ### Simple feature
+
 ```
 feat(auth): add OAuth2 login support
 ```
 
 ### Bug fix with scope
+
 ```
 fix(parser): handle null values in JSON response
 ```
 
 ### Breaking change with body and footer
+
 ```
 feat(api)!: redesign user authentication endpoints
 
@@ -125,11 +133,13 @@ Refs: #456
 ```
 
 ### Documentation update
+
 ```
 docs(readme): update installation instructions
 ```
 
 ### Performance improvement
+
 ```
 perf(database): optimize query for user search
 
@@ -140,6 +150,7 @@ Closes: #789
 ```
 
 ### Multiple footers
+
 ```
 fix(ui): prevent memory leak in dashboard component
 
@@ -152,11 +163,13 @@ Co-authored-by: John Smith <john@example.com>
 ```
 
 ### Chore with no scope
+
 ```
 chore: update dependencies to latest versions
 ```
 
 ### Breaking change with scope
+
 ```
 refactor(database)!: migrate from MongoDB to PostgreSQL
 
@@ -185,12 +198,15 @@ Conventional Commits work with Semantic Versioning:
 ## Common Patterns
 
 ### Multiple files in different areas
+
 If changes span multiple areas, consider:
+
 1. Making separate commits for each area
 2. Using a more general scope or no scope
 3. Using the most significant change as the type
 
 ### Reverting commits
+
 ```
 revert: feat(api): add OAuth2 login support
 
@@ -198,6 +214,7 @@ This reverts commit abc123def456.
 ```
 
 ### Work in progress (avoid in main branches)
+
 ```
 wip(feature): partial implementation of new dashboard
 ```
@@ -205,6 +222,7 @@ wip(feature): partial implementation of new dashboard
 ## Tools and Automation
 
 This specification enables:
+
 - Automatic changelog generation
 - Automatic semantic versioning
 - Better git log filtering (`git log --grep="^feat"`)

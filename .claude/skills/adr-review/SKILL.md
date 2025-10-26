@@ -10,6 +10,7 @@ This skill performs post-implementation reviews of Architecture Decision Records
 ## Purpose
 
 After implementing an ADR, this skill:
+
 1. Analyzes the ADR's expectations and success criteria
 2. Reviews the actual implementation in the codebase
 3. Compares expected vs actual outcomes
@@ -23,15 +24,18 @@ When reviewing an ADR implementation, follow these steps:
 ### 1. Identify the ADR to Review
 
 If the user specifies an ADR number (e.g., "Review ADR-0002"):
+
 - Locate the ADR file in `docs/decisions/XXXX-*.md`
 
 If no specific ADR is mentioned:
+
 - Ask which ADR to review
 - List available ADRs in `docs/decisions/`
 
 ### 2. Read and Analyze the ADR
 
 Extract key information:
+
 - **Decision Outcome**: What was decided?
 - **Confirmation criteria**: How should success be validated?
 - **Test Expectations**: What tests were expected?
@@ -45,23 +49,27 @@ Extract key information:
 Systematically check:
 
 #### Code Review
+
 - Locate implementation files mentioned in the ADR
 - Verify core functionality exists
 - Check code quality and patterns
 - Look for implementation notes or comments
 
 #### Testing Review
+
 - Find and run tests related to the ADR
 - Verify test coverage meets expectations
 - Check if all test scenarios from ADR are covered
 - Document test results (passing/failing)
 
 #### Dependencies Review
+
 - Check if all dependencies were installed
 - Verify versions match requirements
 - Look for dependency conflicts
 
 #### Documentation Review
+
 - Check if examples/docs were created
 - Verify README updates
 - Look for inline documentation
@@ -71,16 +79,19 @@ Systematically check:
 For each section in the ADR:
 
 #### Confirmation Criteria
+
 - Go through each criterion
 - Mark as ✅ Met, ⚠️ Partially Met, or ❌ Not Met
 - Provide evidence for each assessment
 
 #### Test Expectations
+
 - Check if expected tests exist
 - Verify they pass
 - Note any missing tests
 
 #### Risk Assessment
+
 - Review each identified risk
 - Document whether mitigation strategies were implemented
 - Note any risks that materialized
@@ -92,21 +103,21 @@ Modify the "Feedback Log" section at the end of the ADR with:
 ```markdown
 ### Feedback Log
 
-* Implementation date: {actual date}
-* Actual outcomes:
+- Implementation date: {actual date}
+- Actual outcomes:
   - {outcome 1 with evidence}
   - {outcome 2 with evidence}
   - {outcome 3 with evidence}
-* Challenges encountered:
+- Challenges encountered:
   - {challenge 1 and how it was resolved}
   - {challenge 2 and how it was resolved}
-* Lessons learned:
+- Lessons learned:
   - {lesson 1}
   - {lesson 2}
-* Suggested improvements:
+- Suggested improvements:
   - {improvement 1 for future similar decisions}
   - {improvement 2 for future similar decisions}
-* Confirmation Status:
+- Confirmation Status:
   - ✅ {met criterion}
   - ⚠️ {partially met criterion - explanation}
   - ❌ {unmet criterion - reason}
@@ -115,6 +126,7 @@ Modify the "Feedback Log" section at the end of the ADR with:
 ### 6. Generate Summary Report
 
 After updating the ADR, provide the user with:
+
 - Overall implementation status (Success/Partial/Needs Work)
 - Key achievements
 - Areas needing attention
@@ -141,6 +153,7 @@ Use this checklist when performing reviews:
 **User request**: "Review ADR-0002"
 
 **Your response should**:
+
 1. Read `docs/decisions/0002-use-litellm-for-llm-provider-abstraction.md`
 2. Extract confirmation criteria and expectations
 3. Search for implementation files (`src/cllm/client.py`, etc.)

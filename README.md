@@ -247,39 +247,44 @@ cat sales_data.csv | \
 
 ## Commands
 
-| Command | Description |
-|---------|-------------|
-| `cllm` | Main CLI for LLM interactions |
-| `cllm-index` | Index documents into vector stores |
-| `cllm-query` | Query vector stores |
-| `cllm-split` | Split text into chunks |
-| `cllm-config` | Manage configuration |
-| `cllm-models` | List available models |
+| Command       | Description                        |
+| ------------- | ---------------------------------- |
+| `cllm`        | Main CLI for LLM interactions      |
+| `cllm-index`  | Index documents into vector stores |
+| `cllm-query`  | Query vector stores                |
+| `cllm-split`  | Split text into chunks             |
+| `cllm-config` | Manage configuration               |
+| `cllm-models` | List available models              |
 
 ## Providers & Models
 
 ### OpenAI
+
 - `gpt-3.5-turbo`
 - `gpt-4`
 - `gpt-4-turbo`
 - `gpt-4o`
 
 ### Anthropic
+
 - `claude-3-haiku`
 - `claude-3-sonnet`
 - `claude-3-opus`
 - `claude-3-5-sonnet`
 
 ### Google
+
 - `gemini-pro`
 - `gemini-1.5-pro`
 - `gemini-1.5-flash`
 
 ### Groq
+
 - `mixtral-8x7b`
 - `llama-3-70b`
 
 ### Ollama (Local)
+
 - `llama3`
 - `codellama`
 - `mistral`
