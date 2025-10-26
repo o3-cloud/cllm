@@ -29,7 +29,7 @@ CLLM bridges the gap between ChatGPT GUIs, prompt libraries, notebooks, and agen
 
 - Python 3.8 or higher
 - API keys for your chosen LLM provider(s)
-- Poetry (for development)
+- uv (for development and package management)
 
 ## Installation
 
@@ -44,7 +44,7 @@ pip install cllm
 ```bash
 git clone https://github.com/o3-cloud/cllm.git
 cd cllm
-poetry install
+uv sync
 ```
 
 ### Docker
@@ -241,20 +241,19 @@ export CLLM_DEFAULT_MODEL="gpt-4-turbo"
 ```bash
 git clone https://github.com/o3-cloud/cllm.git
 cd cllm
-poetry install
-poetry shell
+uv sync
 ```
 
 ### Run Tests
 
 ```bash
-poetry run pytest
+uv run pytest
 ```
 
 ### Build
 
 ```bash
-poetry build
+uv build
 ```
 
 ## Contributing
