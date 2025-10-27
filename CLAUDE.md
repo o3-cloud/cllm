@@ -272,10 +272,10 @@ cllm --show-conversation bug-investigation
   "created_at": "2025-10-27T10:00:00Z",
   "updated_at": "2025-10-27T10:30:00Z",
   "messages": [
-    {"role": "user", "content": "Analyze this error..."},
-    {"role": "assistant", "content": "This timeout is likely..."},
-    {"role": "user", "content": "What could cause this?"},
-    {"role": "assistant", "content": "Several factors..."}
+    { "role": "user", "content": "Analyze this error..." },
+    { "role": "assistant", "content": "This timeout is likely..." },
+    { "role": "user", "content": "What could cause this?" },
+    { "role": "assistant", "content": "Several factors..." }
   ],
   "metadata": {
     "total_tokens": 1500

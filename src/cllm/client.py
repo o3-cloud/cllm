@@ -193,9 +193,7 @@ class LLMClient:
                 yield chunk["choices"][0]["delta"]["content"]
 
     def count_tokens(
-        self,
-        model: str,
-        messages: Union[str, List[Dict[str, str]]]
+        self, model: str, messages: Union[str, List[Dict[str, str]]]
     ) -> int:
         """
         Count tokens in messages for the specified model.

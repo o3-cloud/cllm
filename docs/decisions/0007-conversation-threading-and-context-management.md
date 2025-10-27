@@ -97,8 +97,8 @@ Store conversations as JSON files in `~/.cllm/conversations/` with a simple sche
   "updated_at": "2025-10-27T10:45:00Z",
   "model": "gpt-4",
   "messages": [
-    {"role": "user", "content": "..."},
-    {"role": "assistant", "content": "..."}
+    { "role": "user", "content": "..." },
+    { "role": "assistant", "content": "..." }
   ],
   "metadata": {
     "total_tokens": 1500,
@@ -322,6 +322,7 @@ The core architecture (file-based storage, directory structure) should be follow
 ✅ **Performance benchmarks** - File I/O is negligible (<10ms for typical conversations), atomic writes don't add significant overhead
 
 ✅ **All decision drivers met**:
+
 - Bash workflow compatibility: CLI flags support scripting
 - Local-first architecture: No external dependencies
 - Minimal user friction: Simple `--conversation <id>` interface

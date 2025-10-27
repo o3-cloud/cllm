@@ -111,6 +111,7 @@ cllm --delete-conversation code-review
 ```
 
 **Key Features:**
+
 - **Stateless by default**: Without `--conversation`, CLLM works as before (no history saved)
 - **Named conversations**: Use meaningful IDs like `bug-investigation` or `refactor-planning`
 - **Auto-generated IDs**: Omit the ID to get a UUID-based identifier like `conv-a3f9b2c1`

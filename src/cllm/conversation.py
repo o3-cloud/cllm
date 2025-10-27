@@ -39,8 +39,12 @@ class Conversation:
     id: str
     model: str
     messages: List[Dict[str, str]] = field(default_factory=list)
-    created_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat().replace("+00:00", "Z"))
-    updated_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat().replace("+00:00", "Z"))
+    created_at: str = field(
+        default_factory=lambda: datetime.now(UTC).isoformat().replace("+00:00", "Z")
+    )
+    updated_at: str = field(
+        default_factory=lambda: datetime.now(UTC).isoformat().replace("+00:00", "Z")
+    )
     metadata: Dict[str, Any] = field(default_factory=dict)
 
     def add_message(self, role: str, content: str) -> None:
@@ -161,7 +165,9 @@ class ConversationManager:
             raise ValueError("Conversation ID cannot be empty")
 
         # Allow alphanumeric, hyphens, and underscores only
-        valid_chars = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_")
+        valid_chars = set(
+            "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_"
+        )
         if not all(c in valid_chars for c in conversation_id):
             raise ValueError(
                 f"Invalid conversation ID: '{conversation_id}'. "
@@ -192,9 +198,7 @@ class ConversationManager:
         return self.storage_dir / f"{conversation_id}.json"
 
     def create(
-        self,
-        conversation_id: Optional[str] = None,
-        model: Optional[str] = None
+        self, conversation_id: Optional[str] = None, model: Optional[str] = None
     ) -> Conversation:
         """
         Create a new conversation.
@@ -248,7 +252,9 @@ class ConversationManager:
             # Clean up temp file if it exists
             if temp_filepath.exists():
                 temp_filepath.unlink()
-            raise IOError(f"Failed to save conversation '{conversation.id}': {e}") from e
+            raise IOError(
+                f"Failed to save conversation '{conversation.id}': {e}"
+            ) from e
 
     def load(self, conversation_id: str) -> Conversation:
         """
@@ -274,7 +280,9 @@ class ConversationManager:
                 data = json.load(f)
             return Conversation.from_dict(data)
         except json.JSONDecodeError as e:
-            raise ValueError(f"Malformed conversation file '{conversation_id}': {e}") from e
+            raise ValueError(
+                f"Malformed conversation file '{conversation_id}': {e}"
+            ) from e
 
     def exists(self, conversation_id: str) -> bool:
         """
@@ -321,13 +329,15 @@ class ConversationManager:
                 with open(filepath, "r") as f:
                     data = json.load(f)
 
-                conversations.append({
-                    "id": data.get("id", ""),
-                    "model": data.get("model", ""),
-                    "message_count": len(data.get("messages", [])),
-                    "updated_at": data.get("updated_at", ""),
-                    "created_at": data.get("created_at", ""),
-                })
+                conversations.append(
+                    {
+                        "id": data.get("id", ""),
+                        "model": data.get("model", ""),
+                        "message_count": len(data.get("messages", [])),
+                        "updated_at": data.get("updated_at", ""),
+                        "created_at": data.get("created_at", ""),
+                    }
+                )
             except (json.JSONDecodeError, IOError):
                 # Skip malformed or inaccessible files
                 continue
