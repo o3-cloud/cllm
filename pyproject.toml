@@ -27,7 +27,10 @@ classifiers = [
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
 ]
-dependencies = ["litellm>=1.79.0"]
+dependencies = [
+    "litellm>=1.79.0",
+    "pyyaml>=6.0.3",
+]
 
 [project.scripts]
 cllm = "cllm.cli:main"

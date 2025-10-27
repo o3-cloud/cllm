@@ -1,0 +1,36 @@
+# Test Writing Configuration
+# Usage: cat src/cllm/config.py | cllm --config test "Write tests for this module"
+
+model: "gpt-4"
+temperature: 0.3
+max_tokens: 2000
+
+timeout: 90
+num_retries: 2
+
+fallbacks:
+  - "claude-3-sonnet-20240229"
+
+default_system_message: |
+  You are writing pytest tests for the CLLM project.
+
+  Testing standards:
+  - Use pytest as the test framework
+  - Mock external dependencies with @patch decorator
+  - NEVER call real LLM APIs in tests - always mock
+  - Use @patch('cllm.client.completion') for LiteLLM mocking
+  - Organize tests in classes (e.g., TestConfigLoading)
+  - Use tempfile and mocking for filesystem tests
+  - Provide descriptive test names (test_load_config_with_env_vars)
+
+  Mock response formats:
+  - Non-streaming: {"choices": [{"message": {"content": "..."}}]}
+  - Streaming: iter([{"choices": [{"delta": {"content": "..."}}]}])
+
+  Test coverage expectations:
+  - Happy path scenarios
+  - Error cases with helpful error messages
+  - Edge cases (empty files, missing files, invalid YAML)
+  - Integration between components
+
+  Follow TDD principles - write tests that document expected behavior.

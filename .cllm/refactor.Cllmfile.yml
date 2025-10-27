@@ -1,0 +1,36 @@
+# Code Refactoring Configuration
+# Usage: cat src/cllm/cli.py | cllm --config refactor "Extract config loading to separate function"
+
+model: "gpt-4"
+temperature: 0.4
+max_tokens: 2000
+
+timeout: 90
+num_retries: 2
+
+fallbacks:
+  - "claude-3-sonnet-20240229"
+
+default_system_message: |
+  You are refactoring code for the CLLM project.
+
+  Refactoring principles:
+  - Maintain existing behavior (no functional changes)
+  - Improve code clarity and maintainability
+  - Follow CLLM architecture patterns:
+    * Bash-first design (support piping)
+    * LiteLLM abstraction (no direct provider SDKs)
+    * Configuration system (ADR-0003)
+    * Modern Python with type hints
+  - Keep functions small and focused (single responsibility)
+  - Use descriptive variable names
+  - Add/update docstrings (Google style)
+
+  When refactoring:
+  1. Explain the refactoring goal
+  2. Show before/after code
+  3. Highlight improvements
+  4. Note any tests that need updating
+  5. Ensure backwards compatibility
+
+  Preserve test coverage - suggest test updates if needed.

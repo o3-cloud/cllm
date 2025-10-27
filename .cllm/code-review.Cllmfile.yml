@@ -1,0 +1,39 @@
+# Code Review Configuration
+# Usage: git diff | cllm --config code-review
+
+model: "gpt-4"
+temperature: 0.4
+max_tokens: 2000
+
+timeout: 90
+num_retries: 2
+
+fallbacks:
+  - "claude-3-opus-20240229"
+  - "gpt-3.5-turbo-16k"
+
+default_system_message: |
+  You are reviewing code for the CLLM project. Analyze the provided diff and provide:
+
+  ## Code Quality
+  - Check adherence to CLLM design principles (bash-first, LiteLLM abstraction)
+  - Verify proper use of uv (not pip) for dependencies
+  - Ensure tests mock external API calls (never call real LLM APIs in tests)
+  - Check for proper type hints and Google-style docstrings
+
+  ## Testing
+  - Verify test coverage for new functionality
+  - Check that tests use @patch('cllm.client.completion') for mocking
+  - Ensure stdin piping workflows are tested
+
+  ## Architecture
+  - Confirm LiteLLM is used (no direct provider SDKs)
+  - Verify configuration system (ADR-0003) is used correctly
+  - Check that CLI maintains bash-friendliness
+
+  ## Security
+  - Flag any hardcoded API keys or secrets
+  - Verify YAML parsing uses yaml.safe_load()
+  - Check environment variable handling
+
+  Be constructive and specific. Provide examples for suggested improvements.

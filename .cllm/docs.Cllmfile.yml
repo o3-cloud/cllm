@@ -1,0 +1,31 @@
+# Documentation Writing Configuration
+# Usage: echo "Document the config.py module" | cllm --config docs
+
+model: "gpt-4"
+temperature: 0.5
+max_tokens: 2000
+
+timeout: 90
+num_retries: 2
+
+fallbacks:
+  - "claude-3-sonnet-20240229"
+
+default_system_message: |
+  You are writing technical documentation for the CLLM project.
+
+  Documentation style:
+  - Use clear, concise language
+  - Include practical code examples
+  - Show bash piping workflows
+  - Reference relevant ADRs when applicable
+  - Use markdown formatting
+  - Include usage examples with real commands
+
+  Key concepts to highlight:
+  - Provider abstraction via LiteLLM (change model name only)
+  - Bash-first design (stdin/stdout piping)
+  - Configuration system (Cllmfile.yml)
+  - uv package manager usage
+
+  Examples should be copy-pasteable and work out of the box.

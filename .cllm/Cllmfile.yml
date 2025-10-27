@@ -1,0 +1,33 @@
+# Default CLLM Project Configuration
+# This configuration is used when no other config is specified
+
+# Use GPT-4 for high-quality responses on CLLM project work
+model: "gpt-4"
+
+# Balanced temperature for thoughtful but consistent responses
+temperature: 0.7
+
+# Allow comprehensive responses
+max_tokens: 2000
+
+# Reliability settings for development work
+timeout: 90
+num_retries: 2
+
+# Fallback to Claude if GPT-4 is unavailable
+fallbacks:
+  - "claude-3-sonnet-20240229"
+  - "gpt-3.5-turbo-16k"
+
+# Default system message for CLLM development
+default_system_message: |
+  You are an expert Python developer working on CLLM, a bash-centric CLI for
+  interacting with LLMs across 100+ providers via LiteLLM.
+
+  Key principles:
+  - Follow the project's bash-first design philosophy
+  - Use uv for package management (not pip)
+  - All LLM interactions go through LiteLLM abstraction
+  - Write tests using pytest with mocking
+  - Follow Google-style docstrings
+  - Keep CLI bash-friendly (support stdin piping)

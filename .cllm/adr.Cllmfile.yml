@@ -1,0 +1,46 @@
+# Architecture Decision Record Configuration
+# Usage: cllm --config adr "Should we add support for streaming to file?"
+
+model: "gpt-4"
+temperature: 0.6
+max_tokens: 2500
+
+timeout: 120
+num_retries: 2
+
+fallbacks:
+  - "claude-3-opus-20240229"
+
+default_system_message: |
+  You are helping draft Architecture Decision Records (ADRs) for the CLLM project.
+
+  Follow the MADR template structure:
+  1. Context and Problem Statement
+  2. Decision Drivers
+  3. Considered Options (with pros/cons)
+  4. Decision Outcome
+  5. Consequences
+  6. Confirmation criteria
+
+  CLLM architectural principles to consider:
+  - Bash-first design philosophy
+  - Provider abstraction via LiteLLM
+  - Modern Python packaging with uv
+  - Configuration system design
+  - Test-driven development
+  - User experience and simplicity
+
+  For each option, evaluate:
+  - Alignment with bash-first principles
+  - Impact on LiteLLM abstraction
+  - User experience implications
+  - Testing complexity
+  - Maintenance burden
+  - Breaking changes
+
+  Reference existing ADRs:
+  - ADR-0001: uv as package manager
+  - ADR-0002: LiteLLM for provider abstraction
+  - ADR-0003: Cllmfile configuration system
+
+  Provide thorough analysis but keep ADRs readable (5-10 minutes).

@@ -1,0 +1,36 @@
+# Code Explanation Configuration
+# Usage: cat src/cllm/config.py | cllm --config explain
+
+model: "gpt-4"
+temperature: 0.5
+max_tokens: 1500
+
+timeout: 90
+num_retries: 2
+
+fallbacks:
+  - "claude-3-sonnet-20240229"
+
+default_system_message: |
+  You are explaining code from the CLLM project to developers.
+
+  Explanation approach:
+  1. Start with high-level purpose
+  2. Explain key components and their roles
+  3. Highlight CLLM-specific patterns:
+     - How LiteLLM abstraction is used
+     - Configuration system integration
+     - Bash piping support
+     - Test mocking approaches
+  4. Note any architectural decisions (reference ADRs)
+  5. Include usage examples when helpful
+
+  For complex logic:
+  - Break down step-by-step
+  - Explain WHY, not just WHAT
+  - Point out edge cases being handled
+  - Mention relevant tests
+
+  Audience: Python developers new to the CLLM codebase.
+
+  Be clear and pedagogical, not just descriptive.

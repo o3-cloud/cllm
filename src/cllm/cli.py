@@ -5,10 +5,12 @@ Provides a bash-centric CLI for interacting with LLMs across multiple providers.
 """
 
 import argparse
+import json
 import sys
 from typing import Optional
 
 from .client import LLMClient
+from .config import ConfigurationError, get_config_sources, load_config, merge_config_with_args
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -75,6 +77,19 @@ For full provider list: https://docs.litellm.ai/docs/providers
 
     parser.add_argument("--raw", action="store_true", help="Output raw JSON response")
 
+    parser.add_argument(
+        "-c",
+        "--config",
+        metavar="NAME",
+        help="Use named configuration file (e.g., 'summarize' loads summarize.Cllmfile.yml)",
+    )
+
+    parser.add_argument(
+        "--show-config",
+        action="store_true",
+        help="Display effective configuration and exit",
+    )
+
     parser.add_argument("--version", action="version", version="%(prog)s 0.1.0")
 
     return parser
@@ -107,37 +122,88 @@ def main():
     parser = create_parser()
     args = parser.parse_args()
 
-    # Read prompt
+    try:
+        # Load configuration from files
+        file_config = load_config(config_name=args.config)
+    except ConfigurationError as e:
+        print(f"Configuration error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    # Build CLI args dict (only non-None values)
+    cli_args = {}
+    if args.model and args.model != "gpt-3.5-turbo":  # Only if explicitly set
+        cli_args["model"] = args.model
+    if args.temperature is not None:
+        cli_args["temperature"] = args.temperature
+    if args.max_tokens is not None:
+        cli_args["max_tokens"] = args.max_tokens
+    if args.stream:
+        cli_args["stream"] = args.stream
+    if args.raw:
+        cli_args["raw_response"] = args.raw
+
+    # Merge config with CLI args (CLI takes precedence)
+    config = merge_config_with_args(file_config, cli_args)
+
+    # Set defaults if not in config
+    if "model" not in config:
+        config["model"] = "gpt-3.5-turbo"
+
+    # Handle --show-config
+    if args.show_config:
+        sources = get_config_sources(config_name=args.config)
+        print("Configuration sources (in order of precedence):")
+        if sources:
+            for source in sources:
+                print(f"  - {source}")
+        else:
+            print("  (no configuration files found)")
+        print("\nEffective configuration:")
+        print(json.dumps(config, indent=2))
+        sys.exit(0)
+
+    # Read prompt (not needed for --show-config)
     prompt = read_prompt(args.prompt)
 
     # Initialize client
     client = LLMClient()
 
-    # Prepare parameters
-    kwargs = {}
-    if args.temperature is not None:
-        kwargs["temperature"] = args.temperature
-    if args.max_tokens is not None:
-        kwargs["max_tokens"] = args.max_tokens
-    if args.raw:
+    # Extract parameters for LLM call
+    model = config.get("model", "gpt-3.5-turbo")
+    stream = config.get("stream", False)
+    raw_response = config.get("raw_response", False)
+
+    # Prepare kwargs for client.complete()
+    # Pass through all LiteLLM parameters from config
+    kwargs = {
+        k: v
+        for k, v in config.items()
+        if k not in ["model", "stream", "raw_response", "default_system_message"]
+    }
+
+    # Handle default_system_message if present
+    if "default_system_message" in config:
+        # Prepend system message to prompt
+        system_msg = config["default_system_message"]
+        prompt = f"{system_msg}\n\n{prompt}"
+
+    if raw_response:
         kwargs["raw_response"] = True
 
     try:
         # Make the request
-        if args.stream:
+        if stream:
             # Streaming mode
             for chunk in client.complete(
-                model=args.model, messages=prompt, stream=True, **kwargs
+                model=model, messages=prompt, stream=True, **kwargs
             ):
                 print(chunk, end="", flush=True)
             print()  # Final newline
         else:
             # Non-streaming mode
-            response = client.complete(model=args.model, messages=prompt, **kwargs)
+            response = client.complete(model=model, messages=prompt, **kwargs)
 
-            if args.raw:
-                import json
-
+            if raw_response:
                 print(json.dumps(response, indent=2))
             else:
                 print(response)

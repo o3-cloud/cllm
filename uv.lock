@@ -321,6 +321,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "litellm" },
+    { name = "pyyaml" },
 ]
 
 [package.dev-dependencies]
@@ -330,7 +331,10 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "litellm", specifier = ">=1.79.0" }]
+requires-dist = [
+    { name = "litellm", specifier = ">=1.79.0" },
+    { name = "pyyaml", specifier = ">=6.0.3" },
+]
 
 [package.metadata.requires-dev]
 dev = [

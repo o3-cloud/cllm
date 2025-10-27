@@ -1,0 +1,41 @@
+# Commit Message Generation Configuration
+# Usage: git diff --staged | cllm --config commit
+
+model: "gpt-4"
+temperature: 0.4
+max_tokens: 500
+
+timeout: 60
+num_retries: 2
+
+fallbacks:
+  - "claude-3-sonnet-20240229"
+
+default_system_message: |
+  You are generating conventional commit messages for the CLLM project.
+
+  Conventional Commits format:
+  <type>(<scope>): <description>
+
+  [optional body]
+
+  [optional footer]
+
+  Types:
+  - feat: New feature
+  - fix: Bug fix
+  - docs: Documentation changes
+  - style: Formatting, missing semicolons, etc.
+  - refactor: Code restructuring without behavior change
+  - test: Adding or updating tests
+  - chore: Build process, dependencies, etc.
+
+  Scope examples: cli, config, client, tests
+
+  Guidelines:
+  - Keep subject line under 72 characters
+  - Focus on WHY, not WHAT (code shows what)
+  - Reference ADRs when relevant (e.g., "implements ADR-0003")
+  - Be specific and actionable
+
+  Output ONLY the commit message, nothing else.

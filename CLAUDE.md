@@ -25,8 +25,16 @@ CLLM is a bash-centric command-line interface for interacting with large languag
 **`src/cllm/cli.py`** - Command-line interface
 - Entry point: `cllm` command registered in `pyproject.toml`
 - Reads from stdin (for piping) or command-line arguments
-- Supports `--stream`, `--temperature`, `--max-tokens`, `--raw` flags
+- Supports `--stream`, `--temperature`, `--max-tokens`, `--raw`, `--config`, `--show-config` flags
 - Default model: `gpt-3.5-turbo`
+- Loads configuration from Cllmfile.yml (see ADR-0003)
+
+**`src/cllm/config.py`** - Configuration loading (ADR-0003)
+- Loads and merges Cllmfile.yml files with cascading precedence
+- Supports named configurations (e.g., `--config summarize`)
+- Environment variable interpolation with `${VAR_NAME}` syntax
+- File lookup order: `~/.cllm/` → `./.cllm/` → `./` (lowest to highest precedence)
+- CLI arguments always override file-based configuration
 
 **Provider Abstraction (ADR-0002)**
 - Uses LiteLLM Python SDK for multi-provider support
@@ -41,13 +49,24 @@ src/cllm/          # Main package (configured in pyproject.toml)
   __init__.py      # Exports LLMClient
   client.py        # Core LLMClient implementation
   cli.py           # CLI entry point
+  config.py        # Configuration file loading (ADR-0003)
 tests/             # Test suite (pytest)
   test_client.py   # LLMClient tests (mock-based)
+  test_config.py   # Configuration loading tests
 examples/          # Usage examples
   basic_usage.py   # Multi-provider examples
   async_usage.py   # Async patterns
   provider_comparison.py
+  configs/         # Example Cllmfile.yml configurations
+    Cllmfile.yml   # Default configuration example
+    summarize.Cllmfile.yml    # Summarization profile
+    creative.Cllmfile.yml     # Creative writing profile
+    code-review.Cllmfile.yml  # Code review profile
+    README.md      # Configuration guide
 docs/decisions/    # Architecture Decision Records (ADRs)
+  0001-use-uv-as-package-manager.md
+  0002-use-litellm-for-llm-provider-abstraction.md
+  0003-cllmfile-configuration-system.md
 ```
 
 ## Development Commands
@@ -90,7 +109,9 @@ uv build
 - Tests verify the abstraction interface, not LiteLLM internals
 - Mock response format: `{"choices": [{"message": {"content": "..."}}]}`
 - For streaming tests: `iter([{"choices": [{"delta": {"content": "..."}}]}])`
-- All 11 tests in `test_client.py` should pass
+- `test_client.py`: 11 tests for LLMClient functionality
+- `test_config.py`: 27 tests for configuration loading, merging, and precedence
+- All 38 tests should pass
 
 ### Git Workflow
 
@@ -125,6 +146,54 @@ response = client.complete("claude-3-opus-20240229", "What is 2+2?")
 
 # Google (identical code)
 response = client.complete("gemini-pro", "What is 2+2?")
+```
+
+### ADR-0003: Cllmfile Configuration System
+- **Why:** Reduce repetitive CLI flags, enable shareable configurations, support complex parameter sets
+- **File format:** YAML with environment variable interpolation (`${VAR_NAME}`)
+- **File lookup order:** `~/.cllm/` → `./.cllm/` → `./` (lowest to highest precedence)
+- **Named configs:** Use `--config <name>` to load `<name>.Cllmfile.yml`
+- **Precedence:** File configs < CLI arguments (CLI always wins)
+- **Key features:**
+  - All LiteLLM parameters supported (model, temperature, max_tokens, fallbacks, etc.)
+  - `default_system_message` for reusable prompts
+  - `--show-config` to debug effective configuration
+  - See `examples/configs/` for templates
+
+**Example - Using Named Configurations:**
+```bash
+# Summarize a document
+cat article.md | cllm --config summarize
+
+# Generate creative content
+echo "Write a sci-fi story" | cllm --config creative
+
+# Review code changes
+git diff | cllm --config code-review
+
+# Override config with CLI args
+cllm --config summarize --temperature 0.5 < doc.txt
+```
+
+**Example Cllmfile.yml:**
+```yaml
+# Project-specific defaults
+model: "gpt-4"
+temperature: 0.7
+max_tokens: 1000
+timeout: 60
+num_retries: 2
+
+# Fallback models
+fallbacks:
+  - "gpt-3.5-turbo-16k"
+  - "claude-3-sonnet-20240229"
+
+# Environment variables
+api_key: "${OPENAI_API_KEY}"
+
+# Custom system message
+default_system_message: "You are a helpful coding assistant."
 ```
 
 ## API Key Configuration
