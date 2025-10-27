@@ -9,7 +9,7 @@ using the OpenAI-compatible API format.
 import os
 from typing import Any, Dict, Iterator, List, Optional, Union
 
-from litellm import acompletion, completion
+from litellm import acompletion, completion, token_counter
 
 
 class LLMClient:
@@ -69,8 +69,12 @@ class LLMClient:
 
         Args:
             model: Model name (e.g., "gpt-4", "claude-3-opus-20240229", "gemini-pro")
-            messages: Either a string prompt or a list of message dicts in OpenAI format
-                     [{"role": "user", "content": "Hello"}]
+            messages: Either a string prompt or a list of message dicts in OpenAI format.
+                     Single prompt: "Hello"
+                     Conversation history:
+                     [{"role": "user", "content": "Hello"},
+                      {"role": "assistant", "content": "Hi there!"},
+                      {"role": "user", "content": "How are you?"}]
             stream: If True, return an iterator of response chunks
             temperature: Sampling temperature (0.0 to 2.0)
             max_tokens: Maximum tokens to generate
@@ -187,6 +191,41 @@ class LLMClient:
         for chunk in response:
             if chunk["choices"][0].get("delta", {}).get("content"):
                 yield chunk["choices"][0]["delta"]["content"]
+
+    def count_tokens(
+        self,
+        model: str,
+        messages: Union[str, List[Dict[str, str]]]
+    ) -> int:
+        """
+        Count tokens in messages for the specified model.
+
+        Useful for managing context windows in conversation history.
+
+        Args:
+            model: Model name (e.g., "gpt-4", "claude-3-opus-20240229")
+            messages: Either a string prompt or list of message dicts
+
+        Returns:
+            Estimated token count
+
+        Examples:
+            >>> client = LLMClient()
+            >>> tokens = client.count_tokens("gpt-4", "Hello, world!")
+            >>> print(tokens)
+            4
+        """
+        # Convert string prompt to messages format
+        if isinstance(messages, str):
+            messages = [{"role": "user", "content": messages}]
+
+        try:
+            return token_counter(model=model, messages=messages)
+        except Exception:
+            # Fallback: rough estimate if token_counter fails
+            # Average ~4 characters per token
+            total_chars = sum(len(msg.get("content", "")) for msg in messages)
+            return total_chars // 4
 
     def chat(self, model: str, messages: List[Dict[str, str]], **kwargs: Any) -> str:
         """

@@ -83,6 +83,61 @@ cllm --model gpt-4 --temperature 1.5 "Write a creative story"
 cllm --model gpt-4 --max-tokens 100 "Explain quantum computing"
 ```
 
+### Conversation Threading
+
+CLLM supports multi-turn conversations with automatic context management (ADR-0007):
+
+```bash
+# Start a new conversation with a custom ID
+cllm --conversation code-review "Review this authentication code: $(cat auth.py)"
+
+# Continue the conversation - context is automatically loaded
+cllm --conversation code-review "What about SQL injection risks?"
+
+# Continue again - full conversation history is maintained
+cllm --conversation code-review "Show me how to fix these issues"
+
+# Or let CLLM auto-generate a conversation ID
+cllm --conversation conv-a3f9b2c1 "Start a discussion about Python best practices"
+
+# List all your conversations
+cllm --list-conversations
+
+# View a conversation's full history
+cllm --show-conversation code-review
+
+# Delete a conversation when done
+cllm --delete-conversation code-review
+```
+
+**Key Features:**
+- **Stateless by default**: Without `--conversation`, CLLM works as before (no history saved)
+- **Named conversations**: Use meaningful IDs like `bug-investigation` or `refactor-planning`
+- **Auto-generated IDs**: Omit the ID to get a UUID-based identifier like `conv-a3f9b2c1`
+- **Context preservation**: Full message history is maintained across calls
+- **Model consistency**: The model is remembered for each conversation
+- **Token tracking**: Automatic token counting to help manage context windows
+- **Smart storage**: Conversations stored in `./.cllm/conversations/` (project-specific) or `~/.cllm/conversations/` (global)
+
+**Example Workflow:**
+
+```bash
+# Start investigating a bug
+cllm --conversation bug-123 "I'm seeing intermittent timeouts in production"
+
+# Add more context as you debug
+cllm --conversation bug-123 "Here are the logs: $(cat error.log)"
+
+# Ask follow-up questions
+cllm --conversation bug-123 "Could this be related to connection pooling?"
+
+# Get the solution
+cllm --conversation bug-123 "How should I fix this?"
+
+# Review the conversation later
+cllm --show-conversation bug-123
+```
+
 ### Configuration
 
 Set up API keys as environment variables (LiteLLM conventions):
@@ -126,13 +181,30 @@ response = client.complete(
     messages="What is the capital of France?"
 )
 
-# Multi-turn conversation
+# Multi-turn conversation with history
 conversation = [
     {"role": "user", "content": "Hello!"},
     {"role": "assistant", "content": "Hi! How can I help?"},
     {"role": "user", "content": "What's 2+2?"}
 ]
 response = client.chat(model="gpt-4", messages=conversation)
+
+# Or use ConversationManager for persistent conversations
+from cllm.conversation import ConversationManager
+
+manager = ConversationManager()
+conv = manager.create(conversation_id="my-chat", model="gpt-4")
+
+# Add messages
+conv.add_message("user", "Hello!")
+manager.save(conv)
+
+# Load and continue
+conv = manager.load("my-chat")
+conv.add_message("user", "What's 2+2?")
+response = client.complete(model=conv.model, messages=conv.get_messages())
+conv.add_message("assistant", response)
+manager.save(conv)
 
 # Streaming
 for chunk in client.complete(model="gpt-4", messages="Count to 5", stream=True):

@@ -22,6 +22,7 @@ from .config import (
     merge_config_with_args,
     validate_against_schema,
 )
+from .conversation import Conversation, ConversationManager
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -129,6 +130,31 @@ For full provider list: https://docs.litellm.ai/docs/providers
         "--clear-schema-cache",
         action="store_true",
         help="Clear all cached remote schemas and exit",
+    )
+
+    # Conversation management arguments
+    parser.add_argument(
+        "--conversation",
+        metavar="ID",
+        help="Use or create conversation with specified ID (auto-generates if ID not provided)",
+    )
+
+    parser.add_argument(
+        "--list-conversations",
+        action="store_true",
+        help="List all stored conversations and exit",
+    )
+
+    parser.add_argument(
+        "--show-conversation",
+        metavar="ID",
+        help="Display conversation contents and exit",
+    )
+
+    parser.add_argument(
+        "--delete-conversation",
+        metavar="ID",
+        help="Delete conversation and exit",
     )
 
     parser.add_argument("--version", action="version", version="%(prog)s 0.1.0")
@@ -243,6 +269,85 @@ def print_model_list():
     print("Tip: Use grep to filter models, e.g., 'cllm --list-models | grep gpt'")
 
 
+def print_conversation_list(manager: ConversationManager):
+    """
+    Print a list of all conversations.
+
+    Args:
+        manager: ConversationManager instance
+    """
+    conversations = manager.list_conversations()
+
+    if not conversations:
+        print("No conversations found.")
+        print(
+            "\nTip: Create a conversation with 'cllm --conversation <id> \"your prompt\"'"
+        )
+        return
+
+    print(f"Conversations ({len(conversations)} total)")
+    print("=" * 80)
+    print()
+
+    for conv in conversations:
+        print(f"ID: {conv['id']}")
+        print(f"  Model: {conv['model']}")
+        print(f"  Messages: {conv['message_count']}")
+        print(f"  Updated: {conv['updated_at']}")
+        print()
+
+
+def print_conversation(manager: ConversationManager, conversation_id: str):
+    """
+    Print the contents of a conversation.
+
+    Args:
+        manager: ConversationManager instance
+        conversation_id: ID of conversation to display
+    """
+    try:
+        conv = manager.load(conversation_id)
+        print(f"Conversation: {conv.id}")
+        print(f"Model: {conv.model}")
+        print(f"Created: {conv.created_at}")
+        print(f"Updated: {conv.updated_at}")
+        print(f"Messages: {len(conv.messages)}")
+        if conv.total_tokens > 0:
+            print(f"Total tokens: {conv.total_tokens}")
+        print("=" * 80)
+        print()
+
+        for i, msg in enumerate(conv.messages, 1):
+            role = msg.get("role", "unknown").upper()
+            content = msg.get("content", "")
+            print(f"[{i}] {role}:")
+            print(content)
+            print()
+
+    except FileNotFoundError:
+        print(f"Error: Conversation '{conversation_id}' not found", file=sys.stderr)
+        sys.exit(1)
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def delete_conversation(manager: ConversationManager, conversation_id: str):
+    """
+    Delete a conversation.
+
+    Args:
+        manager: ConversationManager instance
+        conversation_id: ID of conversation to delete
+    """
+    try:
+        manager.delete(conversation_id)
+        print(f"Deleted conversation: {conversation_id}")
+    except FileNotFoundError:
+        print(f"Error: Conversation '{conversation_id}' not found", file=sys.stderr)
+        sys.exit(1)
+
+
 def main():
     """Main CLI entry point."""
     parser = create_parser()
@@ -295,6 +400,24 @@ def main():
     except (json.JSONDecodeError, ConfigurationError) as e:
         print(f"Schema error: {e}", file=sys.stderr)
         sys.exit(1)
+
+    # Initialize conversation manager (needed for conversation commands)
+    conversation_manager = ConversationManager()
+
+    # Handle --list-conversations
+    if args.list_conversations:
+        print_conversation_list(conversation_manager)
+        sys.exit(0)
+
+    # Handle --show-conversation
+    if args.show_conversation:
+        print_conversation(conversation_manager, args.show_conversation)
+        sys.exit(0)
+
+    # Handle --delete-conversation
+    if args.delete_conversation:
+        delete_conversation(conversation_manager, args.delete_conversation)
+        sys.exit(0)
 
     # Handle --show-config
     if args.show_config:
@@ -383,11 +506,53 @@ def main():
         ]
     }
 
-    # Handle default_system_message if present
-    if "default_system_message" in config:
-        # Prepend system message to prompt
-        system_msg = config["default_system_message"]
-        prompt = f"{system_msg}\n\n{prompt}"
+    # Handle conversation mode
+    conversation: Optional[Conversation] = None
+    messages_for_llm = None
+
+    if args.conversation:
+        # Load existing conversation or create new one
+        try:
+            if conversation_manager.exists(args.conversation):
+                conversation = conversation_manager.load(args.conversation)
+                # Ensure model matches if conversation has a model set
+                if conversation.model and conversation.model != model:
+                    print(
+                        f"Warning: Conversation uses model '{conversation.model}', "
+                        f"but you specified '{model}'. Using '{conversation.model}'.",
+                        file=sys.stderr,
+                    )
+                    model = conversation.model
+            else:
+                # Create new conversation
+                conversation = conversation_manager.create(
+                    conversation_id=args.conversation, model=model
+                )
+        except ValueError as e:
+            print(f"Error: {e}", file=sys.stderr)
+            sys.exit(1)
+
+        # Build messages list with conversation history
+        messages_for_llm = conversation.get_messages().copy()
+
+        # Handle default_system_message if present and conversation is new
+        if "default_system_message" in config and len(messages_for_llm) == 0:
+            messages_for_llm.append(
+                {"role": "system", "content": config["default_system_message"]}
+            )
+
+        # Add new user message
+        messages_for_llm.append({"role": "user", "content": prompt})
+
+    else:
+        # Stateless mode - use prompt directly
+        # Handle default_system_message if present
+        if "default_system_message" in config:
+            # Prepend system message to prompt
+            system_msg = config["default_system_message"]
+            prompt = f"{system_msg}\n\n{prompt}"
+
+        messages_for_llm = prompt
 
     # Add response_format for structured output if schema is present
     if schema is not None:
@@ -405,13 +570,14 @@ def main():
     try:
         # Make the request
         if stream:
-            # Streaming mode
+            # Streaming mode - collect chunks for conversation saving
+            chunks = []
+
             if schema is not None:
                 # For streaming with schema, we need to collect all chunks first
                 # to validate the complete response
-                chunks = []
                 for chunk in client.complete(
-                    model=model, messages=prompt, stream=True, **kwargs
+                    model=model, messages=messages_for_llm, stream=True, **kwargs
                 ):
                     chunks.append(chunk)
                     print(chunk, end="", flush=True)
@@ -433,13 +599,27 @@ def main():
             else:
                 # Normal streaming without schema
                 for chunk in client.complete(
-                    model=model, messages=prompt, stream=True, **kwargs
+                    model=model, messages=messages_for_llm, stream=True, **kwargs
                 ):
+                    chunks.append(chunk)
                     print(chunk, end="", flush=True)
                 print()  # Final newline
+
+            # Save conversation if in conversation mode
+            if conversation is not None:
+                complete_response = "".join(chunks)
+                conversation.add_message("user", prompt)
+                conversation.add_message("assistant", complete_response)
+                # Update token count
+                try:
+                    tokens = client.count_tokens(model, conversation.get_messages())
+                    conversation.total_tokens = tokens
+                except Exception:
+                    pass  # Token counting is optional
+                conversation_manager.save(conversation)
         else:
             # Non-streaming mode
-            response = client.complete(model=model, messages=prompt, **kwargs)
+            response = client.complete(model=model, messages=messages_for_llm, **kwargs)
 
             if raw_response:
                 print(json.dumps(response, indent=2))
@@ -461,6 +641,18 @@ def main():
                         sys.exit(1)
 
                 print(response)
+
+                # Save conversation if in conversation mode
+                if conversation is not None:
+                    conversation.add_message("user", prompt)
+                    conversation.add_message("assistant", response)
+                    # Update token count
+                    try:
+                        tokens = client.count_tokens(model, conversation.get_messages())
+                        conversation.total_tokens = tokens
+                    except Exception:
+                        pass  # Token counting is optional
+                    conversation_manager.save(conversation)
 
     except KeyboardInterrupt:
         print("\n\nInterrupted by user.", file=sys.stderr)

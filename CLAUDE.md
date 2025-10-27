@@ -29,8 +29,21 @@ CLLM is a bash-centric command-line interface for interacting with large languag
 - Entry point: `cllm` command registered in `pyproject.toml`
 - Reads from stdin (for piping) or command-line arguments
 - Supports `--stream`, `--temperature`, `--max-tokens`, `--raw`, `--config`, `--show-config` flags
+- Conversation flags: `--conversation`, `--list-conversations`, `--show-conversation`, `--delete-conversation`
 - Default model: `gpt-3.5-turbo`
 - Loads configuration from Cllmfile.yml (see ADR-0003)
+- Default behavior: stateless (no conversation saved unless `--conversation` flag used)
+
+**`src/cllm/conversation.py`** - Conversation management (ADR-0007)
+
+- `Conversation` dataclass: Holds conversation data (id, model, messages, metadata)
+- `ConversationManager` class: Handles CRUD operations for conversations
+- Storage precedence (aligns with Cllmfile precedence):
+  1. `./.cllm/conversations/` (local/project-specific, if `.cllm` exists)
+  2. `~/.cllm/conversations/` (global/home directory, fallback)
+- ID generation: UUID-based (`conv-<8-char-hex>`) or user-specified
+- Features: Atomic writes, token counting, message history preservation
+- Key methods: `create()`, `load()`, `save()`, `delete()`, `list_conversations()`
 
 **`src/cllm/config.py`** - Configuration loading (ADR-0003)
 
@@ -55,9 +68,11 @@ src/cllm/          # Main package (configured in pyproject.toml)
   client.py        # Core LLMClient implementation
   cli.py           # CLI entry point
   config.py        # Configuration file loading (ADR-0003)
+  conversation.py  # Conversation management (ADR-0007)
 tests/             # Test suite (pytest)
   test_client.py   # LLMClient tests (mock-based)
   test_config.py   # Configuration loading tests
+  test_conversation.py  # Conversation management tests
 examples/          # Usage examples
   basic_usage.py   # Multi-provider examples
   async_usage.py   # Async patterns
@@ -72,6 +87,9 @@ docs/decisions/    # Architecture Decision Records (ADRs)
   0001-use-uv-as-package-manager.md
   0002-use-litellm-for-llm-provider-abstraction.md
   0003-cllmfile-configuration-system.md
+  0005-structured-output-json-schema.md
+  0006-support-remote-json-schema-urls.md
+  0007-conversation-threading-and-context-management.md
 ```
 
 ## Development Commands
@@ -122,7 +140,9 @@ uv build
 - For streaming tests: `iter([{"choices": [{"delta": {"content": "..."}}]}])`
 - `test_client.py`: 11 tests for LLMClient functionality
 - `test_config.py`: 27 tests for configuration loading, merging, and precedence
-- All 38 tests should pass
+- `test_conversation.py`: 36 tests for conversation management (CRUD, ID validation, persistence)
+- `test_cli.py`: 19 tests for CLI functionality
+- All 133 tests should pass
 
 ### Git Workflow
 
@@ -211,6 +231,56 @@ api_key: "${OPENAI_API_KEY}"
 
 # Custom system message
 default_system_message: "You are a helpful coding assistant."
+```
+
+### ADR-0007: Conversation Threading and Context Management
+
+- **Why:** Enable multi-turn conversations with context preservation for complex workflows like code reviews, iterative debugging, and exploratory conversations
+- **Storage precedence:** File-based JSON with local-first approach (aligns with ADR-0003):
+  1. `./.cllm/conversations/` (project-specific, if `.cllm` directory exists)
+  2. `~/.cllm/conversations/` (global, fallback)
+- **ID system:** UUID-based auto-generation (`conv-<8-char-hex>`) or user-specified meaningful names
+- **Default behavior:** Stateless (no conversation saved unless `--conversation` flag used)
+- **Key features:**
+  - Atomic file writes (temp file + rename) to prevent corruption
+  - Automatic token counting across providers
+  - Message history preservation with role tracking
+  - List, view, and delete operations for conversation management
+
+**Example - Multi-turn Conversation:**
+
+```bash
+# Start a conversation with custom ID
+cllm --conversation bug-investigation "Analyze this error: $(cat error.log)"
+
+# Continue with context automatically loaded
+cllm --conversation bug-investigation "What could cause this timeout?"
+
+# Keep building on the conversation
+cllm --conversation bug-investigation "How should I fix it?"
+
+# Review the full conversation
+cllm --show-conversation bug-investigation
+```
+
+**Storage Format:**
+
+```json
+{
+  "id": "bug-investigation",
+  "model": "gpt-4",
+  "created_at": "2025-10-27T10:00:00Z",
+  "updated_at": "2025-10-27T10:30:00Z",
+  "messages": [
+    {"role": "user", "content": "Analyze this error..."},
+    {"role": "assistant", "content": "This timeout is likely..."},
+    {"role": "user", "content": "What could cause this?"},
+    {"role": "assistant", "content": "Several factors..."}
+  ],
+  "metadata": {
+    "total_tokens": 1500
+  }
+}
 ```
 
 ## API Key Configuration
