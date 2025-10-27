@@ -9,6 +9,8 @@ import json
 import sys
 from typing import Optional
 
+import litellm
+
 from .client import LLMClient
 from .config import ConfigurationError, get_config_sources, load_config, merge_config_with_args
 
@@ -90,6 +92,12 @@ For full provider list: https://docs.litellm.ai/docs/providers
         help="Display effective configuration and exit",
     )
 
+    parser.add_argument(
+        "--list-models",
+        action="store_true",
+        help="List all available models and exit",
+    )
+
     parser.add_argument("--version", action="version", version="%(prog)s 0.1.0")
 
     return parser
@@ -115,6 +123,82 @@ def read_prompt(prompt_arg: Optional[str]) -> str:
     # No prompt provided
     print("Error: No prompt provided. Use 'cllm --help' for usage.", file=sys.stderr)
     sys.exit(1)
+
+
+def print_model_list():
+    """
+    Print a list of all available models from LiteLLM.
+
+    Models are organized by provider for better readability while
+    maintaining bash-friendly formatting (grep-able, one model per line).
+    """
+    # Get all models from LiteLLM
+    models = sorted(litellm.model_list)
+
+    # Define common provider prefixes and their display names
+    provider_prefixes = {
+        'openai/': 'OpenAI',
+        'anthropic/': 'Anthropic',
+        'claude-': 'Anthropic',
+        'gpt-': 'OpenAI',
+        'google/': 'Google',
+        'gemini': 'Google',
+        'azure/': 'Azure',
+        'bedrock/': 'AWS Bedrock',
+        'cohere/': 'Cohere',
+        'command-': 'Cohere',
+        'replicate/': 'Replicate',
+        'huggingface/': 'HuggingFace',
+        'together_ai/': 'Together AI',
+        'palm/': 'Google PaLM',
+        'openrouter/': 'OpenRouter',
+        'vertex_ai/': 'Vertex AI',
+        'groq/': 'Groq',
+        'mistral/': 'Mistral',
+        'deepseek': 'DeepSeek',
+        'databricks/': 'Databricks',
+        'ollama/': 'Ollama',
+    }
+
+    # Categorize models by provider
+    categorized = {}
+    uncategorized = []
+
+    for model in models:
+        matched = False
+        for prefix, provider_name in provider_prefixes.items():
+            if model.startswith(prefix) or (prefix.endswith('-') and prefix.rstrip('-') in model):
+                if provider_name not in categorized:
+                    categorized[provider_name] = []
+                categorized[provider_name].append(model)
+                matched = True
+                break
+
+        if not matched:
+            uncategorized.append(model)
+
+    # Print header
+    print(f"Available Models ({len(models)} total)")
+    print("=" * 60)
+    print()
+
+    # Print categorized models
+    for provider in sorted(categorized.keys()):
+        print(f"{provider}:")
+        for model in categorized[provider]:
+            print(f"  {model}")
+        print()
+
+    # Print uncategorized models
+    if uncategorized:
+        print("Other Providers:")
+        for model in uncategorized:
+            print(f"  {model}")
+        print()
+
+    # Print usage hint
+    print("=" * 60)
+    print("Tip: Use grep to filter models, e.g., 'cllm --list-models | grep gpt'")
 
 
 def main():
@@ -162,7 +246,12 @@ def main():
         print(json.dumps(config, indent=2))
         sys.exit(0)
 
-    # Read prompt (not needed for --show-config)
+    # Handle --list-models
+    if args.list_models:
+        print_model_list()
+        sys.exit(0)
+
+    # Read prompt (not needed for --show-config or --list-models)
     prompt = read_prompt(args.prompt)
 
     # Initialize client
