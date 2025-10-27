@@ -8,13 +8,14 @@ Implements ADR-0005: Add Structured Output Support with JSON Schema
 import argparse
 import json
 import sys
-from typing import Dict, Optional, Any
+from typing import Any, Dict, Optional
 
 import litellm
 
 from .client import LLMClient
 from .config import (
     ConfigurationError,
+    clear_schema_cache,
     get_config_sources,
     load_config,
     load_json_schema,
@@ -124,6 +125,12 @@ For full provider list: https://docs.litellm.ai/docs/providers
         help="Validate the JSON schema and exit (no LLM call made)",
     )
 
+    parser.add_argument(
+        "--clear-schema-cache",
+        action="store_true",
+        help="Clear all cached remote schemas and exit",
+    )
+
     parser.add_argument("--version", action="version", version="%(prog)s 0.1.0")
 
     return parser
@@ -139,12 +146,19 @@ def read_prompt(prompt_arg: Optional[str]) -> str:
     Returns:
         The prompt text
     """
-    if prompt_arg:
-        return prompt_arg
+    stdin_content = ""
 
-    # Read from stdin
+    # Read from stdin if available
     if not sys.stdin.isatty():
-        return sys.stdin.read().strip()
+        stdin_content = sys.stdin.read().strip()
+
+    # Combine prompt_arg and stdin if both exist
+    if prompt_arg and stdin_content:
+        return f"{prompt_arg}\n{stdin_content}"
+    elif prompt_arg:
+        return prompt_arg
+    elif stdin_content:
+        return stdin_content
 
     # No prompt provided
     print("Error: No prompt provided. Use 'cllm --help' for usage.", file=sys.stderr)
@@ -163,27 +177,27 @@ def print_model_list():
 
     # Define common provider prefixes and their display names
     provider_prefixes = {
-        'openai/': 'OpenAI',
-        'anthropic/': 'Anthropic',
-        'claude-': 'Anthropic',
-        'gpt-': 'OpenAI',
-        'google/': 'Google',
-        'gemini': 'Google',
-        'azure/': 'Azure',
-        'bedrock/': 'AWS Bedrock',
-        'cohere/': 'Cohere',
-        'command-': 'Cohere',
-        'replicate/': 'Replicate',
-        'huggingface/': 'HuggingFace',
-        'together_ai/': 'Together AI',
-        'palm/': 'Google PaLM',
-        'openrouter/': 'OpenRouter',
-        'vertex_ai/': 'Vertex AI',
-        'groq/': 'Groq',
-        'mistral/': 'Mistral',
-        'deepseek': 'DeepSeek',
-        'databricks/': 'Databricks',
-        'ollama/': 'Ollama',
+        "openai/": "OpenAI",
+        "anthropic/": "Anthropic",
+        "claude-": "Anthropic",
+        "gpt-": "OpenAI",
+        "google/": "Google",
+        "gemini": "Google",
+        "azure/": "Azure",
+        "bedrock/": "AWS Bedrock",
+        "cohere/": "Cohere",
+        "command-": "Cohere",
+        "replicate/": "Replicate",
+        "huggingface/": "HuggingFace",
+        "together_ai/": "Together AI",
+        "palm/": "Google PaLM",
+        "openrouter/": "OpenRouter",
+        "vertex_ai/": "Vertex AI",
+        "groq/": "Groq",
+        "mistral/": "Mistral",
+        "deepseek": "DeepSeek",
+        "databricks/": "Databricks",
+        "ollama/": "Ollama",
     }
 
     # Categorize models by provider
@@ -193,7 +207,9 @@ def print_model_list():
     for model in models:
         matched = False
         for prefix, provider_name in provider_prefixes.items():
-            if model.startswith(prefix) or (prefix.endswith('-') and prefix.rstrip('-') in model):
+            if model.startswith(prefix) or (
+                prefix.endswith("-") and prefix.rstrip("-") in model
+            ):
                 if provider_name not in categorized:
                     categorized[provider_name] = []
                 categorized[provider_name].append(model)
@@ -298,30 +314,46 @@ def main():
         print_model_list()
         sys.exit(0)
 
+    # Handle --clear-schema-cache
+    if args.clear_schema_cache:
+        count = clear_schema_cache()
+        if count > 0:
+            print(f"Cleared {count} cached schema(s)")
+        else:
+            print("No cached schemas found")
+        sys.exit(0)
+
     # Handle --validate-schema
     if args.validate_schema:
         if schema is None:
-            print("Error: No schema provided. Use --json-schema or --json-schema-file", file=sys.stderr)
+            print(
+                "Error: No schema provided. Use --json-schema or --json-schema-file",
+                file=sys.stderr,
+            )
             sys.exit(1)
 
         print("✓ Schema is valid!")
         print("\nSchema details:")
         print(f"  Type: {schema.get('type', 'not specified')}")
 
-        if schema.get('type') == 'object':
-            props = schema.get('properties', {})
+        if schema.get("type") == "object":
+            props = schema.get("properties", {})
             print(f"  Properties: {len(props)}")
             if props:
                 print("  Fields:")
                 for prop_name, prop_schema in props.items():
-                    prop_type = prop_schema.get('type', 'any')
-                    required = '(required)' if prop_name in schema.get('required', []) else '(optional)'
+                    prop_type = prop_schema.get("type", "any")
+                    required = (
+                        "(required)"
+                        if prop_name in schema.get("required", [])
+                        else "(optional)"
+                    )
                     print(f"    - {prop_name}: {prop_type} {required}")
-        elif schema.get('type') == 'array':
-            items = schema.get('items', {})
+        elif schema.get("type") == "array":
+            items = schema.get("items", {})
             print(f"  Items type: {items.get('type', 'any')}")
 
-        print(f"\n✓ Schema validation successful")
+        print("\n✓ Schema validation successful")
         sys.exit(0)
 
     # Read prompt (not needed for --show-config, --list-models, or --validate-schema)
@@ -340,7 +372,15 @@ def main():
     kwargs = {
         k: v
         for k, v in config.items()
-        if k not in ["model", "stream", "raw_response", "default_system_message", "json_schema", "json_schema_file"]
+        if k
+        not in [
+            "model",
+            "stream",
+            "raw_response",
+            "default_system_message",
+            "json_schema",
+            "json_schema_file",
+        ]
     }
 
     # Handle default_system_message if present
@@ -356,7 +396,7 @@ def main():
             "json_schema": {
                 "name": "response_schema",
                 "schema": schema,
-            }
+            },
         }
 
     if raw_response:
@@ -383,7 +423,9 @@ def main():
                     parsed_response = json.loads(complete_response)
                     validate_against_schema(parsed_response, schema)
                 except json.JSONDecodeError as e:
-                    print(f"\nWarning: Response is not valid JSON: {e}", file=sys.stderr)
+                    print(
+                        f"\nWarning: Response is not valid JSON: {e}", file=sys.stderr
+                    )
                     sys.exit(1)
                 except ConfigurationError as e:
                     print(f"\nValidation error: {e}", file=sys.stderr)
@@ -408,7 +450,9 @@ def main():
                         parsed_response = json.loads(response)
                         validate_against_schema(parsed_response, schema)
                     except json.JSONDecodeError as e:
-                        print(f"Error: Response is not valid JSON: {e}", file=sys.stderr)
+                        print(
+                            f"Error: Response is not valid JSON: {e}", file=sys.stderr
+                        )
                         print(f"Response: {response}", file=sys.stderr)
                         sys.exit(1)
                     except ConfigurationError as e:

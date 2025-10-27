@@ -2,22 +2,32 @@
 
 Implements ADR-0003: Cllmfile Configuration System
 Implements ADR-0005: Add Structured Output Support with JSON Schema
+Implements ADR-0006: Support Remote JSON Schema URLs
 """
 
+import hashlib
 import json
 import os
 import re
+import time
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-import yaml
 import jsonschema
+import requests
+import yaml
 
 
 class ConfigurationError(Exception):
     """Raised when there's an error loading or parsing configuration files."""
 
     pass
+
+
+# Cache configuration for remote schemas (ADR-0006)
+CACHE_DIR = Path.home() / ".cllm" / "cache" / "schemas"
+DEFAULT_CACHE_TTL = 86400  # 24 hours in seconds
+MAX_SCHEMA_SIZE = 1024 * 1024  # 1MB
 
 
 def _interpolate_env_vars(value: Any) -> Any:
@@ -180,6 +190,199 @@ def get_config_sources(config_name: Optional[str] = None) -> list[str]:
     return [str(path) for path in _find_config_files(config_name)]
 
 
+def is_remote_schema(path: str) -> bool:
+    """Check if path is a remote URL.
+
+    Args:
+        path: Path or URL string
+
+    Returns:
+        True if path is an HTTP/HTTPS URL
+    """
+    return path.startswith("https://") or path.startswith("http://")
+
+
+def get_cache_path(url: str) -> Path:
+    """Generate cache file path from URL hash.
+
+    Uses SHA-256 hash of URL to create a unique, filesystem-safe cache filename.
+
+    Args:
+        url: Remote schema URL
+
+    Returns:
+        Path to cache file
+    """
+    url_hash = hashlib.sha256(url.encode()).hexdigest()
+    return CACHE_DIR / f"{url_hash}.json"
+
+
+def load_remote_schema(url: str) -> Dict[str, Any]:
+    """Download and cache remote schema with security checks.
+
+    Implements ADR-0006 security measures:
+    - HTTPS-only by default (configurable via CLLM_ALLOW_HTTP_SCHEMAS)
+    - 1MB size limit
+    - 10-second timeout
+    - Schema validation before caching
+    - TTL-based caching with stale cache fallback
+
+    Args:
+        url: HTTPS URL to JSON schema
+
+    Returns:
+        Validated JSON schema dictionary
+
+    Raises:
+        ConfigurationError: If URL is insecure, download fails, or schema is invalid
+    """
+    # Security check: HTTPS only by default
+    if not url.startswith("https://"):
+        allow_http = os.getenv("CLLM_ALLOW_HTTP_SCHEMAS") == "1"
+        if not allow_http:
+            raise ConfigurationError(
+                f"Insecure schema URL (HTTP not allowed): {url}\n"
+                f"Suggestion: Use HTTPS URL or set CLLM_ALLOW_HTTP_SCHEMAS=1 to override (not recommended)"
+            )
+
+    # Check cache first
+    cache_path = get_cache_path(url)
+    cache_ttl = int(os.getenv("CLLM_SCHEMA_CACHE_TTL", DEFAULT_CACHE_TTL))
+
+    # Check if we're in offline mode
+    offline_mode = os.getenv("CLLM_OFFLINE_MODE") == "1"
+
+    if cache_path.exists():
+        cache_age = time.time() - cache_path.stat().st_mtime
+        if cache_age < cache_ttl:
+            # Use cached version (within TTL)
+            try:
+                with open(cache_path) as f:
+                    return json.load(f)
+            except (json.JSONDecodeError, OSError):
+                # Cache corrupted, will re-download
+                pass
+
+    # If offline mode and no valid cache, error
+    if offline_mode:
+        if cache_path.exists():
+            # Use stale cache in offline mode
+            try:
+                with open(cache_path) as f:
+                    return json.load(f)
+            except (json.JSONDecodeError, OSError):
+                pass
+        raise ConfigurationError(
+            f"Cannot download schema in offline mode: {url}\n"
+            f"Cache miss: No cached version available\n"
+            f"Suggestion: Disable CLLM_OFFLINE_MODE or use a local schema file"
+        )
+
+    # Download schema
+    try:
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+
+        # Check size limit
+        content_length = len(response.content)
+        max_size = int(os.getenv("CLLM_MAX_SCHEMA_SIZE", MAX_SCHEMA_SIZE))
+        if content_length > max_size:
+            raise ConfigurationError(
+                f"Schema too large: {content_length} bytes (max {max_size})\n"
+                f"URL: {url}\n"
+                f"Suggestion: Use a smaller schema or increase CLLM_MAX_SCHEMA_SIZE"
+            )
+
+        # Parse JSON
+        schema = response.json()
+
+        # Validate it's a valid JSON Schema
+        try:
+            jsonschema.Draft7Validator.check_schema(schema)
+        except jsonschema.exceptions.SchemaError as e:
+            raise ConfigurationError(
+                f"Invalid JSON Schema from {url}\n"
+                f"Schema validation error: {e}\n"
+                f"Suggestion: Verify URL points to a valid JSON Schema file"
+            )
+
+        # Cache the validated schema
+        CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        with open(cache_path, "w") as f:
+            json.dump(schema, f)
+
+        return schema
+
+    except requests.Timeout:
+        # Try stale cache as fallback
+        if cache_path.exists():
+            try:
+                cache_age_hours = (time.time() - cache_path.stat().st_mtime) / 3600
+                print(
+                    f"Warning: Request timeout, using cached schema from {url} "
+                    f"(cached {cache_age_hours:.1f} hours ago)",
+                    file=__import__("sys").stderr,
+                )
+                with open(cache_path) as f:
+                    return json.load(f)
+            except (json.JSONDecodeError, OSError):
+                pass
+        raise ConfigurationError(
+            f"Failed to download schema from {url}\n"
+            f"Network error: Connection timeout (10s limit)\n"
+            f"Cache miss: No cached version available\n"
+            f"Suggestion: Check network connection or use a local schema file"
+        )
+
+    except requests.RequestException as e:
+        # Try stale cache as fallback
+        if cache_path.exists():
+            try:
+                cache_age_hours = (time.time() - cache_path.stat().st_mtime) / 3600
+                print(
+                    f"Warning: Network error, using cached schema from {url} "
+                    f"(cached {cache_age_hours:.1f} hours ago)",
+                    file=__import__("sys").stderr,
+                )
+                with open(cache_path) as f:
+                    return json.load(f)
+            except (json.JSONDecodeError, OSError):
+                pass
+        raise ConfigurationError(
+            f"Failed to download schema from {url}\n"
+            f"Network error: {e}\n"
+            f"Cache miss: No cached version available\n"
+            f"Suggestion: Check network connection or use a local schema file"
+        )
+
+    except json.JSONDecodeError as e:
+        raise ConfigurationError(
+            f"Invalid JSON from {url}\n"
+            f"Parse error: {e}\n"
+            f"Suggestion: Verify URL returns valid JSON content"
+        )
+
+
+def clear_schema_cache() -> int:
+    """Clear all cached schemas.
+
+    Returns:
+        Number of cached schemas cleared
+    """
+    if not CACHE_DIR.exists():
+        return 0
+
+    count = 0
+    for cache_file in CACHE_DIR.glob("*.json"):
+        try:
+            cache_file.unlink()
+            count += 1
+        except OSError:
+            pass
+
+    return count
+
+
 def resolve_schema_file_path(schema_file: str) -> Path:
     """Resolve schema file path with fallback lookup logic.
 
@@ -228,10 +431,12 @@ def resolve_schema_file_path(schema_file: str) -> Path:
 def load_json_schema(schema_source: Any) -> Dict[str, Any]:
     """Load and validate a JSON schema from various sources.
 
+    Supports local files and remote URLs (ADR-0006).
+
     Args:
         schema_source: Can be:
             - dict: Already parsed schema (from YAML config)
-            - str: Path to JSON schema file
+            - str: Path to JSON schema file OR HTTPS URL
             - Path: Path object to JSON schema file
 
     Returns:
@@ -249,9 +454,16 @@ def load_json_schema(schema_source: Any) -> Dict[str, Any]:
         except jsonschema.exceptions.SchemaError as e:
             raise ConfigurationError(f"Invalid JSON schema: {e}")
 
-    # If string or Path, load from file
+    # If string or Path, check if it's a URL or local file
     if isinstance(schema_source, (str, Path)):
-        schema_path = resolve_schema_file_path(str(schema_source))
+        schema_str = str(schema_source)
+
+        # Check if it's a remote URL (ADR-0006)
+        if is_remote_schema(schema_str):
+            return load_remote_schema(schema_str)
+
+        # Otherwise, load from local file
+        schema_path = resolve_schema_file_path(schema_str)
         try:
             with open(schema_path, "r") as f:
                 schema = json.load(f)

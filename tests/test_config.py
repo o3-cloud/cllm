@@ -8,13 +8,18 @@ from unittest.mock import patch
 import pytest
 
 from cllm.config import (
+    CACHE_DIR,
     ConfigurationError,
     _find_config_files,
     _interpolate_env_vars,
     _load_yaml_file,
+    clear_schema_cache,
+    get_cache_path,
     get_config_sources,
+    is_remote_schema,
     load_config,
     load_json_schema,
+    load_remote_schema,
     merge_config_with_args,
     resolve_schema_file_path,
     validate_against_schema,
@@ -117,7 +122,9 @@ class TestLoadYamlFile:
             temp_path = Path(f.name)
 
         try:
-            with pytest.raises(ConfigurationError, match="must contain a YAML dictionary"):
+            with pytest.raises(
+                ConfigurationError, match="must contain a YAML dictionary"
+            ):
                 _load_yaml_file(temp_path)
         finally:
             temp_path.unlink()
@@ -223,7 +230,9 @@ class TestLoadConfig:
             cllm_dir = Path(tmpdir) / ".cllm"
             cllm_dir.mkdir()
             cllm_config = cllm_dir / "Cllmfile.yml"
-            cllm_config.write_text("model: gpt-3.5-turbo\ntemperature: 0.5\nmax_tokens: 1000\n")
+            cllm_config.write_text(
+                "model: gpt-3.5-turbo\ntemperature: 0.5\nmax_tokens: 1000\n"
+            )
 
             # Higher precedence: ./Cllmfile.yml (overrides model and temperature)
             cwd_config = Path(tmpdir) / "Cllmfile.yml"
@@ -232,7 +241,11 @@ class TestLoadConfig:
             with patch("cllm.config.Path.cwd", return_value=Path(tmpdir)):
                 config = load_config()
                 # gpt-4 and 0.7 from cwd_config override, max_tokens from cllm_config remains
-                assert config == {"model": "gpt-4", "temperature": 0.7, "max_tokens": 1000}
+                assert config == {
+                    "model": "gpt-4",
+                    "temperature": 0.7,
+                    "max_tokens": 1000,
+                }
 
     def test_load_named_config(self):
         """Test loading a named configuration."""
@@ -248,7 +261,9 @@ class TestLoadConfig:
         """Test that requesting a non-existent named config raises error."""
         with tempfile.TemporaryDirectory() as tmpdir:
             with patch("cllm.config.Path.cwd", return_value=Path(tmpdir)):
-                with pytest.raises(ConfigurationError, match="Configuration 'nonexistent' not found"):
+                with pytest.raises(
+                    ConfigurationError, match="Configuration 'nonexistent' not found"
+                ):
                     load_config(config_name="nonexistent")
 
     def test_load_no_config_returns_empty_dict(self):
@@ -508,3 +523,344 @@ class TestValidateAgainstSchema:
 
         # Should not raise any exception
         validate_against_schema(data, schema)
+
+
+class TestRemoteSchemaDetection:
+    """Tests for remote schema URL detection (ADR-0006)."""
+
+    def test_is_remote_schema_https(self):
+        """Test detecting HTTPS URLs."""
+        assert is_remote_schema("https://example.com/schema.json") is True
+
+    def test_is_remote_schema_http(self):
+        """Test detecting HTTP URLs."""
+        assert is_remote_schema("http://example.com/schema.json") is True
+
+    def test_is_remote_schema_local_path(self):
+        """Test that local paths are not detected as remote."""
+        assert is_remote_schema("/path/to/schema.json") is False
+        assert is_remote_schema("./schema.json") is False
+        assert is_remote_schema("schema.json") is False
+
+
+class TestCachePathGeneration:
+    """Tests for cache path generation."""
+
+    def test_get_cache_path_generates_hash(self):
+        """Test that cache path uses SHA-256 hash of URL."""
+        url = "https://example.com/schema.json"
+        cache_path = get_cache_path(url)
+
+        # Check that it's in the cache directory
+        assert cache_path.parent == CACHE_DIR
+
+        # Check that filename is a hash
+        assert cache_path.suffix == ".json"
+        assert len(cache_path.stem) == 64  # SHA-256 hash length
+
+    def test_get_cache_path_same_url_same_path(self):
+        """Test that same URL generates same cache path."""
+        url = "https://example.com/schema.json"
+        path1 = get_cache_path(url)
+        path2 = get_cache_path(url)
+        assert path1 == path2
+
+    def test_get_cache_path_different_url_different_path(self):
+        """Test that different URLs generate different cache paths."""
+        url1 = "https://example.com/schema1.json"
+        url2 = "https://example.com/schema2.json"
+        path1 = get_cache_path(url1)
+        path2 = get_cache_path(url2)
+        assert path1 != path2
+
+
+class TestRemoteSchemaLoading:
+    """Tests for remote schema loading with caching (ADR-0006)."""
+
+    @pytest.fixture
+    def valid_schema(self):
+        """Sample valid JSON schema."""
+        return {
+            "type": "object",
+            "properties": {"name": {"type": "string"}, "age": {"type": "number"}},
+        }
+
+    @pytest.fixture
+    def mock_response(self, valid_schema):
+        """Create a mock response object."""
+        from unittest.mock import Mock
+
+        response = Mock()
+        response.content = (
+            b'{"type": "object", "properties": {"name": {"type": "string"}}}'
+        )
+        response.json.return_value = valid_schema
+        response.raise_for_status.return_value = None
+        return response
+
+    def test_https_only_enforcement(self):
+        """Test that HTTP URLs are rejected by default."""
+        with pytest.raises(ConfigurationError, match="Insecure schema URL"):
+            load_remote_schema("http://example.com/schema.json")
+
+    def test_http_allowed_with_env_var(self, mock_response, valid_schema):
+        """Test that HTTP URLs work when CLLM_ALLOW_HTTP_SCHEMAS=1."""
+        with patch.dict(os.environ, {"CLLM_ALLOW_HTTP_SCHEMAS": "1"}):
+            with patch("cllm.config.requests.get", return_value=mock_response):
+                schema = load_remote_schema("http://example.com/schema.json")
+                assert schema == valid_schema
+
+    def test_download_and_cache_schema(self, mock_response, valid_schema, tmp_path):
+        """Test downloading and caching a remote schema."""
+        with patch("cllm.config.CACHE_DIR", tmp_path):
+            with patch("cllm.config.requests.get", return_value=mock_response):
+                schema = load_remote_schema("https://example.com/schema.json")
+
+                # Check schema is returned correctly
+                assert schema == valid_schema
+
+                # Check cache file was created
+                cache_path = get_cache_path("https://example.com/schema.json")
+                cache_file = tmp_path / cache_path.name
+                assert cache_file.exists()
+
+    def test_use_cached_schema(self, valid_schema, tmp_path):
+        """Test that cached schema is used when within TTL."""
+        # Create a cache file
+        cache_path = get_cache_path("https://example.com/schema.json")
+        cache_file = tmp_path / cache_path.name
+        cache_file.parent.mkdir(parents=True, exist_ok=True)
+
+        import json
+
+        with open(cache_file, "w") as f:
+            json.dump(valid_schema, f)
+
+        # Should use cache without making HTTP request
+        with patch("cllm.config.CACHE_DIR", tmp_path):
+            with patch("cllm.config.requests.get") as mock_get:
+                schema = load_remote_schema("https://example.com/schema.json")
+
+                # Check schema was loaded from cache
+                assert schema == valid_schema
+                # Check no HTTP request was made
+                mock_get.assert_not_called()
+
+    def test_expired_cache_redownloads(self, mock_response, valid_schema, tmp_path):
+        """Test that expired cache triggers re-download."""
+        # Create an old cache file
+        cache_path = get_cache_path("https://example.com/schema.json")
+        cache_file = tmp_path / cache_path.name
+        cache_file.parent.mkdir(parents=True, exist_ok=True)
+
+        import json
+
+        with open(cache_file, "w") as f:
+            json.dump(valid_schema, f)
+
+        # Set modification time to 2 days ago
+        import time
+
+        old_time = time.time() - (2 * 86400)
+        os.utime(cache_file, (old_time, old_time))
+
+        # Should re-download
+        with patch("cllm.config.CACHE_DIR", tmp_path):
+            with patch(
+                "cllm.config.requests.get", return_value=mock_response
+            ) as mock_get:
+                load_remote_schema("https://example.com/schema.json")
+
+                # Check HTTP request was made
+                mock_get.assert_called_once()
+
+    def test_network_error_uses_stale_cache(self, valid_schema, tmp_path):
+        """Test that network errors fall back to stale cache."""
+        # Create a stale cache file
+        cache_path = get_cache_path("https://example.com/schema.json")
+        cache_file = tmp_path / cache_path.name
+        cache_file.parent.mkdir(parents=True, exist_ok=True)
+
+        import json
+
+        with open(cache_file, "w") as f:
+            json.dump(valid_schema, f)
+
+        # Simulate network error
+        import requests
+
+        with patch("cllm.config.CACHE_DIR", tmp_path):
+            with patch(
+                "cllm.config.requests.get",
+                side_effect=requests.RequestException("Network error"),
+            ):
+                # Should use stale cache and print warning
+                schema = load_remote_schema("https://example.com/schema.json")
+                assert schema == valid_schema
+
+    def test_network_error_no_cache_raises(self):
+        """Test that network error without cache raises error."""
+        import requests
+
+        with patch(
+            "cllm.config.requests.get",
+            side_effect=requests.RequestException("Network error"),
+        ):
+            with pytest.raises(ConfigurationError, match="Failed to download schema"):
+                load_remote_schema("https://example.com/schema.json")
+
+    def test_timeout_uses_stale_cache(self, valid_schema, tmp_path):
+        """Test that timeout falls back to stale cache."""
+        # Create a stale cache file
+        cache_path = get_cache_path("https://example.com/schema.json")
+        cache_file = tmp_path / cache_path.name
+        cache_file.parent.mkdir(parents=True, exist_ok=True)
+
+        import json
+
+        with open(cache_file, "w") as f:
+            json.dump(valid_schema, f)
+
+        # Simulate timeout
+        import requests
+
+        with patch("cllm.config.CACHE_DIR", tmp_path):
+            with patch(
+                "cllm.config.requests.get",
+                side_effect=requests.Timeout("Request timeout"),
+            ):
+                schema = load_remote_schema("https://example.com/schema.json")
+                assert schema == valid_schema
+
+    def test_size_limit_enforcement(self, valid_schema):
+        """Test that schemas larger than limit are rejected."""
+        from unittest.mock import Mock
+
+        response = Mock()
+        # Create content larger than 1MB
+        response.content = b"x" * (1024 * 1024 + 1)
+        response.json.return_value = valid_schema
+
+        with patch("cllm.config.requests.get", return_value=response):
+            with pytest.raises(ConfigurationError, match="Schema too large"):
+                load_remote_schema("https://example.com/schema.json")
+
+    def test_invalid_json_schema_rejected(self):
+        """Test that invalid JSON schemas are rejected."""
+        from unittest.mock import Mock
+
+        response = Mock()
+        response.content = b'{"type": "invalid_type"}'
+        response.json.return_value = {"type": "invalid_type"}
+
+        with patch("cllm.config.requests.get", return_value=response):
+            with pytest.raises(ConfigurationError, match="Invalid JSON Schema"):
+                load_remote_schema("https://example.com/schema.json")
+
+    def test_invalid_json_rejected(self):
+        """Test that invalid JSON is rejected."""
+        import json as json_module
+        from unittest.mock import Mock
+
+        response = Mock()
+        response.content = b"invalid json"
+        response.json.side_effect = json_module.JSONDecodeError("error", "doc", 0)
+
+        with patch("cllm.config.requests.get", return_value=response):
+            with pytest.raises(ConfigurationError, match="Invalid JSON"):
+                load_remote_schema("https://example.com/schema.json")
+
+    def test_offline_mode_uses_cache(self, valid_schema, tmp_path):
+        """Test that offline mode uses cache only."""
+        # Create a cache file
+        cache_path = get_cache_path("https://example.com/schema.json")
+        cache_file = tmp_path / cache_path.name
+        cache_file.parent.mkdir(parents=True, exist_ok=True)
+
+        import json
+
+        with open(cache_file, "w") as f:
+            json.dump(valid_schema, f)
+
+        # Test offline mode
+        with patch.dict(os.environ, {"CLLM_OFFLINE_MODE": "1"}):
+            with patch("cllm.config.CACHE_DIR", tmp_path):
+                with patch("cllm.config.requests.get") as mock_get:
+                    schema = load_remote_schema("https://example.com/schema.json")
+
+                    # Check schema was loaded from cache
+                    assert schema == valid_schema
+                    # Check no HTTP request was made
+                    mock_get.assert_not_called()
+
+    def test_offline_mode_no_cache_raises(self):
+        """Test that offline mode without cache raises error."""
+        with patch.dict(os.environ, {"CLLM_OFFLINE_MODE": "1"}):
+            with pytest.raises(
+                ConfigurationError, match="Cannot download schema in offline mode"
+            ):
+                load_remote_schema("https://example.com/schema.json")
+
+
+class TestCacheManagement:
+    """Tests for cache management functions."""
+
+    def test_clear_empty_cache(self, tmp_path):
+        """Test clearing cache when no cache exists."""
+        # Use a temporary directory to ensure it's empty
+        empty_cache_dir = tmp_path / "empty_cache"
+        empty_cache_dir.mkdir()
+
+        with patch("cllm.config.CACHE_DIR", empty_cache_dir):
+            count = clear_schema_cache()
+            assert count == 0
+
+    def test_clear_cache_with_files(self, tmp_path):
+        """Test clearing cache with cached files."""
+        # Create some cache files
+        cache_files = []
+        for i in range(3):
+            cache_file = tmp_path / f"schema{i}.json"
+            cache_file.write_text('{"type": "object"}')
+            cache_files.append(cache_file)
+
+        with patch("cllm.config.CACHE_DIR", tmp_path):
+            count = clear_schema_cache()
+            assert count == 3
+
+            # Verify files are deleted
+            for cache_file in cache_files:
+                assert not cache_file.exists()
+
+
+class TestLoadJsonSchemaWithUrls:
+    """Tests for load_json_schema with URL support."""
+
+    def test_load_schema_from_url(self, tmp_path):
+        """Test loading schema from remote URL."""
+        valid_schema = {"type": "object", "properties": {"name": {"type": "string"}}}
+
+        from unittest.mock import Mock
+
+        response = Mock()
+        response.content = b'{"type": "object"}'
+        response.json.return_value = valid_schema
+
+        with patch("cllm.config.CACHE_DIR", tmp_path):
+            with patch("cllm.config.requests.get", return_value=response):
+                schema = load_json_schema("https://example.com/schema.json")
+                assert schema == valid_schema
+
+    def test_load_schema_local_file_still_works(self):
+        """Test that local file loading still works (backward compatibility)."""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            f.write('{"type": "object", "properties": {"age": {"type": "number"}}}')
+            f.flush()
+            temp_path = Path(f.name)
+
+        try:
+            with patch("cllm.config.resolve_schema_file_path", return_value=temp_path):
+                schema = load_json_schema(str(temp_path))
+                assert schema["type"] == "object"
+        finally:
+            temp_path.unlink()

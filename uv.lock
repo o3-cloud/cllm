@@ -317,12 +317,13 @@ wheels = [
 
 [[package]]
 name = "cllm"
-version = "0.1.0"
+version = "0.1.2"
 source = { editable = "." }
 dependencies = [
     { name = "jsonschema" },
     { name = "litellm" },
     { name = "pyyaml" },
+    { name = "requests" },
 ]
 
 [package.dev-dependencies]
@@ -336,6 +337,7 @@ requires-dist = [
     { name = "jsonschema", specifier = ">=4.23.0" },
     { name = "litellm", specifier = ">=1.79.0" },
     { name = "pyyaml", specifier = ">=6.0.3" },
+    { name = "requests", specifier = ">=2.32.4" },
 ]
 
 [package.metadata.requires-dev]
