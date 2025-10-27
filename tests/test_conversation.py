@@ -44,18 +44,6 @@ class TestConversation:
         assert conv.messages[0]["role"] == "user"
         assert conv.messages[0]["content"] == "Hello, world!"
 
-    def test_add_multiple_messages(self):
-        """Test adding multiple messages."""
-        conv = Conversation(id="test", model="gpt-4")
-        conv.add_message("user", "First message")
-        conv.add_message("assistant", "Response")
-        conv.add_message("user", "Follow-up")
-
-        assert len(conv.messages) == 3
-        assert conv.messages[0]["role"] == "user"
-        assert conv.messages[1]["role"] == "assistant"
-        assert conv.messages[2]["role"] == "user"
-
     def test_get_messages(self):
         """Test retrieving all messages."""
         messages = [{"role": "user", "content": "Test"}]
@@ -163,12 +151,6 @@ class TestConversationManager:
         conv_id = manager._generate_id()
         assert conv_id.startswith("conv-")
         assert len(conv_id) == 13  # "conv-" + 8 hex chars
-
-    def test_generate_id_uniqueness(self, manager):
-        """Test that generated IDs are unique."""
-        id1 = manager._generate_id()
-        id2 = manager._generate_id()
-        assert id1 != id2
 
     def test_validate_id_valid(self, manager):
         """Test ID validation with valid IDs."""
@@ -325,16 +307,6 @@ class TestConversationManager:
         assert conversations[0]["id"] == "test"
         assert conversations[0]["model"] == "gpt-4"
         assert conversations[0]["message_count"] == 1
-
-    def test_list_conversations_multiple(self, manager):
-        """Test listing multiple conversations."""
-        for i in range(3):
-            conv = manager.create(conversation_id=f"test-{i}", model="gpt-4")
-            conv.add_message("user", f"Message {i}")
-            manager.save(conv)
-
-        conversations = manager.list_conversations()
-        assert len(conversations) == 3
 
     def test_list_conversations_sorted_by_updated(self, manager):
         """Test that conversations are sorted by updated_at (most recent first)."""

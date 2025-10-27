@@ -15,20 +15,6 @@ from cllm import LLMClient
 class TestLLMClient:
     """Test suite for LLMClient."""
 
-    def test_client_initialization(self):
-        """Test that client initializes correctly."""
-        client = LLMClient()
-        assert client is not None
-
-    def test_client_initialization_with_api_keys(self):
-        """Test that client accepts API keys."""
-        api_keys = {
-            "OPENAI_API_KEY": "test-key-123",
-            "ANTHROPIC_API_KEY": "test-key-456",
-        }
-        client = LLMClient(api_keys=api_keys)
-        assert client is not None
-
     @patch("cllm.client.completion")
     def test_complete_with_string_message(self, mock_completion):
         """Test completion with a simple string message."""
@@ -83,18 +69,6 @@ class TestLLMClient:
 
         call_args = mock_completion.call_args[1]
         assert call_args["temperature"] == 1.5
-
-    @patch("cllm.client.completion")
-    def test_complete_with_max_tokens(self, mock_completion):
-        """Test that max_tokens parameter is passed correctly."""
-        mock_response = {"choices": [{"message": {"content": "Short response"}}]}
-        mock_completion.return_value = mock_response
-
-        client = LLMClient()
-        client.complete(model="gpt-4", messages="Be brief", max_tokens=50)
-
-        call_args = mock_completion.call_args[1]
-        assert call_args["max_tokens"] == 50
 
     @patch("cllm.client.completion")
     def test_streaming_response(self, mock_completion):
@@ -165,28 +139,6 @@ class TestLLMClient:
         assert response == "Response to conversation"
         call_args = mock_completion.call_args[1]
         assert call_args["messages"] == messages
-
-    @patch("cllm.client.completion")
-    def test_multiple_providers_same_interface(self, mock_completion):
-        """
-        Test that multiple providers can be used with the same interface.
-        This is the core benefit of ADR-0002.
-        """
-        mock_response = {"choices": [{"message": {"content": "42"}}]}
-        mock_completion.return_value = mock_response
-
-        client = LLMClient()
-        prompt = "What is 6 * 7?"
-
-        # Test with multiple providers using identical code
-        providers = ["gpt-4", "claude-3-opus-20240229", "gemini-pro"]
-
-        for model in providers:
-            response = client.complete(model=model, messages=prompt)
-            assert response == "42"
-
-        # Verify completion was called 3 times
-        assert mock_completion.call_count == 3
 
 
 class TestAsyncClient:

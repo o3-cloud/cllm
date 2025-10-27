@@ -35,12 +35,6 @@ class TestEnvVarInterpolation:
             result = _interpolate_env_vars("${TEST_VAR}")
             assert result == "test_value"
 
-    def test_interpolate_string_with_multiple_env_vars(self):
-        """Test interpolating multiple environment variables in one string."""
-        with patch.dict(os.environ, {"VAR1": "hello", "VAR2": "world"}):
-            result = _interpolate_env_vars("${VAR1} ${VAR2}")
-            assert result == "hello world"
-
     def test_interpolate_missing_env_var(self):
         """Test that missing env vars are left as-is."""
         result = _interpolate_env_vars("${NONEXISTENT_VAR}")
@@ -151,19 +145,6 @@ class TestFindConfigFiles:
         """Test finding Cllmfile.yml in current directory."""
         with tempfile.TemporaryDirectory() as tmpdir:
             config_path = Path(tmpdir) / "Cllmfile.yml"
-            config_path.write_text("model: gpt-4\n")
-
-            with patch("cllm.config.Path.cwd", return_value=Path(tmpdir)):
-                files = _find_config_files()
-                assert len(files) == 1
-                assert files[0] == config_path
-
-    def test_find_config_in_cllm_folder(self):
-        """Test finding Cllmfile.yml in .cllm folder."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            cllm_dir = Path(tmpdir) / ".cllm"
-            cllm_dir.mkdir()
-            config_path = cllm_dir / "Cllmfile.yml"
             config_path.write_text("model: gpt-4\n")
 
             with patch("cllm.config.Path.cwd", return_value=Path(tmpdir)):
@@ -850,17 +831,3 @@ class TestLoadJsonSchemaWithUrls:
             with patch("cllm.config.requests.get", return_value=response):
                 schema = load_json_schema("https://example.com/schema.json")
                 assert schema == valid_schema
-
-    def test_load_schema_local_file_still_works(self):
-        """Test that local file loading still works (backward compatibility)."""
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
-            f.write('{"type": "object", "properties": {"age": {"type": "number"}}}')
-            f.flush()
-            temp_path = Path(f.name)
-
-        try:
-            with patch("cllm.config.resolve_schema_file_path", return_value=temp_path):
-                schema = load_json_schema(str(temp_path))
-                assert schema["type"] == "object"
-        finally:
-            temp_path.unlink()

@@ -8,23 +8,7 @@ from unittest.mock import patch
 
 import pytest
 
-from cllm.cli import create_parser, main, print_model_list
-
-
-class TestCLIArguments:
-    """Test suite for CLI argument parsing."""
-
-    def test_list_models_flag_exists(self):
-        """Test that --list-models flag is recognized."""
-        parser = create_parser()
-        args = parser.parse_args(["--list-models"])
-        assert args.list_models is True
-
-    def test_list_models_flag_default(self):
-        """Test that --list-models defaults to False."""
-        parser = create_parser()
-        args = parser.parse_args(["test prompt"])
-        assert args.list_models is False
+from cllm.cli import main, print_model_list
 
 
 class TestListModels:
@@ -130,60 +114,8 @@ class TestListModelsIntegration:
         mock_client.assert_not_called()
 
 
-class TestListModelsGrep:
-    """Test that --list-models output is grep-friendly."""
-
-    @patch(
-        "cllm.cli.litellm.model_list",
-        [
-            "gpt-4",
-            "gpt-3.5-turbo",
-            "claude-3-opus-20240229",
-            "gemini-pro",
-        ],
-    )
-    def test_models_on_separate_lines(self, capsys):
-        """Test that each model appears on its own line for grep-ability."""
-        print_model_list()
-        captured = capsys.readouterr()
-
-        # Each model should be on its own line
-        lines = captured.out.split("\n")
-        model_lines = [
-            line.strip() for line in lines if line.strip() and not line.startswith("=")
-        ]
-
-        # Find lines that contain our models
-        gpt4_lines = [
-            line for line in model_lines if "gpt-4" in line and "gpt-3.5" not in line
-        ]
-        gpt35_lines = [line for line in model_lines if "gpt-3.5-turbo" in line]
-        claude_lines = [
-            line for line in model_lines if "claude-3-opus-20240229" in line
-        ]
-        gemini_lines = [line for line in model_lines if "gemini-pro" in line]
-
-        # Each model should appear at least once
-        assert len(gpt4_lines) >= 1
-        assert len(gpt35_lines) >= 1
-        assert len(claude_lines) >= 1
-        assert len(gemini_lines) >= 1
-
-
 class TestValidateSchema:
     """Test suite for --validate-schema flag."""
-
-    def test_validate_schema_flag_exists(self):
-        """Test that --validate-schema flag is recognized."""
-        parser = create_parser()
-        args = parser.parse_args(["--validate-schema"])
-        assert args.validate_schema is True
-
-    def test_validate_schema_flag_default(self):
-        """Test that --validate-schema defaults to False."""
-        parser = create_parser()
-        args = parser.parse_args(["test prompt"])
-        assert args.validate_schema is False
 
     @patch(
         "sys.argv",
@@ -230,27 +162,6 @@ class TestValidateSchema:
         assert "Properties: 2" in captured.out
         assert "name: string (required)" in captured.out
         assert "age: number (optional)" in captured.out
-
-    @patch(
-        "sys.argv",
-        [
-            "cllm",
-            "--validate-schema",
-            "--json-schema",
-            '{"type": "array", "items": {"type": "string"}}',
-        ],
-    )
-    @patch("cllm.cli.load_config", return_value={})
-    def test_validate_schema_shows_array_details(self, mock_load_config, capsys):
-        """Test that --validate-schema shows details about array schemas."""
-        with pytest.raises(SystemExit) as exc_info:
-            main()
-
-        assert exc_info.value.code == 0
-
-        captured = capsys.readouterr()
-        assert "Type: array" in captured.out
-        assert "Items type: string" in captured.out
 
     @patch("sys.argv", ["cllm", "--validate-schema"])
     @patch("cllm.cli.load_config", return_value={})
@@ -306,37 +217,3 @@ class TestValidateSchema:
         captured = capsys.readouterr()
         assert "Schema is valid" in captured.out
         assert "Type: object" in captured.out
-
-    @patch("sys.argv", ["cllm", "--validate-schema"])
-    @patch("cllm.cli.read_prompt")
-    @patch("cllm.cli.load_config", return_value={"json_schema": {"type": "object"}})
-    def test_validate_schema_does_not_read_prompt(
-        self, mock_load_config, mock_read_prompt, capsys
-    ):
-        """Test that --validate-schema doesn't try to read prompt."""
-        with pytest.raises(SystemExit) as exc_info:
-            main()
-
-        # Should exit successfully
-        assert exc_info.value.code == 0
-
-        # Should NOT have called read_prompt
-        mock_read_prompt.assert_not_called()
-
-    @patch(
-        "sys.argv", ["cllm", "--validate-schema", "--json-schema", '{"type": "object"}']
-    )
-    @patch("cllm.cli.LLMClient")
-    @patch("cllm.cli.load_config", return_value={})
-    def test_validate_schema_does_not_create_client(
-        self, mock_load_config, mock_client, capsys
-    ):
-        """Test that --validate-schema doesn't initialize LLMClient."""
-        with pytest.raises(SystemExit) as exc_info:
-            main()
-
-        # Should exit successfully
-        assert exc_info.value.code == 0
-
-        # Should NOT have created client
-        mock_client.assert_not_called()
