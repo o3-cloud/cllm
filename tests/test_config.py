@@ -14,7 +14,10 @@ from cllm.config import (
     _load_yaml_file,
     get_config_sources,
     load_config,
+    load_json_schema,
     merge_config_with_args,
+    resolve_schema_file_path,
+    validate_against_schema,
 )
 
 
@@ -308,3 +311,200 @@ class TestGetConfigSources:
             with patch("cllm.config.Path.cwd", return_value=Path(tmpdir)):
                 sources = get_config_sources()
                 assert sources == []
+
+
+class TestResolveSchemaFilePath:
+    """Tests for schema file path resolution."""
+
+    def test_resolve_absolute_path(self):
+        """Test resolving an absolute path."""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            f.write('{"type": "object"}')
+            f.flush()
+            temp_path = Path(f.name)
+
+        try:
+            resolved = resolve_schema_file_path(str(temp_path))
+            assert resolved == temp_path
+        finally:
+            temp_path.unlink()
+
+    def test_resolve_absolute_path_not_found(self):
+        """Test that absolute path raises error if file doesn't exist."""
+        with pytest.raises(ConfigurationError, match="Schema file not found"):
+            resolve_schema_file_path("/nonexistent/path/schema.json")
+
+    def test_resolve_relative_path_in_cwd(self):
+        """Test resolving relative path found in CWD."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            schema_path = Path(tmpdir) / "test.json"
+            schema_path.write_text('{"type": "object"}')
+
+            with patch("cllm.config.Path.cwd", return_value=Path(tmpdir)):
+                resolved = resolve_schema_file_path("test.json")
+                assert resolved == schema_path
+
+    def test_resolve_relative_path_in_cllm_folder(self):
+        """Test resolving relative path found in .cllm folder."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cllm_dir = Path(tmpdir) / ".cllm"
+            cllm_dir.mkdir()
+            schema_path = cllm_dir / "test.json"
+            schema_path.write_text('{"type": "object"}')
+
+            with patch("cllm.config.Path.cwd", return_value=Path(tmpdir)):
+                resolved = resolve_schema_file_path("test.json")
+                assert resolved == schema_path
+
+    def test_resolve_relative_path_prefers_cwd(self):
+        """Test that CWD is checked before .cllm folder."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Create schema in both CWD and .cllm
+            cwd_schema = Path(tmpdir) / "test.json"
+            cwd_schema.write_text('{"type": "string"}')
+
+            cllm_dir = Path(tmpdir) / ".cllm"
+            cllm_dir.mkdir()
+            cllm_schema = cllm_dir / "test.json"
+            cllm_schema.write_text('{"type": "object"}')
+
+            with patch("cllm.config.Path.cwd", return_value=Path(tmpdir)):
+                resolved = resolve_schema_file_path("test.json")
+                # Should resolve to CWD version
+                assert resolved == cwd_schema
+
+    def test_resolve_relative_path_not_found(self):
+        """Test that relative path raises error if not found."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with patch("cllm.config.Path.cwd", return_value=Path(tmpdir)):
+                with pytest.raises(ConfigurationError, match="Schema file not found"):
+                    resolve_schema_file_path("nonexistent.json")
+
+
+class TestLoadJsonSchema:
+    """Tests for JSON schema loading."""
+
+    def test_load_schema_from_dict(self):
+        """Test loading schema from a dictionary."""
+        schema = {"type": "object", "properties": {"name": {"type": "string"}}}
+        result = load_json_schema(schema)
+        assert result == schema
+
+    def test_load_invalid_schema_dict(self):
+        """Test that invalid schema dict raises error."""
+        invalid_schema = {"type": "invalid_type"}
+        with pytest.raises(ConfigurationError, match="Invalid JSON schema"):
+            load_json_schema(invalid_schema)
+
+    def test_load_schema_from_file(self):
+        """Test loading schema from JSON file."""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            f.write('{"type": "object", "properties": {"age": {"type": "number"}}}')
+            f.flush()
+            temp_path = Path(f.name)
+
+        try:
+            with patch("cllm.config.resolve_schema_file_path", return_value=temp_path):
+                schema = load_json_schema(str(temp_path))
+                assert schema["type"] == "object"
+                assert schema["properties"]["age"]["type"] == "number"
+        finally:
+            temp_path.unlink()
+
+    def test_load_schema_from_file_invalid_json(self):
+        """Test that invalid JSON in file raises error."""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            f.write('{"type": "object", invalid json}')
+            f.flush()
+            temp_path = Path(f.name)
+
+        try:
+            with patch("cllm.config.resolve_schema_file_path", return_value=temp_path):
+                with pytest.raises(ConfigurationError, match="Invalid JSON"):
+                    load_json_schema(str(temp_path))
+        finally:
+            temp_path.unlink()
+
+    def test_load_schema_from_file_invalid_schema(self):
+        """Test that invalid JSON schema in file raises error."""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            f.write('{"type": "not_a_valid_type"}')
+            f.flush()
+            temp_path = Path(f.name)
+
+        try:
+            with patch("cllm.config.resolve_schema_file_path", return_value=temp_path):
+                with pytest.raises(ConfigurationError, match="Invalid JSON schema"):
+                    load_json_schema(str(temp_path))
+        finally:
+            temp_path.unlink()
+
+    def test_load_schema_invalid_type(self):
+        """Test that invalid schema source type raises error."""
+        with pytest.raises(ConfigurationError, match="Invalid schema source type"):
+            load_json_schema(123)  # Integer is not a valid type
+
+
+class TestValidateAgainstSchema:
+    """Tests for JSON schema validation."""
+
+    def test_validate_valid_data(self):
+        """Test validating data that conforms to schema."""
+        schema = {
+            "type": "object",
+            "properties": {"name": {"type": "string"}, "age": {"type": "number"}},
+            "required": ["name"],
+        }
+        data = {"name": "John", "age": 30}
+
+        # Should not raise any exception
+        validate_against_schema(data, schema)
+
+    def test_validate_invalid_data_missing_required(self):
+        """Test validation fails when required field is missing."""
+        schema = {
+            "type": "object",
+            "properties": {"name": {"type": "string"}},
+            "required": ["name"],
+        }
+        data = {}  # Missing required 'name' field
+
+        with pytest.raises(ConfigurationError, match="Schema validation failed"):
+            validate_against_schema(data, schema)
+
+    def test_validate_invalid_data_wrong_type(self):
+        """Test validation fails when data has wrong type."""
+        schema = {"type": "object", "properties": {"age": {"type": "number"}}}
+        data = {"age": "not a number"}
+
+        with pytest.raises(ConfigurationError, match="Schema validation failed"):
+            validate_against_schema(data, schema)
+
+    def test_validate_array_schema(self):
+        """Test validating array data against schema."""
+        schema = {
+            "type": "array",
+            "items": {"type": "string"},
+        }
+        data = ["apple", "banana", "cherry"]
+
+        # Should not raise any exception
+        validate_against_schema(data, schema)
+
+    def test_validate_nested_schema(self):
+        """Test validating nested object against schema."""
+        schema = {
+            "type": "object",
+            "properties": {
+                "person": {
+                    "type": "object",
+                    "properties": {"name": {"type": "string"}},
+                    "required": ["name"],
+                }
+            },
+            "required": ["person"],
+        }
+        data = {"person": {"name": "Jane"}}
+
+        # Should not raise any exception
+        validate_against_schema(data, schema)

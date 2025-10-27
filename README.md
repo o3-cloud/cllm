@@ -10,6 +10,7 @@ CLLM bridges the gap between ChatGPT GUIs, prompt libraries, notebooks, and agen
 
 - **🚀 Simple CLI Interface**: Generate text from prompts with straightforward commands
 - **🔗 LLM Chaining**: Chain multiple LLM calls using bash pipes and scripts
+- **📋 Structured Output**: Get guaranteed JSON output conforming to JSON Schema specifications
 - **🏢 Multi-Provider Support**:
   - OpenAI (GPT-3.5, GPT-4, GPT-4 Turbo)
   - Anthropic (Claude 3 Family)
@@ -23,7 +24,7 @@ CLLM bridges the gap between ChatGPT GUIs, prompt libraries, notebooks, and agen
   - Data loaders for various file formats
   - Output parsers for structured responses
 - **🐳 Docker Support**: Run in containerized environments
-- **⚙️ Flexible Configuration**: Easy setup through `.cllm` directory structure
+- **⚙️ Flexible Configuration**: Easy setup through `.cllm` directory structure and Cllmfile.yml
 
 ## Requirements
 
@@ -191,15 +192,44 @@ for chunk in chunks/*.txt; do
 done
 ```
 
-### Output Parsing
+### Structured Output with JSON Schema
+
+Get guaranteed structured JSON output that conforms to your schema (ADR-0005):
 
 ```bash
-# Get structured JSON output
-cllm --format json "List the top 5 programming languages with their use cases"
+# Using inline JSON schema
+echo "John Doe, age 30, software engineer" | \
+  cllm --model gpt-4o --json-schema '{
+    "type": "object",
+    "properties": {
+      "name": {"type": "string"},
+      "age": {"type": "number"},
+      "occupation": {"type": "string"}
+    },
+    "required": ["name", "age"]
+  }'
 
-# Parse and process
-cllm --format json "Analyze this data" < data.csv | jq '.recommendations'
+# Using external schema file
+cat document.txt | cllm --model gpt-4o --json-schema-file schemas/person.json
+
+# Using Cllmfile configuration
+echo "Extract entities..." | cllm --config extraction
+
+# Parse output with jq
+cllm --json-schema-file schemas/person.json "Extract info..." | jq '.name'
+
+# Validate schema before using (no API call)
+cllm --validate-schema --json-schema-file examples/schemas/person.json
 ```
+
+**Example schemas available in `examples/schemas/`:**
+- `person.json` - Extract person information
+- `entity-extraction.json` - Named entity recognition
+- `sentiment.json` - Sentiment analysis with emotions
+
+**Tip:** Use `--validate-schema` to test your schemas without making API calls.
+
+See [`examples/schemas/README.md`](examples/schemas/README.md) for detailed usage and examples.
 
 ## Examples
 

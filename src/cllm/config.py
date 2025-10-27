@@ -1,14 +1,17 @@
 """Configuration file loading and merging for CLLM.
 
 Implements ADR-0003: Cllmfile Configuration System
+Implements ADR-0005: Add Structured Output Support with JSON Schema
 """
 
+import json
 import os
 import re
 from pathlib import Path
 from typing import Any, Dict, Optional
 
 import yaml
+import jsonschema
 
 
 class ConfigurationError(Exception):
@@ -175,3 +178,110 @@ def get_config_sources(config_name: Optional[str] = None) -> list[str]:
         List of configuration file paths as strings
     """
     return [str(path) for path in _find_config_files(config_name)]
+
+
+def resolve_schema_file_path(schema_file: str) -> Path:
+    """Resolve schema file path with fallback lookup logic.
+
+    For relative paths, checks:
+    1. Current working directory (where cllm is executed)
+    2. .cllm folder root
+
+    Absolute paths are used as-is.
+
+    Args:
+        schema_file: Path to schema file (relative or absolute)
+
+    Returns:
+        Resolved Path object
+
+    Raises:
+        ConfigurationError: If schema file cannot be found
+    """
+    schema_path = Path(schema_file)
+
+    # If absolute path, use as-is
+    if schema_path.is_absolute():
+        if not schema_path.exists():
+            raise ConfigurationError(f"Schema file not found: {schema_file}")
+        return schema_path
+
+    # For relative paths, check CWD first, then .cllm folder
+    search_paths = [
+        Path.cwd() / schema_file,
+        Path.cwd() / ".cllm" / schema_file,
+    ]
+
+    for path in search_paths:
+        if path.exists() and path.is_file():
+            return path
+
+    # If not found, raise error with helpful message
+    raise ConfigurationError(
+        f"Schema file not found: {schema_file}\n"
+        f"Searched in:\n"
+        f"  - {search_paths[0]}\n"
+        f"  - {search_paths[1]}"
+    )
+
+
+def load_json_schema(schema_source: Any) -> Dict[str, Any]:
+    """Load and validate a JSON schema from various sources.
+
+    Args:
+        schema_source: Can be:
+            - dict: Already parsed schema (from YAML config)
+            - str: Path to JSON schema file
+            - Path: Path object to JSON schema file
+
+    Returns:
+        Validated JSON schema as dictionary
+
+    Raises:
+        ConfigurationError: If schema is invalid or cannot be loaded
+    """
+    # If already a dict, validate and return
+    if isinstance(schema_source, dict):
+        try:
+            # Validate that it's a valid JSON Schema
+            jsonschema.Draft7Validator.check_schema(schema_source)
+            return schema_source
+        except jsonschema.exceptions.SchemaError as e:
+            raise ConfigurationError(f"Invalid JSON schema: {e}")
+
+    # If string or Path, load from file
+    if isinstance(schema_source, (str, Path)):
+        schema_path = resolve_schema_file_path(str(schema_source))
+        try:
+            with open(schema_path, "r") as f:
+                schema = json.load(f)
+            # Validate the loaded schema
+            jsonschema.Draft7Validator.check_schema(schema)
+            return schema
+        except json.JSONDecodeError as e:
+            raise ConfigurationError(f"Invalid JSON in schema file {schema_path}: {e}")
+        except jsonschema.exceptions.SchemaError as e:
+            raise ConfigurationError(f"Invalid JSON schema in {schema_path}: {e}")
+        except OSError as e:
+            raise ConfigurationError(f"Error reading schema file {schema_path}: {e}")
+
+    raise ConfigurationError(
+        f"Invalid schema source type: {type(schema_source)}. "
+        f"Expected dict, str, or Path."
+    )
+
+
+def validate_against_schema(data: Any, schema: Dict[str, Any]) -> None:
+    """Validate data against a JSON schema.
+
+    Args:
+        data: Data to validate (typically parsed JSON from LLM response)
+        schema: JSON schema to validate against
+
+    Raises:
+        ConfigurationError: If validation fails
+    """
+    try:
+        jsonschema.validate(instance=data, schema=schema)
+    except jsonschema.exceptions.ValidationError as e:
+        raise ConfigurationError(f"Schema validation failed: {e.message}")

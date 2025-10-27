@@ -1,0 +1,24 @@
+{
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Full name of the person"
+    },
+    "age": {
+      "type": "number",
+      "description": "Age in years"
+    },
+    "email": {
+      "type": "string",
+      "format": "email",
+      "description": "Email address"
+    },
+    "occupation": {
+      "type": "string",
+      "description": "Current occupation or job title"
+    }
+  },
+  "required": ["name", "age"],
+  "additionalProperties": false
+}

@@ -2,17 +2,25 @@
 Command-line interface for CLLM.
 
 Provides a bash-centric CLI for interacting with LLMs across multiple providers.
+Implements ADR-0005: Add Structured Output Support with JSON Schema
 """
 
 import argparse
 import json
 import sys
-from typing import Optional
+from typing import Dict, Optional, Any
 
 import litellm
 
 from .client import LLMClient
-from .config import ConfigurationError, get_config_sources, load_config, merge_config_with_args
+from .config import (
+    ConfigurationError,
+    get_config_sources,
+    load_config,
+    load_json_schema,
+    merge_config_with_args,
+    validate_against_schema,
+)
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -96,6 +104,24 @@ For full provider list: https://docs.litellm.ai/docs/providers
         "--list-models",
         action="store_true",
         help="List all available models and exit",
+    )
+
+    parser.add_argument(
+        "--json-schema",
+        metavar="SCHEMA",
+        help="JSON schema for structured output (inline JSON string)",
+    )
+
+    parser.add_argument(
+        "--json-schema-file",
+        metavar="FILE",
+        help="Path to JSON schema file for structured output",
+    )
+
+    parser.add_argument(
+        "--validate-schema",
+        action="store_true",
+        help="Validate the JSON schema and exit (no LLM call made)",
     )
 
     parser.add_argument("--version", action="version", version="%(prog)s 0.1.0")
@@ -225,6 +251,10 @@ def main():
         cli_args["stream"] = args.stream
     if args.raw:
         cli_args["raw_response"] = args.raw
+    if args.json_schema is not None:
+        cli_args["json_schema"] = args.json_schema
+    if args.json_schema_file is not None:
+        cli_args["json_schema_file"] = args.json_schema_file
 
     # Merge config with CLI args (CLI takes precedence)
     config = merge_config_with_args(file_config, cli_args)
@@ -232,6 +262,23 @@ def main():
     # Set defaults if not in config
     if "model" not in config:
         config["model"] = "gpt-3.5-turbo"
+
+    # Handle JSON schema with proper precedence
+    # Precedence: --json-schema > --json-schema-file > json_schema in config > json_schema_file in config
+    schema: Optional[Dict[str, Any]] = None
+    try:
+        if "json_schema" in config and isinstance(config["json_schema"], str):
+            # CLI flag --json-schema (inline JSON string)
+            schema = load_json_schema(json.loads(config["json_schema"]))
+        elif "json_schema" in config and isinstance(config["json_schema"], dict):
+            # Cllmfile inline schema (already parsed from YAML)
+            schema = load_json_schema(config["json_schema"])
+        elif "json_schema_file" in config:
+            # CLI flag --json-schema-file or Cllmfile json_schema_file
+            schema = load_json_schema(config["json_schema_file"])
+    except (json.JSONDecodeError, ConfigurationError) as e:
+        print(f"Schema error: {e}", file=sys.stderr)
+        sys.exit(1)
 
     # Handle --show-config
     if args.show_config:
@@ -251,7 +298,33 @@ def main():
         print_model_list()
         sys.exit(0)
 
-    # Read prompt (not needed for --show-config or --list-models)
+    # Handle --validate-schema
+    if args.validate_schema:
+        if schema is None:
+            print("Error: No schema provided. Use --json-schema or --json-schema-file", file=sys.stderr)
+            sys.exit(1)
+
+        print("✓ Schema is valid!")
+        print("\nSchema details:")
+        print(f"  Type: {schema.get('type', 'not specified')}")
+
+        if schema.get('type') == 'object':
+            props = schema.get('properties', {})
+            print(f"  Properties: {len(props)}")
+            if props:
+                print("  Fields:")
+                for prop_name, prop_schema in props.items():
+                    prop_type = prop_schema.get('type', 'any')
+                    required = '(required)' if prop_name in schema.get('required', []) else '(optional)'
+                    print(f"    - {prop_name}: {prop_type} {required}")
+        elif schema.get('type') == 'array':
+            items = schema.get('items', {})
+            print(f"  Items type: {items.get('type', 'any')}")
+
+        print(f"\n✓ Schema validation successful")
+        sys.exit(0)
+
+    # Read prompt (not needed for --show-config, --list-models, or --validate-schema)
     prompt = read_prompt(args.prompt)
 
     # Initialize client
@@ -267,7 +340,7 @@ def main():
     kwargs = {
         k: v
         for k, v in config.items()
-        if k not in ["model", "stream", "raw_response", "default_system_message"]
+        if k not in ["model", "stream", "raw_response", "default_system_message", "json_schema", "json_schema_file"]
     }
 
     # Handle default_system_message if present
@@ -276,6 +349,16 @@ def main():
         system_msg = config["default_system_message"]
         prompt = f"{system_msg}\n\n{prompt}"
 
+    # Add response_format for structured output if schema is present
+    if schema is not None:
+        kwargs["response_format"] = {
+            "type": "json_schema",
+            "json_schema": {
+                "name": "response_schema",
+                "schema": schema,
+            }
+        }
+
     if raw_response:
         kwargs["raw_response"] = True
 
@@ -283,11 +366,35 @@ def main():
         # Make the request
         if stream:
             # Streaming mode
-            for chunk in client.complete(
-                model=model, messages=prompt, stream=True, **kwargs
-            ):
-                print(chunk, end="", flush=True)
-            print()  # Final newline
+            if schema is not None:
+                # For streaming with schema, we need to collect all chunks first
+                # to validate the complete response
+                chunks = []
+                for chunk in client.complete(
+                    model=model, messages=prompt, stream=True, **kwargs
+                ):
+                    chunks.append(chunk)
+                    print(chunk, end="", flush=True)
+                print()  # Final newline
+
+                # Validate the complete response
+                complete_response = "".join(chunks)
+                try:
+                    parsed_response = json.loads(complete_response)
+                    validate_against_schema(parsed_response, schema)
+                except json.JSONDecodeError as e:
+                    print(f"\nWarning: Response is not valid JSON: {e}", file=sys.stderr)
+                    sys.exit(1)
+                except ConfigurationError as e:
+                    print(f"\nValidation error: {e}", file=sys.stderr)
+                    sys.exit(1)
+            else:
+                # Normal streaming without schema
+                for chunk in client.complete(
+                    model=model, messages=prompt, stream=True, **kwargs
+                ):
+                    print(chunk, end="", flush=True)
+                print()  # Final newline
         else:
             # Non-streaming mode
             response = client.complete(model=model, messages=prompt, **kwargs)
@@ -295,6 +402,20 @@ def main():
             if raw_response:
                 print(json.dumps(response, indent=2))
             else:
+                # Validate against schema if present
+                if schema is not None:
+                    try:
+                        parsed_response = json.loads(response)
+                        validate_against_schema(parsed_response, schema)
+                    except json.JSONDecodeError as e:
+                        print(f"Error: Response is not valid JSON: {e}", file=sys.stderr)
+                        print(f"Response: {response}", file=sys.stderr)
+                        sys.exit(1)
+                    except ConfigurationError as e:
+                        print(f"Validation error: {e}", file=sys.stderr)
+                        print(f"Response: {response}", file=sys.stderr)
+                        sys.exit(1)
+
                 print(response)
 
     except KeyboardInterrupt:

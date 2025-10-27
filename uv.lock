@@ -320,6 +320,7 @@ name = "cllm"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "jsonschema" },
     { name = "litellm" },
     { name = "pyyaml" },
 ]
@@ -332,6 +333,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "jsonschema", specifier = ">=4.23.0" },
     { name = "litellm", specifier = ">=1.79.0" },
     { name = "pyyaml", specifier = ">=6.0.3" },
 ]

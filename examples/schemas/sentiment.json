@@ -1,0 +1,30 @@
+{
+  "type": "object",
+  "properties": {
+    "sentiment": {
+      "type": "string",
+      "enum": ["positive", "negative", "neutral"],
+      "description": "Overall sentiment of the text"
+    },
+    "score": {
+      "type": "number",
+      "minimum": -1,
+      "maximum": 1,
+      "description": "Sentiment score from -1 (most negative) to 1 (most positive)"
+    },
+    "emotions": {
+      "type": "array",
+      "description": "Detected emotions in the text",
+      "items": {
+        "type": "string",
+        "enum": ["joy", "sadness", "anger", "fear", "surprise", "disgust"]
+      }
+    },
+    "explanation": {
+      "type": "string",
+      "description": "Brief explanation of the sentiment analysis"
+    }
+  },
+  "required": ["sentiment", "score"],
+  "additionalProperties": false
+}
