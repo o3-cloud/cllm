@@ -4,7 +4,7 @@
 # Usage: cat document.txt | cllm --config extraction
 
 model: "gpt-4o"
-temperature: 0  # Use deterministic output for structured data
+temperature: 0 # Use deterministic output for structured data
 max_tokens: 2000
 
 # Reference external JSON schema file

@@ -223,6 +223,7 @@ cllm --validate-schema --json-schema-file examples/schemas/person.json
 ```
 
 **Example schemas available in `examples/schemas/`:**
+
 - `person.json` - Extract person information
 - `entity-extraction.json` - Named entity recognition
 - `sentiment.json` - Sentiment analysis with emotions

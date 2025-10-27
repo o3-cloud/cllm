@@ -40,6 +40,7 @@ echo "Your prompt" | cllm
 General-purpose configuration with common settings commented out. Good starting point for customization.
 
 **Key features:**
+
 - GPT-3.5-turbo with balanced parameters
 - Retry logic for reliability
 - Extensive commented examples
@@ -49,12 +50,14 @@ General-purpose configuration with common settings commented out. Good starting 
 Optimized for concise, accurate summarization of documents and articles.
 
 **Key features:**
+
 - Claude Sonnet for quality
 - Low temperature (0.3) for factual accuracy
 - Limited max tokens (500) for brevity
 - System message guiding summarization style
 
 **Usage:**
+
 ```bash
 cat article.md | cllm --config summarize
 cllm --config summarize < research-paper.txt
@@ -65,6 +68,7 @@ cllm --config summarize < research-paper.txt
 Tuned for imaginative, engaging storytelling and creative content.
 
 **Key features:**
+
 - GPT-4 for creative capability
 - High temperature (1.2) for variety
 - Nucleus sampling (top_p: 0.95)
@@ -72,6 +76,7 @@ Tuned for imaginative, engaging storytelling and creative content.
 - System message encouraging creativity
 
 **Usage:**
+
 ```bash
 echo "Write a sci-fi story about time travel" | cllm --config creative
 cllm --config creative "Generate 5 creative business names for a bakery"
@@ -82,12 +87,14 @@ cllm --config creative "Generate 5 creative business names for a bakery"
 Configured for thorough code analysis and constructive feedback.
 
 **Key features:**
+
 - GPT-4 for code understanding
 - Moderate temperature (0.5) for balanced analysis
 - System message with structured review framework
 - Covers bugs, best practices, performance, security
 
 **Usage:**
+
 ```bash
 git diff | cllm --config code-review
 cat src/myfile.py | cllm --config code-review
@@ -173,6 +180,7 @@ fallbacks:
 ```
 
 Usage:
+
 ```bash
 echo "Document the user authentication API" | cllm --config docs
 ```

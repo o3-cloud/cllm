@@ -5,15 +5,18 @@ This directory contains example JSON schemas for structured output from LLMs. Th
 ## Available Schemas
 
 ### person.json
+
 Extracts information about a person from text.
 
 **Usage:**
+
 ```bash
 echo "John Doe is a 30-year-old software engineer at Google. Contact: john@example.com" | \
   cllm --model gpt-4o --json-schema-file examples/schemas/person.json
 ```
 
 **Output:**
+
 ```json
 {
   "name": "John Doe",
@@ -24,35 +27,41 @@ echo "John Doe is a 30-year-old software engineer at Google. Contact: john@examp
 ```
 
 ### entity-extraction.json
+
 Extracts named entities from text with type classification.
 
 **Usage:**
+
 ```bash
 echo "Apple Inc. announced a new product launch in Cupertino on March 15, 2024." | \
   cllm --model gpt-4o --json-schema-file examples/schemas/entity-extraction.json
 ```
 
 **Output:**
+
 ```json
 {
   "entities": [
-    {"name": "Apple Inc.", "type": "organization", "confidence": 0.95},
-    {"name": "Cupertino", "type": "location", "confidence": 0.90},
-    {"name": "March 15, 2024", "type": "date", "confidence": 0.98}
+    { "name": "Apple Inc.", "type": "organization", "confidence": 0.95 },
+    { "name": "Cupertino", "type": "location", "confidence": 0.9 },
+    { "name": "March 15, 2024", "type": "date", "confidence": 0.98 }
   ]
 }
 ```
 
 ### sentiment.json
+
 Analyzes sentiment and emotions in text.
 
 **Usage:**
+
 ```bash
 echo "I absolutely love this product! It exceeded all my expectations." | \
   cllm --model gpt-4o --json-schema-file examples/schemas/sentiment.json
 ```
 
 **Output:**
+
 ```json
 {
   "sentiment": "positive",
@@ -67,6 +76,7 @@ echo "I absolutely love this product! It exceeded all my expectations." | \
 You can reference these schemas in your Cllmfile configurations:
 
 **extraction.Cllmfile.yml:**
+
 ```yaml
 model: "gpt-4o"
 temperature: 0
@@ -74,6 +84,7 @@ json_schema_file: "examples/schemas/entity-extraction.json"
 ```
 
 Then use it:
+
 ```bash
 cat document.txt | cllm --config extraction
 ```
@@ -91,12 +102,13 @@ JSON schemas should follow the JSON Schema specification (Draft 7). Key elements
 - `additionalProperties`: Whether extra properties are allowed
 
 **Example:**
+
 ```json
 {
   "type": "object",
   "properties": {
-    "title": {"type": "string"},
-    "count": {"type": "number", "minimum": 0}
+    "title": { "type": "string" },
+    "count": { "type": "number", "minimum": 0 }
   },
   "required": ["title"],
   "additionalProperties": false
@@ -114,6 +126,7 @@ When using `--json-schema-file` or `json_schema_file` in Cllmfile:
 2. **Absolute paths** are used as-is
 
 **Examples:**
+
 ```bash
 # Relative path (checks ./examples/schemas/person.json, then ./.cllm/examples/schemas/person.json)
 cllm --json-schema-file examples/schemas/person.json "Extract person info"
@@ -138,12 +151,14 @@ cllm --validate-schema --config extraction
 ```
 
 This command will:
+
 - Check if the schema is valid JSON Schema (Draft 7)
 - Display schema details (type, properties, required fields)
 - Exit with code 0 if valid, code 1 if invalid
 - Not make any LLM API calls (free to test)
 
 **Example output:**
+
 ```
 ✓ Schema is valid!
 

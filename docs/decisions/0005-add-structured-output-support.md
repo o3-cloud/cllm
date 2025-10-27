@@ -30,6 +30,7 @@ Chosen option: **"Hybrid approach - Support all three methods"**, because it pro
 ### Implementation Details
 
 **1. CLI Flag with Inline Schema:**
+
 ```bash
 # Simple inline schema
 echo "Extract person info from: John Doe, age 30" | cllm --json-schema '{
@@ -43,12 +44,14 @@ echo "Extract person info from: John Doe, age 30" | cllm --json-schema '{
 ```
 
 **2. CLI Flag with External File:**
+
 ```bash
 # Reference external schema file
 cat document.txt | cllm --json-schema-file ./schemas/person.json
 ```
 
 **3. Cllmfile with Inline Schema:**
+
 ```yaml
 # extraction.Cllmfile.yml
 model: "gpt-4o"
@@ -61,14 +64,15 @@ json_schema:
       items:
         type: object
         properties:
-          name: {type: string}
-          type: {type: string}
-          confidence: {type: number}
+          name: { type: string }
+          type: { type: string }
+          confidence: { type: number }
         required: [name, type]
   required: [entities]
 ```
 
 **4. Cllmfile with External Reference:**
+
 ```yaml
 # extraction.Cllmfile.yml
 model: "gpt-4o"
@@ -77,6 +81,7 @@ json_schema_file: "./schemas/entity-extraction.json"
 ```
 
 **Precedence Rules:**
+
 1. `--json-schema` flag (highest priority)
 2. `--json-schema-file` flag
 3. `json_schema` in Cllmfile
@@ -85,12 +90,14 @@ json_schema_file: "./schemas/entity-extraction.json"
 **Path Resolution for External Schema Files:**
 
 When a relative path is specified (e.g., `./schemas/person.json` or `schemas/person.json`), the resolution order is:
+
 1. **Current working directory** (where `cllm` command is executed) - checked first
 2. **`.cllm` folder root** - checked second if not found in CWD
 
 Absolute paths are used as-is without any lookup logic.
 
 **Examples:**
+
 ```bash
 # If running: cllm --json-schema-file ./schemas/person.json
 # Checks: ./schemas/person.json (CWD)
@@ -128,6 +135,7 @@ Implementation will be validated through:
 6. **Error handling tests** for invalid schemas and malformed outputs
 
 Success metrics:
+
 - All 4 input methods work correctly
 - Schema validation catches non-conforming outputs
 - Works with at least OpenAI and Anthropic providers
@@ -138,6 +146,7 @@ Success metrics:
 ### CLI flag with inline JSON Schema
 
 **Example:**
+
 ```bash
 cllm "Extract data" --json-schema '{"type": "object", "properties": {...}}'
 ```
@@ -153,6 +162,7 @@ cllm "Extract data" --json-schema '{"type": "object", "properties": {...}}'
 ### Inline JSON Schema in Cllmfile
 
 **Example:**
+
 ```yaml
 # entity-extraction.Cllmfile.yml
 json_schema:
@@ -176,6 +186,7 @@ json_schema:
 ### External JSON Schema files with Cllmfile references
 
 **Example:**
+
 ```yaml
 # entity-extraction.Cllmfile.yml
 json_schema_file: "./schemas/entities.json"
@@ -188,7 +199,7 @@ json_schema_file: "./schemas/entities.json"
   "properties": {
     "entities": {
       "type": "array",
-      "items": {"type": "object"}
+      "items": { "type": "object" }
     }
   }
 }
@@ -230,6 +241,7 @@ json_schema_file: "./schemas/entities.json"
 ### LiteLLM Integration
 
 LiteLLM supports structured output via:
+
 ```python
 response = completion(
     model="gpt-4o",
@@ -265,6 +277,7 @@ CLLM should gracefully handle providers that don't support structured output wit
 ### Implementation Phases
 
 **Phase 1**: Core functionality
+
 - Add `--json-schema` and `--json-schema-file` CLI flags
 - Add `json_schema` and `json_schema_file` Cllmfile options
 - Implement path resolution logic (CWD first, then `.cllm/` folder) for external schema files
@@ -272,11 +285,13 @@ CLLM should gracefully handle providers that don't support structured output wit
 - Update `cli.py` to pass schema to LiteLLM via `response_format`
 
 **Phase 2**: Enhanced validation
+
 - Add retry logic for invalid outputs
 - Provide detailed error messages for schema mismatches
 - Test across multiple providers
 
 **Phase 3**: Developer experience
+
 - Add example schemas in `examples/schemas/`
 - Create documentation and tutorials
 - Add `--validate-schema` flag to test schema without making LLM call
@@ -376,6 +391,7 @@ CLLM should gracefully handle providers that don't support structured output wit
 **Actual outcomes:**
 
 Core Functionality (Phase 1):
+
 - ✅ Added `--json-schema` and `--json-schema-file` CLI flags (src/cllm/cli.py:109-119)
 - ✅ Added `json_schema` and `json_schema_file` Cllmfile configuration support (src/cllm/config.py:228-288)
 - ✅ Implemented path resolution logic with CWD-first fallback to `.cllm/` folder (src/cllm/config.py:183-225)
@@ -384,6 +400,7 @@ Core Functionality (Phase 1):
 - ✅ Implemented precedence rules: CLI flags override Cllmfile settings (src/cllm/cli.py:260-275)
 
 Enhanced Validation (Phase 2):
+
 - ✅ Schema validation for non-streaming responses (src/cllm/cli.py:374-385)
 - ✅ Schema validation for streaming responses (collects chunks, validates complete response) (src/cllm/cli.py:337-358)
 - ✅ Detailed error messages for schema mismatches and invalid JSON (src/cllm/cli.py:353-357, 379-385)
@@ -391,6 +408,7 @@ Enhanced Validation (Phase 2):
 - ⚠️ No multi-provider testing performed (would require API keys)
 
 Developer Experience (Phase 3):
+
 - ✅ Created 3 example schemas in `examples/schemas/`: person.json, entity-extraction.json, sentiment.json
 - ✅ Created comprehensive schemas README with usage examples (examples/schemas/README.md)
 - ✅ Created 2 example Cllmfiles: extraction.Cllmfile.yml, task-parser.Cllmfile.yml
@@ -399,6 +417,7 @@ Developer Experience (Phase 3):
 - ✅ Implemented `--validate-schema` flag to test schemas without making LLM calls (src/cllm/cli.py:121-125, 301-325)
 
 **Test Coverage:**
+
 - ✅ 27 new tests for structured output (17 in test_config.py + 10 in test_cli.py)
 - ✅ All 74 tests passing (100% pass rate)
 - ✅ Tests cover all 4 schema input methods:
@@ -436,6 +455,7 @@ Developer Experience (Phase 3):
 Following the ADR review, the `--validate-schema` flag was implemented to complete Phase 3:
 
 **What was added:**
+
 - CLI flag: `--validate-schema` (src/cllm/cli.py:121-125)
 - Schema validation handler in main() (src/cllm/cli.py:301-325)
 - 10 comprehensive tests in TestValidateSchema class (tests/test_cli.py:161-290)
@@ -444,6 +464,7 @@ Following the ADR review, the `--validate-schema` flag was implemented to comple
   - README.md: Added validation example and tip
 
 **Functionality:**
+
 - Validates JSON schemas without making LLM API calls (free to test)
 - Displays detailed schema information:
   - Schema type (object, array, etc.)
@@ -454,6 +475,7 @@ Following the ADR review, the `--validate-schema` flag was implemented to comple
 - Works with all 3 input methods (inline, file, Cllmfile)
 
 **Testing:**
+
 - All 10 tests passing (100% pass rate)
 - Manual testing confirmed:
   - Valid schemas show detailed information
@@ -461,6 +483,7 @@ Following the ADR review, the `--validate-schema` flag was implemented to comple
   - No LLM client initialization or prompt reading occurs
 
 **Impact:**
+
 - Completes Phase 3 of ADR-0005
 - Total test count: 74 (up from 64)
 - All success metrics now met
@@ -502,6 +525,7 @@ Following the ADR review, the `--validate-schema` flag was implemented to comple
 **Confirmation Status:**
 
 Phase 1 Core Functionality:
+
 - ✅ All 4 input methods work correctly (CLI inline, CLI file, config inline, config file)
 - ✅ Path resolution works as designed (CWD first, then .cllm folder)
 - ✅ Precedence rules correctly implemented (CLI > Cllmfile)
@@ -509,12 +533,14 @@ Phase 1 Core Functionality:
 - ✅ response_format parameter passed to LiteLLM
 
 Phase 2 Enhanced Validation:
+
 - ✅ Schema validation catches non-conforming outputs
 - ✅ Detailed error messages for validation failures
 - ⚠️ Retry logic not implemented (future enhancement)
 - ⚠️ Multi-provider testing not performed (requires API keys)
 
 Phase 3 Developer Experience:
+
 - ✅ Example schemas created (3 schemas: person, entity-extraction, sentiment)
 - ✅ Example Cllmfiles created (2 configs: extraction, task-parser)
 - ✅ Documentation complete in README.md and schemas/README.md
@@ -522,12 +548,14 @@ Phase 3 Developer Experience:
 - ✅ --validate-schema flag implemented and tested (src/cllm/cli.py:121-125, 301-325)
 
 Success Metrics:
+
 - ✅ All 4 input methods work correctly
 - ✅ Schema validation catches non-conforming outputs
 - ⚠️ Works with at least OpenAI and Anthropic providers (not tested with real APIs)
 - ✅ Documentation includes 3+ real-world examples (has 6+ examples across docs)
 
 Test Expectations:
+
 - ✅ test_config.py: All 4 schema input methods tested
 - ✅ test_config.py: Precedence rules tested
 - ✅ test_config.py: Schema validation with valid and invalid data tested
@@ -546,6 +574,7 @@ Test Expectations:
 The ADR-0005 implementation is **production-ready** with all phases fully completed. The hybrid approach successfully balances simplicity and flexibility, and the addition of `--validate-schema` provides significant developer value by enabling schema testing without API costs.
 
 **Key achievements:**
+
 - ✅ All 3 implementation phases complete (Core, Validation, Developer Experience)
 - ✅ 27 new tests added (17 config + 10 CLI), 74 total tests passing (100% pass rate)
 - ✅ Comprehensive documentation across multiple files
@@ -554,6 +583,7 @@ The ADR-0005 implementation is **production-ready** with all phases fully comple
 - ✅ Developer-friendly `--validate-schema` flag for testing schemas
 
 **Remaining gaps:**
+
 - ⚠️ No end-to-end tests with mocked LLM responses for actual output generation
 - ⚠️ Uncommitted changes (all changes in working directory)
 - ⚠️ Linting issues (unused variables, redundant YAML quotes)
@@ -563,6 +593,7 @@ The ADR-0005 implementation is **production-ready** with all phases fully comple
 The implementation demonstrates excellent engineering practices with solid test coverage, clear architecture, and user-focused features.
 
 **Recommended Next Steps:**
+
 1. Fix linting issues (5 minutes)
 2. Commit changes with conventional commit message (5 minutes)
 3. Test with real OpenAI API to verify end-to-end flow (15 minutes)

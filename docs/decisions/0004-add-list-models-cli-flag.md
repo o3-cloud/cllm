@@ -5,6 +5,7 @@
 CLLM supports 100+ LLM providers through LiteLLM, but users currently have no way to discover which models are available without consulting external documentation. This creates friction in the user experience, especially for new users who need to know which model names to use with the `--model` flag or in their Cllmfile.yml configurations.
 
 Users need a convenient way to:
+
 - Discover available models across all supported providers
 - Find the correct model identifier strings for different providers
 - Understand which models they have API access to based on their environment variables
@@ -28,6 +29,7 @@ Users need a convenient way to:
 ## Decision Outcome
 
 Chosen option: **"Add `--list-models` flag"**, because it:
+
 - Follows the existing single-command CLI pattern (no subcommands currently)
 - Is consistent with other informational flags like `--show-config`
 - Enables bash scripting patterns: `cllm --list-models | grep gpt`
@@ -47,6 +49,7 @@ Chosen option: **"Add `--list-models` flag"**, because it:
 ### Confirmation
 
 Implementation will be validated by:
+
 - Unit tests verifying the flag triggers model listing
 - Integration test confirming LiteLLM model data is retrieved
 - Manual testing of output format and readability
@@ -105,6 +108,7 @@ Require users to consult LiteLLM documentation externally.
 ### Implementation Notes
 
 The implementation should:
+
 1. Add `--list-models` flag to `cli.py` argument parser
 2. Query LiteLLM's model information (via `litellm.model_list` or similar)
 3. Format output for readability and bash-friendliness
@@ -115,11 +119,13 @@ The implementation should:
 ### Output Format Considerations
 
 The output format should prioritize:
+
 - **Grep-ability**: Each model on its own line or in a clear table format
 - **Readability**: Group by provider or indicate provider in output
 - **Completeness**: Include model identifier strings that can be copy-pasted
 
 Example format option 1 (simple list):
+
 ```
 gpt-4
 gpt-3.5-turbo
@@ -130,6 +136,7 @@ gemini-pro
 ```
 
 Example format option 2 (grouped):
+
 ```
 OpenAI:
   gpt-4
@@ -156,6 +163,7 @@ Anthropic:
 **Chosen level: Flexible**
 
 AI agents should:
+
 - Follow the core decision to use a `--list-models` flag
 - Have flexibility in determining the best output format for bash-friendliness
 - Investigate LiteLLM's API to find the best way to retrieve model information

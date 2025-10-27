@@ -4,9 +4,7 @@ Tests for the CLI.
 These tests verify that the command-line interface works correctly.
 """
 
-import sys
-from io import StringIO
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 import pytest
 
@@ -32,7 +30,9 @@ class TestCLIArguments:
 class TestListModels:
     """Test suite for model listing functionality."""
 
-    @patch("cllm.cli.litellm.model_list", ["gpt-4", "claude-3-opus-20240229", "gemini-pro"])
+    @patch(
+        "cllm.cli.litellm.model_list", ["gpt-4", "claude-3-opus-20240229", "gemini-pro"]
+    )
     def test_print_model_list_output(self, capsys):
         """Test that print_model_list produces expected output."""
         print_model_list()
@@ -50,14 +50,17 @@ class TestListModels:
         # Verify tip is shown
         assert "grep" in captured.out
 
-    @patch("cllm.cli.litellm.model_list", [
-        "gpt-4",
-        "gpt-3.5-turbo",
-        "claude-3-opus-20240229",
-        "claude-3-sonnet-20240229",
-        "gemini-pro",
-        "gemini-1.5-flash",
-    ])
+    @patch(
+        "cllm.cli.litellm.model_list",
+        [
+            "gpt-4",
+            "gpt-3.5-turbo",
+            "claude-3-opus-20240229",
+            "claude-3-sonnet-20240229",
+            "gemini-pro",
+            "gemini-1.5-flash",
+        ],
+    )
     def test_print_model_list_categorization(self, capsys):
         """Test that models are categorized by provider."""
         print_model_list()
@@ -130,26 +133,35 @@ class TestListModelsIntegration:
 class TestListModelsGrep:
     """Test that --list-models output is grep-friendly."""
 
-    @patch("cllm.cli.litellm.model_list", [
-        "gpt-4",
-        "gpt-3.5-turbo",
-        "claude-3-opus-20240229",
-        "gemini-pro",
-    ])
+    @patch(
+        "cllm.cli.litellm.model_list",
+        [
+            "gpt-4",
+            "gpt-3.5-turbo",
+            "claude-3-opus-20240229",
+            "gemini-pro",
+        ],
+    )
     def test_models_on_separate_lines(self, capsys):
         """Test that each model appears on its own line for grep-ability."""
         print_model_list()
         captured = capsys.readouterr()
 
         # Each model should be on its own line
-        lines = captured.out.split('\n')
-        model_lines = [line.strip() for line in lines if line.strip() and not line.startswith('=')]
+        lines = captured.out.split("\n")
+        model_lines = [
+            line.strip() for line in lines if line.strip() and not line.startswith("=")
+        ]
 
         # Find lines that contain our models
-        gpt4_lines = [line for line in model_lines if 'gpt-4' in line and 'gpt-3.5' not in line]
-        gpt35_lines = [line for line in model_lines if 'gpt-3.5-turbo' in line]
-        claude_lines = [line for line in model_lines if 'claude-3-opus-20240229' in line]
-        gemini_lines = [line for line in model_lines if 'gemini-pro' in line]
+        gpt4_lines = [
+            line for line in model_lines if "gpt-4" in line and "gpt-3.5" not in line
+        ]
+        gpt35_lines = [line for line in model_lines if "gpt-3.5-turbo" in line]
+        claude_lines = [
+            line for line in model_lines if "claude-3-opus-20240229" in line
+        ]
+        gemini_lines = [line for line in model_lines if "gemini-pro" in line]
 
         # Each model should appear at least once
         assert len(gpt4_lines) >= 1
@@ -173,7 +185,15 @@ class TestValidateSchema:
         args = parser.parse_args(["test prompt"])
         assert args.validate_schema is False
 
-    @patch("sys.argv", ["cllm", "--validate-schema", "--json-schema", '{"type": "object", "properties": {"name": {"type": "string"}}}'])
+    @patch(
+        "sys.argv",
+        [
+            "cllm",
+            "--validate-schema",
+            "--json-schema",
+            '{"type": "object", "properties": {"name": {"type": "string"}}}',
+        ],
+    )
     @patch("cllm.cli.load_config", return_value={})
     def test_validate_schema_with_inline_json(self, mock_load_config, capsys):
         """Test --validate-schema with inline JSON schema."""
@@ -188,7 +208,15 @@ class TestValidateSchema:
         assert "Schema is valid" in captured.out
         assert "Schema validation successful" in captured.out
 
-    @patch("sys.argv", ["cllm", "--validate-schema", "--json-schema", '{"type": "object", "properties": {"name": {"type": "string"}, "age": {"type": "number"}}, "required": ["name"]}'])
+    @patch(
+        "sys.argv",
+        [
+            "cllm",
+            "--validate-schema",
+            "--json-schema",
+            '{"type": "object", "properties": {"name": {"type": "string"}, "age": {"type": "number"}}, "required": ["name"]}',
+        ],
+    )
     @patch("cllm.cli.load_config", return_value={})
     def test_validate_schema_shows_object_details(self, mock_load_config, capsys):
         """Test that --validate-schema shows details about object schemas."""
@@ -203,7 +231,15 @@ class TestValidateSchema:
         assert "name: string (required)" in captured.out
         assert "age: number (optional)" in captured.out
 
-    @patch("sys.argv", ["cllm", "--validate-schema", "--json-schema", '{"type": "array", "items": {"type": "string"}}'])
+    @patch(
+        "sys.argv",
+        [
+            "cllm",
+            "--validate-schema",
+            "--json-schema",
+            '{"type": "array", "items": {"type": "string"}}',
+        ],
+    )
     @patch("cllm.cli.load_config", return_value={})
     def test_validate_schema_shows_array_details(self, mock_load_config, capsys):
         """Test that --validate-schema shows details about array schemas."""
@@ -231,7 +267,10 @@ class TestValidateSchema:
         assert "Error: No schema provided" in captured.err
         assert "--json-schema or --json-schema-file" in captured.err
 
-    @patch("sys.argv", ["cllm", "--validate-schema", "--json-schema", '{"type": "invalid"}'])
+    @patch(
+        "sys.argv",
+        ["cllm", "--validate-schema", "--json-schema", '{"type": "invalid"}'],
+    )
     @patch("cllm.cli.load_config", return_value={})
     def test_validate_schema_with_invalid_schema(self, mock_load_config, capsys):
         """Test that --validate-schema with invalid schema shows error."""
@@ -246,7 +285,15 @@ class TestValidateSchema:
         assert "Schema error" in captured.err
 
     @patch("sys.argv", ["cllm", "--validate-schema"])
-    @patch("cllm.cli.load_config", return_value={"json_schema": {"type": "object", "properties": {"test": {"type": "string"}}}})
+    @patch(
+        "cllm.cli.load_config",
+        return_value={
+            "json_schema": {
+                "type": "object",
+                "properties": {"test": {"type": "string"}},
+            }
+        },
+    )
     def test_validate_schema_from_cllmfile(self, mock_load_config, capsys):
         """Test --validate-schema with schema from Cllmfile."""
         with pytest.raises(SystemExit) as exc_info:
@@ -263,7 +310,9 @@ class TestValidateSchema:
     @patch("sys.argv", ["cllm", "--validate-schema"])
     @patch("cllm.cli.read_prompt")
     @patch("cllm.cli.load_config", return_value={"json_schema": {"type": "object"}})
-    def test_validate_schema_does_not_read_prompt(self, mock_load_config, mock_read_prompt, capsys):
+    def test_validate_schema_does_not_read_prompt(
+        self, mock_load_config, mock_read_prompt, capsys
+    ):
         """Test that --validate-schema doesn't try to read prompt."""
         with pytest.raises(SystemExit) as exc_info:
             main()
@@ -274,10 +323,14 @@ class TestValidateSchema:
         # Should NOT have called read_prompt
         mock_read_prompt.assert_not_called()
 
-    @patch("sys.argv", ["cllm", "--validate-schema", "--json-schema", '{"type": "object"}'])
+    @patch(
+        "sys.argv", ["cllm", "--validate-schema", "--json-schema", '{"type": "object"}']
+    )
     @patch("cllm.cli.LLMClient")
     @patch("cllm.cli.load_config", return_value={})
-    def test_validate_schema_does_not_create_client(self, mock_load_config, mock_client, capsys):
+    def test_validate_schema_does_not_create_client(
+        self, mock_load_config, mock_client, capsys
+    ):
         """Test that --validate-schema doesn't initialize LLMClient."""
         with pytest.raises(SystemExit) as exc_info:
             main()

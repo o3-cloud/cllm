@@ -8,6 +8,7 @@ in examples/schemas/README.md.
 """
 
 import json
+
 from cllm import LLMClient
 
 
@@ -17,7 +18,7 @@ def example_person_extraction():
     print("Example 1: Person Information Extraction")
     print("=" * 60)
 
-    client = LLMClient()
+    LLMClient()
 
     # Define JSON schema for person information
     schema = {
@@ -26,20 +27,13 @@ def example_person_extraction():
             "name": {"type": "string"},
             "age": {"type": "number"},
             "email": {"type": "string", "format": "email"},
-            "occupation": {"type": "string"}
+            "occupation": {"type": "string"},
         },
         "required": ["name", "age"],
-        "additionalProperties": False
+        "additionalProperties": False,
     }
 
     # Create the response_format parameter
-    response_format = {
-        "type": "json_schema",
-        "json_schema": {
-            "name": "person_schema",
-            "schema": schema
-        }
-    }
 
     prompt = "Extract person info: John Doe is a 30-year-old software engineer at Google. Email: john@example.com"
 
@@ -48,7 +42,9 @@ def example_person_extraction():
 
     # Note: This requires a model that supports structured output (e.g., gpt-4o)
     # and a valid API key set in environment variables
-    print("\n(To run this example, set OPENAI_API_KEY and uncomment the completion call below)")
+    print(
+        "\n(To run this example, set OPENAI_API_KEY and uncomment the completion call below)"
+    )
 
     # Uncomment to actually call the API:
     # response = client.complete(
@@ -69,7 +65,7 @@ def example_entity_extraction():
     print("Example 2: Entity Extraction")
     print("=" * 60)
 
-    client = LLMClient()
+    LLMClient()
 
     # Define JSON schema for entity extraction
     schema = {
@@ -83,31 +79,32 @@ def example_entity_extraction():
                         "name": {"type": "string"},
                         "type": {
                             "type": "string",
-                            "enum": ["person", "organization", "location", "date", "product", "other"]
+                            "enum": [
+                                "person",
+                                "organization",
+                                "location",
+                                "date",
+                                "product",
+                                "other",
+                            ],
                         },
-                        "confidence": {"type": "number", "minimum": 0, "maximum": 1}
+                        "confidence": {"type": "number", "minimum": 0, "maximum": 1},
                     },
-                    "required": ["name", "type"]
-                }
+                    "required": ["name", "type"],
+                },
             }
         },
         "required": ["entities"],
-        "additionalProperties": False
-    }
-
-    response_format = {
-        "type": "json_schema",
-        "json_schema": {
-            "name": "entity_extraction_schema",
-            "schema": schema
-        }
+        "additionalProperties": False,
     }
 
     prompt = "Extract entities from: Apple Inc. announced a new product launch in Cupertino on March 15, 2024."
 
     print(f"\nPrompt: {prompt}")
     print(f"\nSchema: {json.dumps(schema, indent=2)}")
-    print("\n(To run this example, set OPENAI_API_KEY and uncomment the completion call)")
+    print(
+        "\n(To run this example, set OPENAI_API_KEY and uncomment the completion call)"
+    )
 
 
 def example_cli_usage():
@@ -119,24 +116,24 @@ def example_cli_usage():
     examples = [
         {
             "title": "Inline JSON Schema",
-            "command": '''echo "John Doe, age 30" | cllm --model gpt-4o --json-schema '{"type": "object", "properties": {"name": {"type": "string"}, "age": {"type": "number"}}, "required": ["name", "age"]}'
-'''
+            "command": """echo "John Doe, age 30" | cllm --model gpt-4o --json-schema '{"type": "object", "properties": {"name": {"type": "string"}, "age": {"type": "number"}}, "required": ["name", "age"]}'
+""",
         },
         {
             "title": "External Schema File",
-            "command": '''cat document.txt | cllm --model gpt-4o --json-schema-file examples/schemas/person.json
-'''
+            "command": """cat document.txt | cllm --model gpt-4o --json-schema-file examples/schemas/person.json
+""",
         },
         {
             "title": "Using Cllmfile Configuration",
-            "command": '''echo "Extract entities from this text..." | cllm --config extraction
-'''
+            "command": """echo "Extract entities from this text..." | cllm --config extraction
+""",
         },
         {
             "title": "Override Config with CLI Flag",
-            "command": '''cat data.txt | cllm --config extraction --temperature 0.5
-'''
-        }
+            "command": """cat data.txt | cllm --config extraction --temperature 0.5
+""",
+        },
     ]
 
     for i, example in enumerate(examples, 1):

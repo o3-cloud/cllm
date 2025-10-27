@@ -7,6 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 CLLM is a bash-centric command-line interface for interacting with large language models across 100+ providers. The project provides a unified Python API and CLI for chaining LLM calls using familiar bash piping techniques.
 
 **Key Design Principles:**
+
 - Provider abstraction via LiteLLM (OpenAI-compatible interface)
 - Bash-first design for piping and scripting workflows
 - Modern Python packaging with uv for performance
@@ -16,6 +17,7 @@ CLLM is a bash-centric command-line interface for interacting with large languag
 ### Core Components
 
 **`src/cllm/client.py`** - LLMClient class
+
 - Wraps LiteLLM's `completion()` and `acompletion()` functions
 - Provides simplified interface: string prompts auto-convert to message format
 - Supports streaming, async, temperature, max_tokens
@@ -23,6 +25,7 @@ CLLM is a bash-centric command-line interface for interacting with large languag
 - Key method: `complete(model, messages, stream=False, temperature=None, max_tokens=None, **kwargs)`
 
 **`src/cllm/cli.py`** - Command-line interface
+
 - Entry point: `cllm` command registered in `pyproject.toml`
 - Reads from stdin (for piping) or command-line arguments
 - Supports `--stream`, `--temperature`, `--max-tokens`, `--raw`, `--config`, `--show-config` flags
@@ -30,6 +33,7 @@ CLLM is a bash-centric command-line interface for interacting with large languag
 - Loads configuration from Cllmfile.yml (see ADR-0003)
 
 **`src/cllm/config.py`** - Configuration loading (ADR-0003)
+
 - Loads and merges Cllmfile.yml files with cascading precedence
 - Supports named configurations (e.g., `--config summarize`)
 - Environment variable interpolation with `${VAR_NAME}` syntax
@@ -37,6 +41,7 @@ CLLM is a bash-centric command-line interface for interacting with large languag
 - CLI arguments always override file-based configuration
 
 **Provider Abstraction (ADR-0002)**
+
 - Uses LiteLLM Python SDK for multi-provider support
 - Switching providers = changing model name only (e.g., `"gpt-4"` → `"claude-3-opus-20240229"`)
 - All responses follow OpenAI format: `response['choices'][0]['message']['content']`
@@ -74,31 +79,37 @@ docs/decisions/    # Architecture Decision Records (ADRs)
 ### Package Management (uv - ADR-0001)
 
 **Install dependencies:**
+
 ```bash
 uv sync
 ```
 
 **Add new dependency:**
+
 ```bash
 uv add <package>
 ```
 
 **Run tests:**
+
 ```bash
 uv run pytest
 ```
 
 **Run specific test:**
+
 ```bash
 uv run pytest tests/test_client.py::TestLLMClient::test_complete_with_string_message -v
 ```
 
 **Run CLI locally:**
+
 ```bash
 uv run cllm "Your prompt here" --model gpt-4
 ```
 
 **Build package:**
+
 ```bash
 uv build
 ```
@@ -122,11 +133,13 @@ uv build
 ## Key Architectural Decisions
 
 ### ADR-0001: Use uv as Package Manager
+
 - **Why:** 10-100x faster than pip; replaces pip, pip-tools, poetry, pyenv, virtualenv
 - **Commands:** Use `uv add`, `uv sync`, `uv run` instead of pip/poetry
 - **Installation:** `uv.lock` provides reproducible builds
 
 ### ADR-0002: Use LiteLLM for LLM Provider Abstraction
+
 - **Why:** Unified OpenAI-compatible interface for 100+ providers
 - **Core principle:** Same code works across all providers (just change model name)
 - **Streaming:** Use `stream=True` parameter
@@ -134,6 +147,7 @@ uv build
 - **Documentation:** https://docs.litellm.ai/docs/
 
 **Example - Provider Switching:**
+
 ```python
 from cllm import LLMClient
 client = LLMClient()
@@ -149,6 +163,7 @@ response = client.complete("gemini-pro", "What is 2+2?")
 ```
 
 ### ADR-0003: Cllmfile Configuration System
+
 - **Why:** Reduce repetitive CLI flags, enable shareable configurations, support complex parameter sets
 - **File format:** YAML with environment variable interpolation (`${VAR_NAME}`)
 - **File lookup order:** `~/.cllm/` → `./.cllm/` → `./` (lowest to highest precedence)
@@ -161,6 +176,7 @@ response = client.complete("gemini-pro", "What is 2+2?")
   - See `examples/configs/` for templates
 
 **Example - Using Named Configurations:**
+
 ```bash
 # Summarize a document
 cat article.md | cllm --config summarize
@@ -176,6 +192,7 @@ cllm --config summarize --temperature 0.5 < doc.txt
 ```
 
 **Example Cllmfile.yml:**
+
 ```yaml
 # Project-specific defaults
 model: "gpt-4"
@@ -199,6 +216,7 @@ default_system_message: "You are a helpful coding assistant."
 ## API Key Configuration
 
 Set environment variables following LiteLLM conventions:
+
 - `OPENAI_API_KEY="sk-..."`
 - `ANTHROPIC_API_KEY="sk-ant-..."`
 - `GOOGLE_API_KEY="..."`
@@ -209,6 +227,7 @@ See: https://docs.litellm.ai/docs/providers
 ## Adding New Features
 
 When adding LLM-related functionality:
+
 1. **Always use `litellm.completion()`** instead of direct provider SDKs
 2. **Test with multiple providers** to verify abstraction works
 3. **Update examples/** if adding new CLI flags or API methods

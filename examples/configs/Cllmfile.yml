@@ -22,7 +22,6 @@ max_tokens: 1000
 # Reliability settings
 timeout: 60
 num_retries: 2
-
 # Fallback models if primary fails
 # fallbacks:
 #   - "gpt-3.5-turbo-16k"

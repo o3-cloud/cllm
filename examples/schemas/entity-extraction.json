@@ -13,7 +13,14 @@
           },
           "type": {
             "type": "string",
-            "enum": ["person", "organization", "location", "date", "product", "other"],
+            "enum": [
+              "person",
+              "organization",
+              "location",
+              "date",
+              "product",
+              "other"
+            ],
             "description": "Type of entity"
           },
           "confidence": {
