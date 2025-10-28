@@ -3,11 +3,14 @@ Command-line interface for CLLM.
 
 Provides a bash-centric CLI for interacting with LLMs across multiple providers.
 Implements ADR-0005: Add Structured Output Support with JSON Schema
+Implements ADR-0009: Add Debugging and Logging Support
 """
 
 import argparse
 import json
+import os
 import sys
+from pathlib import Path
 from typing import Any, Dict, Optional
 
 import litellm
@@ -155,6 +158,25 @@ For full provider list: https://docs.litellm.ai/docs/providers
         "--delete-conversation",
         metavar="ID",
         help="Delete conversation and exit",
+    )
+
+    # Debugging and logging arguments (ADR-0009)
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Enable debug mode (verbose logging) - ⚠️  Logs API keys - NOT for production",
+    )
+
+    parser.add_argument(
+        "--json-logs",
+        action="store_true",
+        help="Enable JSON structured logging",
+    )
+
+    parser.add_argument(
+        "--log-file",
+        metavar="PATH",
+        help="Write debug/log output to file instead of stderr",
     )
 
     parser.add_argument("--version", action="version", version="%(prog)s 0.1.0")
@@ -348,6 +370,72 @@ def delete_conversation(manager: ConversationManager, conversation_id: str):
         sys.exit(1)
 
 
+def configure_debugging(
+    debug: bool = False,
+    json_logs: bool = False,
+    log_file: Optional[str] = None,
+) -> Optional[object]:
+    """
+    Configure LiteLLM debugging and logging.
+
+    Implements ADR-0009: Add Debugging and Logging Support
+
+    Args:
+        debug: Enable verbose debug mode (sets litellm.set_verbose=True)
+        json_logs: Enable JSON structured logging (sets litellm.json_logs=True)
+        log_file: Optional path to log file (redirects stderr if provided)
+
+    Returns:
+        File handle if log_file is provided, None otherwise
+
+    Side effects:
+        - Sets litellm.set_verbose if debug=True
+        - Sets litellm.json_logs if json_logs=True
+        - Redirects stderr to log file if log_file is provided
+        - Prints warning to stderr if debug=True
+    """
+    log_file_handle = None
+
+    # Handle log file redirection first (before any output)
+    if log_file:
+        try:
+            log_path = Path(log_file)
+            # Create parent directories if needed
+            log_path.parent.mkdir(parents=True, exist_ok=True)
+            # Open file with restrictive permissions (0600)
+            # Open in append mode to allow multiple commands to write to same file
+            log_file_handle = open(log_path, "a")
+            # Set restrictive permissions on Unix-like systems
+            if hasattr(os, "chmod"):
+                os.chmod(log_path, 0o600)
+            # Redirect stderr to log file
+            sys.stderr = log_file_handle
+        except OSError as e:
+            print(f"Error: Cannot open log file '{log_file}': {e}", file=sys.stderr)
+            sys.exit(1)
+
+    # Show warning if debug mode is enabled
+    if debug:
+        print(
+            "⚠️  Debug mode enabled. API keys and sensitive data may appear in output.",
+            file=sys.stderr,
+        )
+        print(
+            "⚠️  Do NOT use debug mode in production or with confidential data.",
+            file=sys.stderr,
+        )
+        print(file=sys.stderr)  # Blank line for readability
+
+    # Configure LiteLLM debugging
+    if debug:
+        litellm.set_verbose = True
+
+    if json_logs:
+        litellm.json_logs = True
+
+    return log_file_handle
+
+
 def main():
     """Main CLI entry point."""
     parser = create_parser()
@@ -376,13 +464,37 @@ def main():
         cli_args["json_schema"] = args.json_schema
     if args.json_schema_file is not None:
         cli_args["json_schema_file"] = args.json_schema_file
+    # Debug flags (ADR-0009)
+    if args.debug:
+        cli_args["debug"] = args.debug
+    if args.json_logs:
+        cli_args["json_logs"] = args.json_logs
+    if args.log_file is not None:
+        cli_args["log_file"] = args.log_file
 
     # Merge config with CLI args (CLI takes precedence)
     config = merge_config_with_args(file_config, cli_args)
 
+    # Support environment variables for debug settings (ADR-0009)
+    # Precedence: CLI flags > Cllmfile > Environment variables
+    if "debug" not in config and os.getenv("CLLM_DEBUG") == "1":
+        config["debug"] = True
+    if "json_logs" not in config and os.getenv("CLLM_JSON_LOGS") == "1":
+        config["json_logs"] = True
+    if "log_file" not in config and os.getenv("CLLM_LOG_FILE"):
+        config["log_file"] = os.getenv("CLLM_LOG_FILE")
+
     # Set defaults if not in config
     if "model" not in config:
         config["model"] = "gpt-3.5-turbo"
+
+    # Configure debugging and logging (ADR-0009)
+    # Do this early so debug output is captured for all operations
+    log_file_handle = configure_debugging(
+        debug=config.get("debug", False),
+        json_logs=config.get("json_logs", False),
+        log_file=config.get("log_file"),
+    )
 
     # Handle JSON schema with proper precedence
     # Precedence: --json-schema > --json-schema-file > json_schema in config > json_schema_file in config
@@ -656,10 +768,20 @@ def main():
 
     except KeyboardInterrupt:
         print("\n\nInterrupted by user.", file=sys.stderr)
+        # Close log file if it was opened
+        if log_file_handle:
+            log_file_handle.close()
         sys.exit(130)
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
+        # Close log file if it was opened
+        if log_file_handle:
+            log_file_handle.close()
         sys.exit(1)
+    finally:
+        # Ensure log file is closed
+        if log_file_handle:
+            log_file_handle.close()
 
 
 if __name__ == "__main__":

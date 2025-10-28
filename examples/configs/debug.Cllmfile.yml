@@ -1,0 +1,21 @@
+# Debug configuration example
+# Enables verbose debugging and JSON structured logging
+#
+# Usage:
+#   cllm --config debug "Your prompt here"
+#   echo "test" | cllm --config debug
+
+model: "gpt-3.5-turbo"
+temperature: 0.7
+
+# Enable debug mode (shows all LiteLLM operations)
+# ⚠️  WARNING: Logs API keys - NOT for production use
+debug: true
+
+# Enable JSON structured logging
+# Useful for log aggregators and monitoring tools
+json_logs: true
+
+# Optional: Write logs to file instead of stderr
+# Uncomment to enable:
+# log_file: "cllm-debug.log"

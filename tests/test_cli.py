@@ -4,11 +4,14 @@ Tests for the CLI.
 These tests verify that the command-line interface works correctly.
 """
 
-from unittest.mock import patch
+import os
+import tempfile
+from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import pytest
 
-from cllm.cli import main, print_model_list
+from cllm.cli import configure_debugging, main, print_model_list
 
 
 class TestListModels:
@@ -217,3 +220,255 @@ class TestValidateSchema:
         captured = capsys.readouterr()
         assert "Schema is valid" in captured.out
         assert "Type: object" in captured.out
+
+
+class TestDebugging:
+    """Test suite for debugging and logging features (ADR-0009)."""
+
+    @patch("cllm.cli.litellm")
+    def test_configure_debugging_with_debug_flag(self, mock_litellm, capsys):
+        """Test that debug=True sets litellm.set_verbose=True."""
+        configure_debugging(debug=True)
+
+        # Verify litellm.set_verbose was set to True
+        assert mock_litellm.set_verbose is True
+
+        # Verify warning message is printed
+        captured = capsys.readouterr()
+        assert "⚠️  Debug mode enabled" in captured.err
+        assert "API keys and sensitive data" in captured.err
+
+    @patch("cllm.cli.litellm")
+    def test_configure_debugging_with_json_logs(self, mock_litellm):
+        """Test that json_logs=True sets litellm.json_logs=True."""
+        configure_debugging(json_logs=True)
+
+        # Verify litellm.json_logs was set to True
+        assert mock_litellm.json_logs is True
+
+    @patch("cllm.cli.litellm")
+    def test_configure_debugging_without_flags(self, mock_litellm):
+        """Test that configure_debugging with no flags does nothing."""
+        # Reset mock attributes
+        mock_litellm.set_verbose = False
+        mock_litellm.json_logs = False
+
+        configure_debugging()
+
+        # Verify flags remain False
+        assert mock_litellm.set_verbose is False
+        assert mock_litellm.json_logs is False
+
+    @patch("cllm.cli.litellm")
+    def test_configure_debugging_with_log_file(self, mock_litellm):
+        """Test that log_file creates file with proper permissions."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            log_file = Path(tmpdir) / "test.log"
+
+            # Configure with log file
+            handle = configure_debugging(log_file=str(log_file))
+
+            # Verify file was created
+            assert log_file.exists()
+
+            # Verify file has restrictive permissions (0600) on Unix
+            if hasattr(os, "chmod"):
+                stat_result = log_file.stat()
+                # Check that permissions are 0600 (owner read/write only)
+                assert oct(stat_result.st_mode)[-3:] == "600"
+
+            # Clean up
+            if handle:
+                handle.close()
+
+    @patch("cllm.cli.litellm")
+    def test_configure_debugging_log_file_creates_parent_dirs(self, mock_litellm):
+        """Test that log_file creates parent directories if needed."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            log_file = Path(tmpdir) / "nested" / "dir" / "test.log"
+
+            # Configure with nested log file path
+            handle = configure_debugging(log_file=str(log_file))
+
+            # Verify parent directories were created
+            assert log_file.parent.exists()
+            assert log_file.exists()
+
+            # Clean up
+            if handle:
+                handle.close()
+
+    @patch("cllm.cli.litellm")
+    def test_configure_debugging_combined_flags(self, mock_litellm, capsys):
+        """Test that all debug flags can be combined."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            log_file = Path(tmpdir) / "test.log"
+
+            handle = configure_debugging(
+                debug=True, json_logs=True, log_file=str(log_file)
+            )
+
+            # Verify all flags were set
+            assert mock_litellm.set_verbose is True
+            assert mock_litellm.json_logs is True
+            assert log_file.exists()
+
+            # Clean up
+            if handle:
+                handle.close()
+
+    @patch("sys.argv", ["cllm", "--debug", "test prompt"])
+    @patch("sys.stdin.isatty", return_value=True)
+    @patch("cllm.cli.LLMClient")
+    @patch("cllm.cli.load_config", return_value={})
+    @patch("cllm.cli.litellm")
+    def test_cli_debug_flag(self, mock_litellm, mock_load_config, mock_client, mock_isatty, capsys):
+        """Test that --debug flag enables debug mode via CLI."""
+        # Mock the client to avoid actual API calls
+        mock_instance = MagicMock()
+        mock_instance.complete.return_value = "test response"
+        mock_client.return_value = mock_instance
+
+        try:
+            main()
+        except SystemExit:
+            pass
+
+        # Verify debug mode was enabled
+        assert mock_litellm.set_verbose is True
+
+        # Verify warning was shown
+        captured = capsys.readouterr()
+        assert "⚠️  Debug mode enabled" in captured.err
+
+    @patch("sys.argv", ["cllm", "--json-logs", "test prompt"])
+    @patch("sys.stdin.isatty", return_value=True)
+    @patch("cllm.cli.LLMClient")
+    @patch("cllm.cli.load_config", return_value={})
+    @patch("cllm.cli.litellm")
+    def test_cli_json_logs_flag(self, mock_litellm, mock_load_config, mock_client, mock_isatty):
+        """Test that --json-logs flag enables JSON logging via CLI."""
+        # Mock the client to avoid actual API calls
+        mock_instance = MagicMock()
+        mock_instance.complete.return_value = "test response"
+        mock_client.return_value = mock_instance
+
+        try:
+            main()
+        except SystemExit:
+            pass
+
+        # Verify JSON logs were enabled
+        assert mock_litellm.json_logs is True
+
+    @patch("sys.stdin.isatty", return_value=True)
+    @patch("cllm.cli.LLMClient")
+    @patch("cllm.cli.load_config", return_value={})
+    @patch("cllm.cli.litellm")
+    def test_cli_log_file_flag(self, mock_litellm, mock_load_config, mock_client, mock_isatty):
+        """Test that --log-file flag creates log file via CLI."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            log_file = Path(tmpdir) / "cli-test.log"
+
+            with patch("sys.argv", ["cllm", "--log-file", str(log_file), "test prompt"]):
+                # Mock the client to avoid actual API calls
+                mock_instance = MagicMock()
+                mock_instance.complete.return_value = "test response"
+                mock_client.return_value = mock_instance
+
+                try:
+                    main()
+                except SystemExit:
+                    pass
+
+                # Verify log file was created
+                assert log_file.exists()
+
+    @patch("sys.stdin.isatty", return_value=True)
+    @patch("cllm.cli.LLMClient")
+    @patch("cllm.cli.load_config", return_value={})
+    @patch("cllm.cli.litellm")
+    def test_debug_from_cllmfile(self, mock_litellm, mock_load_config, mock_client, mock_isatty):
+        """Test that debug settings from Cllmfile are applied."""
+        # Mock config to include debug settings
+        mock_load_config.return_value = {
+            "debug": True,
+            "json_logs": True,
+        }
+
+        with patch("sys.argv", ["cllm", "test prompt"]):
+            # Mock the client to avoid actual API calls
+            mock_instance = MagicMock()
+            mock_instance.complete.return_value = "test response"
+            mock_client.return_value = mock_instance
+
+            try:
+                main()
+            except SystemExit:
+                pass
+
+            # Verify debug settings were applied from config
+            assert mock_litellm.set_verbose is True
+            assert mock_litellm.json_logs is True
+
+    @patch("sys.stdin.isatty", return_value=True)
+    @patch("cllm.cli.LLMClient")
+    @patch("cllm.cli.load_config", return_value={"debug": False})
+    @patch("cllm.cli.litellm")
+    def test_cli_flag_overrides_cllmfile(self, mock_litellm, mock_load_config, mock_client, mock_isatty):
+        """Test that CLI flag overrides Cllmfile setting."""
+        with patch("sys.argv", ["cllm", "--debug", "test prompt"]):
+            # Mock the client to avoid actual API calls
+            mock_instance = MagicMock()
+            mock_instance.complete.return_value = "test response"
+            mock_client.return_value = mock_instance
+
+            try:
+                main()
+            except SystemExit:
+                pass
+
+            # Verify CLI flag overrode config
+            assert mock_litellm.set_verbose is True
+
+    @patch("sys.stdin.isatty", return_value=True)
+    @patch("cllm.cli.LLMClient")
+    @patch("cllm.cli.load_config", return_value={})
+    @patch("cllm.cli.litellm")
+    def test_environment_variable_debug(self, mock_litellm, mock_load_config, mock_client, mock_isatty):
+        """Test that CLLM_DEBUG environment variable enables debug mode."""
+        with patch.dict(os.environ, {"CLLM_DEBUG": "1"}):
+            with patch("sys.argv", ["cllm", "test prompt"]):
+                # Mock the client to avoid actual API calls
+                mock_instance = MagicMock()
+                mock_instance.complete.return_value = "test response"
+                mock_client.return_value = mock_instance
+
+                try:
+                    main()
+                except SystemExit:
+                    pass
+
+                # Verify debug mode was enabled via environment variable
+                assert mock_litellm.set_verbose is True
+
+    @patch("sys.stdin.isatty", return_value=True)
+    @patch("cllm.cli.LLMClient")
+    @patch("cllm.cli.load_config", return_value={})
+    @patch("cllm.cli.litellm")
+    def test_environment_variable_json_logs(self, mock_litellm, mock_load_config, mock_client, mock_isatty):
+        """Test that CLLM_JSON_LOGS environment variable enables JSON logging."""
+        with patch.dict(os.environ, {"CLLM_JSON_LOGS": "1"}):
+            with patch("sys.argv", ["cllm", "test prompt"]):
+                # Mock the client to avoid actual API calls
+                mock_instance = MagicMock()
+                mock_instance.complete.return_value = "test response"
+                mock_client.return_value = mock_instance
+
+                try:
+                    main()
+                except SystemExit:
+                    pass
+
+                # Verify JSON logs were enabled via environment variable
+                assert mock_litellm.json_logs is True
