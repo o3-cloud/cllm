@@ -45,9 +45,9 @@ while true; do
   fi
 
   if ((${#extra_flags[@]} > 0)); then
-    cllm "${prompt}" --conversation "${conversation_id}" --model "${model}" "${extra_flags[@]}"
+    cllm "${prompt}" --conversation "${conversation_id}" --model "${model}" -s "${extra_flags[@]}"
   else
-    cllm "${prompt}" --conversation "${conversation_id}" --model "${model}"
+    cllm "${prompt}" --conversation "${conversation_id}" --model "${model}" -s
   fi
   echo
 done

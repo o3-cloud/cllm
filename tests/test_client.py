@@ -70,26 +70,43 @@ class TestLLMClient:
         call_args = mock_completion.call_args[1]
         assert call_args["temperature"] == 1.5
 
-    @patch("cllm.client.completion")
-    def test_streaming_response(self, mock_completion):
-        """Test streaming completion."""
+    @patch("cllm.client.stream_chunk_builder")
+    @patch("cllm.client.acompletion")
+    def test_streaming_response(self, mock_acompletion, mock_stream_chunk_builder):
+        """Test streaming completion with async wrapper (ADR-0010)."""
         # Mock streaming chunks
-        mock_chunks = [
-            {"choices": [{"delta": {"content": "Hello"}}]},
-            {"choices": [{"delta": {"content": " world"}}]},
-            {"choices": [{"delta": {"content": "!"}}]},
-        ]
-        mock_completion.return_value = iter(mock_chunks)
+        async def mock_async_gen():
+            chunks = [
+                {"choices": [{"delta": {"content": "Hello"}}]},
+                {"choices": [{"delta": {"content": " world"}}]},
+                {"choices": [{"delta": {"content": "!"}}]},
+            ]
+            for chunk in chunks:
+                yield chunk
+
+        mock_acompletion.return_value = mock_async_gen()
+
+        # Mock stream_chunk_builder to return a proper response object
+        class MockResponse:
+            def __init__(self):
+                self.choices = [type('obj', (object,), {
+                    'message': type('obj', (object,), {'content': 'Hello world!'})()
+                })()]
+
+        mock_stream_chunk_builder.return_value = MockResponse()
 
         client = LLMClient()
-        chunks = list(client.complete(model="gpt-4", messages="Say hello", stream=True))
+        response = client.complete(model="gpt-4", messages="Say hello", stream=True)
 
-        # Verify streaming was enabled
-        call_args = mock_completion.call_args[1]
+        # Verify acompletion was called with streaming enabled
+        call_args = mock_acompletion.call_args[1]
         assert call_args["stream"] is True
 
-        # Verify chunks
-        assert chunks == ["Hello", " world", "!"]
+        # Verify response is the complete string (not chunks)
+        assert response == "Hello world!"
+
+        # Verify stream_chunk_builder was called
+        mock_stream_chunk_builder.assert_called_once()
 
     @patch("cllm.client.completion")
     def test_raw_response(self, mock_completion):

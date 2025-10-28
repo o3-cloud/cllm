@@ -6,10 +6,11 @@ It provides a unified interface for interacting with 100+ LLM providers
 using the OpenAI-compatible API format.
 """
 
+import asyncio
 import os
-from typing import Any, Dict, Iterator, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
-from litellm import acompletion, completion, token_counter
+from litellm import acompletion, completion, stream_chunk_builder, token_counter
 
 
 class LLMClient:
@@ -60,12 +61,12 @@ class LLMClient:
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
         **kwargs: Any
-    ) -> Union[str, Iterator[str], Dict[str, Any]]:
+    ) -> Union[str, Dict[str, Any]]:
         """
         Generate a completion using the specified model.
 
-        This is a synchronous wrapper around litellm.completion() that provides
-        a simplified interface for common use cases.
+        This is a synchronous wrapper that uses asyncio.run() for streaming
+        (per ADR-0010) to handle LiteLLM's async generator behavior.
 
         Args:
             model: Model name (e.g., "gpt-4", "claude-3-opus-20240229", "gemini-pro")
@@ -75,14 +76,14 @@ class LLMClient:
                      [{"role": "user", "content": "Hello"},
                       {"role": "assistant", "content": "Hi there!"},
                       {"role": "user", "content": "How are you?"}]
-            stream: If True, return an iterator of response chunks
+            stream: If True, prints streaming output in real-time and returns complete response
             temperature: Sampling temperature (0.0 to 2.0)
             max_tokens: Maximum tokens to generate
             **kwargs: Additional parameters to pass to litellm.completion()
 
         Returns:
             If stream=False: The text content of the response (string)
-            If stream=True: An iterator yielding response chunks (strings)
+            If stream=True: Complete response object with full message content (after streaming display)
             If raw_response=True in kwargs: The raw LiteLLM response object
 
         Raises:
@@ -96,7 +97,6 @@ class LLMClient:
         params = {
             "model": model,
             "messages": messages,
-            "stream": stream,
         }
 
         if temperature is not None:
@@ -108,14 +108,30 @@ class LLMClient:
         params.update(kwargs)
 
         # Check if user wants raw response
-        raw_response = kwargs.pop("raw_response", False)
+        raw_response = params.pop("raw_response", False)
 
-        # Make the API call
-        response = completion(**params)
-
-        # Handle streaming responses
+        # Handle streaming with async wrapper (ADR-0010 TEST 2)
         if stream:
-            return self._stream_response(response)
+            async def _async_stream():
+                response = await acompletion(**params, stream=True)
+                chunks = []
+                async for chunk in response:
+                    chunks.append(chunk)
+                    content = chunk.get('choices', [{}])[0].get('delta', {}).get('content') or ''
+                    if content:
+                        print(content, end='', flush=True)
+                print()  # Final newline
+                return stream_chunk_builder(chunks, messages=messages)
+
+            complete_response = asyncio.run(_async_stream())
+
+            # Return raw response if requested, otherwise extract content
+            if raw_response:
+                return complete_response
+            return complete_response.choices[0].message.content
+
+        # Non-streaming path
+        response = completion(**params, stream=False)
 
         # Return raw response if requested
         if raw_response:
@@ -132,7 +148,7 @@ class LLMClient:
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
         **kwargs: Any
-    ) -> Union[str, Iterator[str], Dict[str, Any]]:
+    ) -> Union[str, Dict[str, Any]]:
         """
         Async version of complete().
 
@@ -150,7 +166,6 @@ class LLMClient:
         params = {
             "model": model,
             "messages": messages,
-            "stream": stream,
         }
 
         if temperature is not None:
@@ -162,14 +177,27 @@ class LLMClient:
         params.update(kwargs)
 
         # Check if user wants raw response
-        raw_response = kwargs.pop("raw_response", False)
+        raw_response = params.pop("raw_response", False)
 
-        # Make the async API call
-        response = await acompletion(**params)
-
-        # Handle streaming responses
+        # Handle streaming with async iteration (ADR-0010)
         if stream:
-            return self._stream_response(response)
+            response = await acompletion(**params, stream=True)
+            chunks = []
+            async for chunk in response:
+                chunks.append(chunk)
+                content = chunk.get('choices', [{}])[0].get('delta', {}).get('content') or ''
+                if content:
+                    print(content, end='', flush=True)
+            print()  # Final newline
+            complete_response = stream_chunk_builder(chunks, messages=messages)
+
+            # Return raw response if requested, otherwise extract content
+            if raw_response:
+                return complete_response
+            return complete_response.choices[0].message.content
+
+        # Non-streaming path
+        response = await acompletion(**params, stream=False)
 
         # Return raw response if requested
         if raw_response:
@@ -177,20 +205,6 @@ class LLMClient:
 
         # Extract and return the text content
         return response["choices"][0]["message"]["content"]
-
-    def _stream_response(self, response: Any) -> Iterator[str]:
-        """
-        Process streaming response and yield text chunks.
-
-        Args:
-            response: Streaming response from litellm.completion()
-
-        Yields:
-            Text chunks from the streaming response
-        """
-        for chunk in response:
-            if chunk["choices"][0].get("delta", {}).get("content"):
-                yield chunk["choices"][0]["delta"]["content"]
 
     def count_tokens(
         self, model: str, messages: Union[str, List[Dict[str, str]]]

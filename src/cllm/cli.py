@@ -682,21 +682,14 @@ def main():
     try:
         # Make the request
         if stream:
-            # Streaming mode - collect chunks for conversation saving
-            chunks = []
+            # Streaming mode - client.complete() now handles display internally (ADR-0010)
+            # and returns the complete response
+            complete_response = client.complete(
+                model=model, messages=messages_for_llm, stream=True, **kwargs
+            )
 
+            # Validate against schema if present
             if schema is not None:
-                # For streaming with schema, we need to collect all chunks first
-                # to validate the complete response
-                for chunk in client.complete(
-                    model=model, messages=messages_for_llm, stream=True, **kwargs
-                ):
-                    chunks.append(chunk)
-                    print(chunk, end="", flush=True)
-                print()  # Final newline
-
-                # Validate the complete response
-                complete_response = "".join(chunks)
                 try:
                     parsed_response = json.loads(complete_response)
                     validate_against_schema(parsed_response, schema)
@@ -708,18 +701,9 @@ def main():
                 except ConfigurationError as e:
                     print(f"\nValidation error: {e}", file=sys.stderr)
                     sys.exit(1)
-            else:
-                # Normal streaming without schema
-                for chunk in client.complete(
-                    model=model, messages=messages_for_llm, stream=True, **kwargs
-                ):
-                    chunks.append(chunk)
-                    print(chunk, end="", flush=True)
-                print()  # Final newline
 
             # Save conversation if in conversation mode
             if conversation is not None:
-                complete_response = "".join(chunks)
                 conversation.add_message("user", prompt)
                 conversation.add_message("assistant", complete_response)
                 # Update token count
