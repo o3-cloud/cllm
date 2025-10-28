@@ -1,58 +1,117 @@
-# CLLM - Command Line LLM Toolkit
+# CLLM - Command Line LLM Interface
 
-A bash-centric command-line interface for interacting with large language models. Chain LLM inference processes using familiar bash piping and scripting techniques.
+A bash-centric command-line interface for interacting with large language models across 100+ providers. Chain LLM calls using familiar bash piping and scripting techniques.
 
 ## Overview
 
-CLLM bridges the gap between ChatGPT GUIs, prompt libraries, notebooks, and agent frameworks by providing transparency and bash integration for complex AI workflows. It's designed for developers who want programmatic control over LLM interactions without leaving their terminal.
+CLLM bridges the gap between ChatGPT GUIs and complex automation by providing transparency and bash integration for AI workflows. It's designed for developers who want programmatic control over LLM interactions without leaving their terminal - whether for quick one-liners, sophisticated pipelines, or CI/CD integration.
+
+## Table of Contents
+
+- [Features](#features)
+- [Key Concepts](#key-concepts)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+  - [Basic Usage](#basic-usage)
+  - [Conversation Threading](#conversation-threading)
+  - [Debugging & Troubleshooting](#debugging--troubleshooting)
+  - [Python API](#python-api)
+- [Advanced Usage](#advanced-usage)
+  - [LLM Chaining](#llm-chaining-with-bash-pipes)
+  - [Bash Script Examples](#bash-script-examples)
+  - [Structured Output](#structured-output-with-json-schema)
+  - [Configuration Files](#configuration-files-cllmfileyml)
+- [CLI Reference](#cli-reference)
+- [Providers & Models](#providers--models)
+- [Development](#development)
+- [Architecture Decision Records](#architecture-decision-records)
 
 ## Features
 
 - **🚀 Simple CLI Interface**: Generate text from prompts with straightforward commands
 - **🔗 LLM Chaining**: Chain multiple LLM calls using bash pipes and scripts
 - **📋 Structured Output**: Get guaranteed JSON output conforming to JSON Schema specifications
-- **🏢 Multi-Provider Support**:
-  - OpenAI (GPT-3.5, GPT-4, GPT-4 Turbo)
-  - Anthropic (Claude 3 Family)
-  - Google Gemini
-  - Groq
+- **💬 Conversation Threading**: Multi-turn conversations with automatic context management
+- **⚡ Real-time Streaming**: Stream responses as they're generated for long-form content
+- **🔍 Debugging & Logging**: Built-in debug mode with structured JSON logging
+- **🏢 Multi-Provider Support** (100+ providers via LiteLLM):
+  - OpenAI (GPT-3.5, GPT-4, GPT-4 Turbo, GPT-4o)
+  - Anthropic (Claude 3 Haiku, Sonnet, Opus, 3.5 Sonnet)
+  - Google (Gemini Pro, 1.5 Pro, 1.5 Flash)
+  - Groq (Mixtral, Llama 3)
   - AWS Bedrock
+  - Azure OpenAI
   - Local Ollama models
-- **🛠️ Utility Suite**:
-  - Vector stores for semantic search
-  - Text splitters for document processing
-  - Data loaders for various file formats
-  - Output parsers for structured responses
-- **🐳 Docker Support**: Run in containerized environments
-- **⚙️ Flexible Configuration**: Easy setup through `.cllm` directory structure and Cllmfile.yml
+  - And 90+ more providers
+- **⚙️ Flexible Configuration**: Shareable Cllmfile.yml configs with environment variable interpolation
+- **📜 Bash Scripts Library**: Curated examples for common workflows (git-diff review, prompt loops, etc.)
+- **🔧 Developer-Friendly**: Modern Python packaging with `uv`, comprehensive test suite
+
+## Key Concepts
+
+### Provider Abstraction (ADR-0002)
+
+CLLM uses [LiteLLM](https://github.com/BerriAI/litellm) to provide a unified interface across 100+ LLM providers. This means:
+
+- **Same code works everywhere**: Switch from OpenAI to Claude by just changing the model name
+- **No provider-specific SDKs**: One interface, one API, all providers
+- **Automatic format translation**: All responses follow a consistent format
+
+```bash
+# Same command, different providers
+cllm --model gpt-4 "Hello"                          # OpenAI
+cllm --model claude-3-5-sonnet-20240620 "Hello"    # Anthropic
+cllm --model gemini-pro "Hello"                     # Google
+cllm --model groq/llama-3.1-70b-versatile "Hello"  # Groq
+```
+
+### Bash-First Design
+
+CLLM is optimized for command-line and scripting workflows:
+
+- **Stdin/stdout piping**: `cat file.txt | cllm "Summarize" > summary.txt`
+- **Exit codes**: Proper error codes for scripts and CI/CD
+- **No GUI required**: All features accessible via CLI flags
+- **Composable**: Chain multiple LLM calls using Unix pipes
+
+### Configuration Precedence
+
+Settings are merged from multiple sources (lowest to highest priority):
+
+1. `~/.cllm/Cllmfile.yml` (global defaults)
+2. `./.cllm/Cllmfile.yml` (project-specific)
+3. `./Cllmfile.yml` (current directory)
+4. Environment variables (`CLLM_*`)
+5. CLI arguments (always win)
+
+This allows you to set global defaults, override per-project, and customize per-command.
 
 ## Requirements
 
 - Python 3.8 or higher
 - API keys for your chosen LLM provider(s)
-- uv (for development and package management)
+- `uv` (recommended for development - [installation](https://github.com/astral-sh/uv#installation))
 
 ## Installation
 
-### Via pip (recommended)
+### Via pip (when published)
 
 ```bash
 pip install cllm
 ```
 
-### From source
+### From source (current method)
 
 ```bash
 git clone https://github.com/o3-cloud/cllm.git
 cd cllm
 uv sync
-```
 
-### Docker
+# Run locally
+uv run cllm "Hello world"
 
-```bash
-docker pull o3cloud/cllm:latest
-docker run -it o3cloud/cllm:latest
+# Or install globally
+uv pip install -e .
 ```
 
 ## Quick Start
@@ -63,11 +122,15 @@ docker run -it o3cloud/cllm:latest
 # Simple prompt (uses gpt-3.5-turbo by default)
 cllm "What is the capital of France?"
 
+# Discover available models
+cllm --list-models
+cllm --list-models | grep gpt-4  # Filter to specific models
+
 # Use a specific model
 cllm --model gpt-4 "Explain quantum computing"
 
 # Use a different provider (same interface!)
-cllm --model claude-3-opus-20240229 "Write a haiku"
+cllm --model claude-3-5-sonnet-20240620 "Write a haiku"
 cllm --model gemini-pro "Tell me a joke"
 
 # Stream the response as it's generated
@@ -75,6 +138,7 @@ cllm --model gpt-4 --stream "Tell me a story"
 
 # Read from stdin (pipe-friendly!)
 echo "What is 2+2?" | cllm --model gpt-4
+cat document.txt | cllm "Summarize this:"
 
 # Control creativity with temperature
 cllm --model gpt-4 --temperature 1.5 "Write a creative story"
@@ -159,6 +223,41 @@ export GOOGLE_API_KEY="..."
 
 **Note**: CLLM uses [LiteLLM](https://github.com/BerriAI/litellm) for provider abstraction, supporting 100+ LLM providers with a unified interface. See [ADR-0002](docs/decisions/0002-use-litellm-for-llm-provider-abstraction.md) for details.
 
+### Debugging & Troubleshooting
+
+CLLM provides powerful debugging capabilities for troubleshooting API issues, understanding token usage, and investigating unexpected behavior:
+
+```bash
+# Enable debug mode (shows API calls, headers, response metadata)
+cllm --debug "Explain quantum computing"
+# ⚠️  Debug mode enabled. API keys may appear in output.
+
+# Enable structured JSON logging for observability tools
+cllm --json-logs "Process this data" < input.txt
+
+# Save debug output to a file (preserves stdout for piping)
+cllm --debug --log-file debug.log "Query" < data.txt
+
+# Combine multiple debug options
+cllm --debug --json-logs --log-file cllm-debug.json "Test prompt"
+
+# Use environment variables for persistent debugging
+export CLLM_DEBUG=true
+export CLLM_LOG_FILE=cllm.log
+cllm "What is 2+2?"  # Debug output automatically enabled
+```
+
+**Debug Output Includes:**
+- Full request/response details
+- API endpoint and headers
+- Token usage and costs
+- Latency measurements
+- Error messages and stack traces
+
+**Security Warning**: Debug mode logs API keys. Never use `--debug` in production or with confidential data.
+
+See [ADR-0009](docs/decisions/0009-add-debugging-and-logging-support.md) for complete documentation.
+
 ### Python API
 
 CLLM can also be used as a Python library:
@@ -188,7 +287,7 @@ conversation = [
     {"role": "assistant", "content": "Hi! How can I help?"},
     {"role": "user", "content": "What's 2+2?"}
 ]
-response = client.chat(model="gpt-4", messages=conversation)
+response = client.complete(model="gpt-4", messages=conversation)
 
 # Or use ConversationManager for persistent conversations
 from cllm.conversation import ConversationManager
@@ -207,9 +306,10 @@ response = client.complete(model=conv.model, messages=conv.get_messages())
 conv.add_message("assistant", response)
 manager.save(conv)
 
-# Streaming
-for chunk in client.complete(model="gpt-4", messages="Count to 5", stream=True):
-    print(chunk, end="", flush=True)
+# Streaming (real-time output + complete response)
+response = client.complete(model="gpt-4", messages="Count to 5", stream=True)
+# Output is printed in real-time, response contains complete text
+print(f"\nFinal response: {response}")
 
 # Async support
 import asyncio
@@ -228,9 +328,9 @@ See the [`examples/`](examples/) directory for more usage patterns.
 
 ## Advanced Usage
 
-### LLM Chaining
+### LLM Chaining with Bash Pipes
 
-Chain multiple LLM calls together:
+Chain multiple LLM calls together to build complex workflows:
 
 ```bash
 # Generate a story outline, then expand it
@@ -241,29 +341,36 @@ cllm "Write a 3-point outline for a sci-fi story" | \
 cat my_code.py | \
   cllm "Analyze this code and suggest edge cases" | \
   cllm "Generate pytest unit tests for these cases"
+
+# Multi-stage content refinement
+echo "Topic: Climate change" | \
+  cllm "Create an outline" | \
+  cllm "Expand with examples" | \
+  cllm "Add citations"
 ```
 
-### Using Vector Stores
+### Bash Script Examples
+
+CLLM includes a library of curated bash scripts for common workflows (see `examples/bash/`):
 
 ```bash
-# Index documents
-cllm-index --directory ./docs --output ./docs.db
+# Interactive prompt loop with conversation context
+./examples/bash/prompt-loop.sh my-conversation
 
-# Query the vector store
-cllm-query --db ./docs.db "How do I configure authentication?"
+# Code review workflow for git diffs
+git diff main | ./examples/bash/git-diff-review.sh
+
+# Automated daily summaries (for cron)
+./examples/bash/cron-digest.sh
 ```
 
-### Text Splitting
+**Key features of example scripts:**
+- POSIX-compatible bash (`set -euo pipefail`)
+- Robust error handling
+- Environment variable configuration
+- Smoke-tested in CI
 
-```bash
-# Split a large document for processing
-cllm-split --input large_doc.txt --chunk-size 1000 --output chunks/
-
-# Process each chunk
-for chunk in chunks/*.txt; do
-  cat "$chunk" | cllm "Summarize this text:" >> summaries.txt
-done
-```
+See [ADR-0008](docs/decisions/0008-add-bash-script-examples.md) for implementation details.
 
 ### Structured Output with JSON Schema
 
@@ -304,6 +411,58 @@ cllm --validate-schema --json-schema-file examples/schemas/person.json
 **Tip:** Use `--validate-schema` to test your schemas without making API calls.
 
 See [`examples/schemas/README.md`](examples/schemas/README.md) for detailed usage and examples.
+
+### Configuration Files (Cllmfile.yml)
+
+Create reusable configuration profiles to reduce repetitive CLI flags (ADR-0003):
+
+```yaml
+# Cllmfile.yml - Project-wide defaults
+model: "gpt-4"
+temperature: 0.7
+max_tokens: 1000
+timeout: 60
+num_retries: 2
+
+# Fallback models (automatic failover)
+fallbacks:
+  - "gpt-3.5-turbo-16k"
+  - "claude-3-sonnet-20240229"
+
+# Environment variable interpolation
+api_key: "${OPENAI_API_KEY}"
+
+# Default system message
+default_system_message: "You are a helpful coding assistant."
+```
+
+**Named Configurations:**
+
+```bash
+# Create profile-specific configs
+# examples/configs/summarize.Cllmfile.yml
+# examples/configs/creative.Cllmfile.yml
+# examples/configs/code-review.Cllmfile.yml
+
+# Use named configurations
+cat article.md | cllm --config summarize
+echo "Write a story" | cllm --config creative
+git diff | cllm --config code-review
+
+# Override config with CLI args (CLI always wins)
+cllm --config summarize --temperature 0.5 < doc.txt
+
+# Debug effective configuration
+cllm --show-config --config my-profile
+```
+
+**File Precedence** (lowest to highest):
+1. `~/.cllm/Cllmfile.yml` (global defaults)
+2. `./.cllm/Cllmfile.yml` (project-specific)
+3. `./Cllmfile.yml` (current directory)
+4. CLI arguments (highest priority)
+
+See [`examples/configs/`](examples/configs/) for example configurations.
 
 ## Examples
 
@@ -346,63 +505,108 @@ echo "$OUTLINE" | \
 cat sales_data.csv | \
   cllm "Analyze this sales data and identify trends:" | \
   cllm "Suggest actionable recommendations:" | \
-  cllm --format json "Convert to structured report:" > report.json
+  cllm --json-schema-file examples/schemas/report.json > report.json
 ```
 
-## Commands
+## CLI Reference
 
-| Command       | Description                        |
-| ------------- | ---------------------------------- |
-| `cllm`        | Main CLI for LLM interactions      |
-| `cllm-index`  | Index documents into vector stores |
-| `cllm-query`  | Query vector stores                |
-| `cllm-split`  | Split text into chunks             |
-| `cllm-config` | Manage configuration               |
-| `cllm-models` | List available models              |
+### Main Command
+
+```bash
+cllm [OPTIONS] [PROMPT]
+```
+
+### Key Options
+
+| Option                         | Description                                      |
+| ------------------------------ | ------------------------------------------------ |
+| `--model MODEL`                | Specify LLM model (default: gpt-3.5-turbo)      |
+| `--list-models`                | List all available models across providers       |
+| `--stream`                     | Stream response in real-time                     |
+| `--temperature FLOAT`          | Control randomness (0.0-2.0)                     |
+| `--max-tokens INT`             | Maximum response length                          |
+| `--conversation ID`            | Continue/create multi-turn conversation          |
+| `--list-conversations`         | List all saved conversations                     |
+| `--show-conversation ID`       | Display conversation history                     |
+| `--delete-conversation ID`     | Delete a conversation                            |
+| `--config NAME`                | Load named Cllmfile configuration                |
+| `--show-config`                | Display effective configuration                  |
+| `--json-schema FILE/URL`       | Enforce JSON schema for structured output        |
+| `--validate-schema`            | Validate schema without making API call          |
+| `--debug`                      | Enable debug mode (⚠️ logs API keys)             |
+| `--json-logs`                  | Enable structured JSON logging                   |
+| `--log-file PATH`              | Write debug output to file                       |
+| `--help`                       | Show help message                                |
 
 ## Providers & Models
 
-### OpenAI
+CLLM supports 100+ providers through LiteLLM. Use `cllm --list-models` to see all available models.
 
-- `gpt-3.5-turbo`
-- `gpt-4`
-- `gpt-4-turbo`
-- `gpt-4o`
+### Popular Providers
 
-### Anthropic
+**OpenAI**
+- `gpt-3.5-turbo` (default)
+- `gpt-4`, `gpt-4-turbo`, `gpt-4o`
+- `gpt-4o-mini`
 
-- `claude-3-haiku`
-- `claude-3-sonnet`
-- `claude-3-opus`
-- `claude-3-5-sonnet`
+**Anthropic**
+- `claude-3-haiku-20240307`
+- `claude-3-sonnet-20240229`
+- `claude-3-opus-20240229`
+- `claude-3-5-sonnet-20240620`
 
-### Google
+**Google**
+- `gemini-pro`, `gemini-1.5-pro`, `gemini-1.5-flash`
 
-- `gemini-pro`
-- `gemini-1.5-pro`
-- `gemini-1.5-flash`
+**Groq (Fast Inference)**
+- `groq/mixtral-8x7b-32768`
+- `groq/llama-3.1-70b-versatile`
+- `groq/llama-3.3-70b-versatile`
 
-### Groq
+**Ollama (Local Models)**
+- `ollama/llama3`, `ollama/codellama`, `ollama/mistral`
+- Any custom Ollama model
 
-- `mixtral-8x7b`
-- `llama-3-70b`
+**Other Providers**
+- AWS Bedrock, Azure OpenAI, Cohere, Replicate, Together AI, Hugging Face, and 90+ more
 
-### Ollama (Local)
+**Model Discovery:**
+```bash
+# List all 1343+ available models
+cllm --list-models
 
-- `llama3`
-- `codellama`
-- `mistral`
-- Custom models
+# Filter by provider
+cllm --list-models | grep -i anthropic
+cllm --list-models | grep -i gpt-4
+```
+
+See [LiteLLM Providers](https://docs.litellm.ai/docs/providers) for complete list and setup instructions.
 
 ## Environment Variables
 
+### Provider API Keys
+
 ```bash
+# Provider API keys (LiteLLM conventions)
 export OPENAI_API_KEY="sk-..."
 export ANTHROPIC_API_KEY="sk-ant-..."
 export GOOGLE_API_KEY="..."
 export GROQ_API_KEY="gsk_..."
-export CLLM_DEFAULT_PROVIDER="openai"
-export CLLM_DEFAULT_MODEL="gpt-4-turbo"
+export AZURE_API_KEY="..."
+export COHERE_API_KEY="..."
+# See https://docs.litellm.ai/docs/providers for all providers
+```
+
+### CLLM Configuration
+
+```bash
+# Default model (optional)
+export CLLM_DEFAULT_MODEL="gpt-4"
+
+# Debug settings (ADR-0009)
+export CLLM_DEBUG=true
+export CLLM_JSON_LOGS=true
+export CLLM_LOG_FILE=/path/to/debug.log
 ```
 
 ## Development
@@ -453,15 +657,42 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - 🐛 [Issue Tracker](https://github.com/o3-cloud/cllm/issues)
 - 💬 [Discussions](https://github.com/o3-cloud/cllm/discussions)
 
+## Architecture Decision Records
+
+CLLM's architecture and features are documented in ADRs (Architecture Decision Records):
+
+- [ADR-0001](docs/decisions/0001-use-uv-as-package-manager.md): Use uv as Package Manager (10-100x faster than pip)
+- [ADR-0002](docs/decisions/0002-use-litellm-for-llm-provider-abstraction.md): Use LiteLLM for Provider Abstraction (100+ providers)
+- [ADR-0003](docs/decisions/0003-cllmfile-configuration-system.md): Cllmfile Configuration System (YAML configs)
+- [ADR-0004](docs/decisions/0004-add-list-models-cli-flag.md): Add `--list-models` CLI Flag (model discovery)
+- [ADR-0005](docs/decisions/0005-add-structured-output-support.md): Structured Output with JSON Schema
+- [ADR-0006](docs/decisions/0006-support-remote-json-schema-urls.md): Support Remote JSON Schema URLs
+- [ADR-0007](docs/decisions/0007-conversation-threading-and-context-management.md): Conversation Threading & Context Management
+- [ADR-0008](docs/decisions/0008-add-bash-script-examples.md): Bash Script Examples Library
+- [ADR-0009](docs/decisions/0009-add-debugging-and-logging-support.md): Debugging & Logging Support
+- [ADR-0010](docs/decisions/0010-implement-litellm-streaming-support.md): LiteLLM Streaming Support
+
 ## Roadmap
 
-- [ ] Support for more LLM providers
-- [ ] Enhanced vector store capabilities
-- [ ] Built-in prompt templates
-- [ ] Streaming support for real-time responses
+**Completed:**
+- ✅ Multi-provider support (100+ providers)
+- ✅ Real-time streaming responses
+- ✅ Conversation threading
+- ✅ Structured JSON output with schema validation
+- ✅ Configuration file system
+- ✅ Debugging and logging
+- ✅ Model discovery
+- ✅ Bash script examples
+
+**Planned:**
+- [ ] Enhanced error recovery and retry strategies
+- [ ] Token usage tracking and cost estimation
+- [ ] Built-in prompt templates library
+- [ ] Prompt caching support
+- [ ] Function calling / tool use
+- [ ] Multimodal support (images, audio)
 - [ ] Plugin system for extensibility
-- [ ] Web UI for configuration management
-- [ ] Integration with popular dev tools
+- [ ] Integration with popular dev tools (VSCode, Emacs)
 
 ---
 
