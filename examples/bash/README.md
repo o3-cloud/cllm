@@ -37,6 +37,16 @@ CLLM_DIGEST_SOURCE_CMD='gh pr list --state merged --json title --limit 10 | jq -
 
 Use `--dry-run` or set `CLLM_EXAMPLE_DRY_RUN=1` to preview the prompt without making a request.
 
+### templated-context.sh
+
+Demonstrates ADR-0012 by rendering Jinja2 templates inside context commands. Variables are provided via `--var` flags, letting you reuse the same workflow for different files or branches.
+
+```bash
+CLLM_EXAMPLE_DRY_RUN=1 bash examples/bash/templated-context.sh src/cllm/cli.py --branch main --verbose
+```
+
+The script expands commands like `git diff {{ BRANCH }}..HEAD -- {{ FILE_PATH }}` and `cat {{ FILE_PATH }}` with optional line numbers, showcasing filters (`| shellquote`) and conditionals (`{% if VERBOSE %}`).
+
 ## Smoke testing
 
 Run lightweight checks without hitting the API:

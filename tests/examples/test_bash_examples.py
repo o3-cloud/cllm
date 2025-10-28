@@ -35,6 +35,13 @@ SCRIPTS_DIR = REPO_ROOT / "examples" / "bash"
             },
             "[dry-run] cllm",
         ),
+        (
+            "templated-context.sh",
+            ["README.md"],
+            "",
+            {},
+            "[dry-run] cllm",
+        ),
     ],
 )
 def test_bash_scripts_support_dry_run(script, args, stdin, env_overrides, expect_substring):

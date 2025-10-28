@@ -8,6 +8,8 @@ import pytest
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
+from cllm.templates import TemplateError
+
 from cllm.context import (
     ContextCommand,
     CommandResult,
@@ -262,6 +264,32 @@ class TestInjectContext:
         assert "--- Context: Cmd 2 ---" in result
         assert "output2" in result
         assert "Debug this" in result
+
+    def test_inject_context_with_template_variables(self):
+        """Commands should support Jinja2 variable expansion."""
+        prompt = "Check file"
+        commands = [
+            ContextCommand(name="Show File", command="echo {{ FILE }}", timeout=5)
+        ]
+
+        result = inject_context(
+            prompt,
+            commands,
+            template_context={"FILE": "src/main.py"},
+        )
+
+        assert "--- Context: Show File ---" in result
+        assert "src/main.py" in result
+
+    def test_inject_context_missing_template_variable_raises(self):
+        """Missing variables should raise TemplateError with helpful message."""
+        prompt = "Analyze"
+        commands = [
+            ContextCommand(name="Failing Template", command="echo {{ MISSING }}")
+        ]
+
+        with pytest.raises(TemplateError, match="MISSING"):
+            inject_context(prompt, commands, template_context={})
 
     def test_inject_context_with_failure_warn(self):
         """Test context injection when command fails with on_failure=warn."""

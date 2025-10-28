@@ -9,6 +9,7 @@ Implements ADR-0009: Add Debugging and Logging Support
 import argparse
 import json
 import os
+import re
 import sys
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -32,6 +33,7 @@ from .context import (
     parse_context_commands,
 )
 from .conversation import Conversation, ConversationManager
+from .templates import TemplateError, build_template_context
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -200,6 +202,16 @@ For full provider list: https://docs.litellm.ai/docs/providers
         help="Disable context commands from configuration file",
     )
 
+    # Variable expansion arguments (ADR-0012)
+    parser.add_argument(
+        "--var",
+        "-v",
+        action="append",
+        metavar="KEY=VALUE",
+        dest="variables",
+        help="Set template variable (e.g., --var FILE_PATH=src/main.py). Can be used multiple times.",
+    )
+
     parser.add_argument("--version", action="version", version="%(prog)s 0.1.0")
 
     return parser
@@ -232,6 +244,66 @@ def read_prompt(prompt_arg: Optional[str]) -> str:
     # No prompt provided
     print("Error: No prompt provided. Use 'cllm --help' for usage.", file=sys.stderr)
     sys.exit(1)
+
+
+def parse_variables(var_list: Optional[list[str]]) -> Dict[str, Any]:
+    """
+    Parse --var KEY=VALUE arguments into a dictionary.
+
+    Implements ADR-0012: Variable Expansion in Context Commands
+
+    Args:
+        var_list: List of "KEY=VALUE" strings from --var arguments
+
+    Returns:
+        Dictionary of parsed variables
+
+    Raises:
+        SystemExit: If variable format is invalid
+    """
+    if not var_list:
+        return {}
+
+    variables = {}
+    for var_str in var_list:
+        if "=" not in var_str:
+            print(
+                f"Error: Invalid variable format '{var_str}'. "
+                f"Expected KEY=VALUE (e.g., --var FILE_PATH=src/main.py)",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
+        key, value = var_str.split("=", 1)  # Split on first '=' only
+
+        # Validate variable name (must match [A-Za-z_][A-Za-z0-9_]*)
+        if not re.match(r"^[A-Za-z_][A-Za-z0-9_]*$", key):
+            print(
+                f"Error: Invalid variable name '{key}'. "
+                f"Variable names must start with a letter or underscore "
+                f"and contain only letters, numbers, and underscores.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
+        # Try to parse value as boolean or number for convenience
+        # "true"/"false" -> bool, numeric strings -> int/float, else -> str
+        if value.lower() == "true":
+            variables[key] = True
+        elif value.lower() == "false":
+            variables[key] = False
+        elif value.isdigit():
+            variables[key] = int(value)
+        elif value.replace(".", "", 1).replace("-", "", 1).isdigit():
+            # Check if it's a float
+            try:
+                variables[key] = float(value)
+            except ValueError:
+                variables[key] = value
+        else:
+            variables[key] = value
+
+    return variables
 
 
 def print_model_list():
@@ -552,6 +624,36 @@ def main():
         delete_conversation(conversation_manager, args.delete_conversation)
         sys.exit(0)
 
+    # Build template context for variable expansion (ADR-0012)
+    cli_vars = parse_variables(args.variables)
+
+    raw_config_vars = config.get("variables")
+    if raw_config_vars is None:
+        config_vars = {}
+    elif isinstance(raw_config_vars, dict):
+        config_vars = raw_config_vars
+    else:
+        print(
+            "Error: 'variables' section in configuration must be a mapping of variable names to defaults.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    if "variables" in config:
+        config["variables"] = config_vars
+
+    env_vars = {
+        var_name: os.environ[var_name]
+        for var_name in config_vars
+        if var_name in os.environ
+    }
+
+    try:
+        template_context = build_template_context(cli_vars, config_vars, env_vars)
+    except TemplateError as e:
+        print(f"Variable error: {e}", file=sys.stderr)
+        sys.exit(1)
+
     # Handle --show-config
     if args.show_config:
         sources = get_config_sources(config_name=args.config)
@@ -563,6 +665,11 @@ def main():
             print("  (no configuration files found)")
         print("\nEffective configuration:")
         print(json.dumps(config, indent=2))
+        print("\nResolved variables:")
+        if template_context:
+            print(json.dumps(template_context, indent=2, sort_keys=True))
+        else:
+            print("  (no variables defined)")
         sys.exit(0)
 
     # Handle --list-models
@@ -647,10 +754,15 @@ def main():
                 commands=context_commands,
                 cwd=Path.cwd(),
                 parallel=True,
+                template_context=template_context,  # Pass template context for variable expansion
             )
         except RuntimeError as e:
             # This happens when a command with on_failure=FAIL fails
             print(f"Context error: {e}", file=sys.stderr)
+            sys.exit(1)
+        except TemplateError as e:
+            # Template rendering errors
+            print(f"Template error: {e}", file=sys.stderr)
             sys.exit(1)
 
     # Initialize client
@@ -675,6 +787,7 @@ def main():
             "json_schema",
             "json_schema_file",
             "context_commands",  # ADR-0011: context injection config
+            "variables",  # ADR-0012: variable expansion config
             "debug",  # ADR-0009: debug mode config
             "json_logs",  # ADR-0009: JSON logging config
             "log_file",  # ADR-0009: log file config

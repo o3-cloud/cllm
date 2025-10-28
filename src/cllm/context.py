@@ -8,10 +8,16 @@ into LLM prompts for enhanced context-aware interactions.
 
 import asyncio
 import subprocess
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+
+from .templates import (
+    TemplateError,
+    get_available_variables_description,
+    render_command_template,
+)
 
 
 class FailureMode(Enum):
@@ -255,6 +261,7 @@ def inject_context(
     commands: List[ContextCommand],
     cwd: Optional[Path] = None,
     parallel: bool = True,
+    template_context: Optional[Dict[str, Any]] = None,
 ) -> str:
     """
     Execute commands and inject their output into the prompt.
@@ -269,22 +276,40 @@ def inject_context(
         commands: List of ContextCommand objects
         cwd: Working directory for command execution
         parallel: Execute commands in parallel (default: True)
+        template_context: Optional variable context for template expansion (ADR-0012)
 
     Returns:
         Enhanced prompt with context blocks prepended
 
     Raises:
         RuntimeError: If any command with on_failure=FAIL fails
+        TemplateError: If a command template cannot be rendered
     """
     if not commands:
         return prompt
 
+    # Render command templates using provided context before execution
+    rendered_commands: List[ContextCommand] = []
+    context_values: Dict[str, Any] = template_context or {}
+
+    for cmd in commands:
+        try:
+            rendered_command = render_command_template(cmd.command, context_values)
+        except TemplateError as err:
+            available_desc = get_available_variables_description(context_values)
+            message = f"In context command '{cmd.name}': {err}"
+            if available_desc:
+                message = f"{message}\n\n{available_desc}"
+            raise TemplateError(message) from err
+
+        rendered_commands.append(replace(cmd, command=rendered_command))
+
     # Execute all commands
-    results = execute_commands(commands, cwd=cwd, parallel=parallel)
+    results = execute_commands(rendered_commands, cwd=cwd, parallel=parallel)
 
     # Process results according to on_failure settings
     context_blocks = []
-    for cmd, result in zip(commands, results):
+    for cmd, result in zip(rendered_commands, results):
         if result.success:
             # Success - always include output
             context_blocks.append(format_context_block(result))
