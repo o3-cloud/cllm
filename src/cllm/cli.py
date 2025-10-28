@@ -25,6 +25,12 @@ from .config import (
     merge_config_with_args,
     validate_against_schema,
 )
+from .context import (
+    ContextCommand,
+    FailureMode,
+    inject_context,
+    parse_context_commands,
+)
 from .conversation import Conversation, ConversationManager
 
 
@@ -177,6 +183,21 @@ For full provider list: https://docs.litellm.ai/docs/providers
         "--log-file",
         metavar="PATH",
         help="Write debug/log output to file instead of stderr",
+    )
+
+    # Context injection arguments (ADR-0011)
+    parser.add_argument(
+        "--exec",
+        action="append",
+        metavar="COMMAND",
+        dest="context_exec",
+        help="Execute command and inject output into context (can be used multiple times)",
+    )
+
+    parser.add_argument(
+        "--no-context-exec",
+        action="store_true",
+        help="Disable context commands from configuration file",
     )
 
     parser.add_argument("--version", action="version", version="%(prog)s 0.1.0")
@@ -594,6 +615,44 @@ def main():
     # Read prompt (not needed for --show-config, --list-models, or --validate-schema)
     prompt = read_prompt(args.prompt)
 
+    # Handle context injection (ADR-0011)
+    context_commands = []
+
+    # Parse context_commands from config (if not disabled)
+    if not args.no_context_exec:
+        try:
+            context_commands = parse_context_commands(config)
+        except ValueError as e:
+            print(f"Configuration error: {e}", file=sys.stderr)
+            sys.exit(1)
+
+    # Add CLI --exec commands (these run after config commands)
+    if args.context_exec:
+        for i, cmd_str in enumerate(args.context_exec):
+            # Create ContextCommand from CLI string
+            # Use generic naming: "Command 1", "Command 2", etc.
+            cli_cmd = ContextCommand(
+                name=f"CLI Command {i+1}",
+                command=cmd_str,
+                on_failure=FailureMode.WARN,  # Default to warn for CLI commands
+                timeout=10,
+            )
+            context_commands.append(cli_cmd)
+
+    # Inject context if we have any commands
+    if context_commands:
+        try:
+            prompt = inject_context(
+                prompt=prompt,
+                commands=context_commands,
+                cwd=Path.cwd(),
+                parallel=True,
+            )
+        except RuntimeError as e:
+            # This happens when a command with on_failure=FAIL fails
+            print(f"Context error: {e}", file=sys.stderr)
+            sys.exit(1)
+
     # Initialize client
     client = LLMClient()
 
@@ -615,6 +674,10 @@ def main():
             "default_system_message",
             "json_schema",
             "json_schema_file",
+            "context_commands",  # ADR-0011: context injection config
+            "debug",  # ADR-0009: debug mode config
+            "json_logs",  # ADR-0009: JSON logging config
+            "log_file",  # ADR-0009: log file config
         ]
     }
 

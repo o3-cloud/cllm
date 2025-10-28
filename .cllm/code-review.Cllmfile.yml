@@ -1,39 +1,69 @@
 # Code Review Configuration
-# Usage: git diff | cllm --config code-review
+# Automatically includes git diff and project context for comprehensive reviews
+#
+# Usage:
+#   cllm --config code-review "Review these changes"
+#   cllm --config code-review "Check for security issues in my latest commit"
 
-model: "gpt-4"
-temperature: 0.4
-max_tokens: 2000
+# Use GPT-5-mini for code analysis
+model: "gpt-5-mini"
 
+# Moderate temperature for balanced analysis
+temperature: 1
+
+# System message for code review guidance
+default_system_message: |
+  You are an expert code reviewer. Analyze the provided code and provide:
+
+  1. **Issues & Bugs**: Identify potential bugs, edge cases, or errors
+  2. **Best Practices**: Suggest improvements following language conventions
+  3. **Performance**: Note any performance concerns or optimizations
+  4. **Security**: Flag security vulnerabilities or risks
+  5. **Readability**: Recommend clarity improvements
+  6. **Testing**: Suggest test cases or validation needs
+
+  Be constructive, specific, and actionable in your feedback.
+
+# Context commands for code review (ADR-0011)
+# Automatically gather git changes and project state
+context_commands:
+  # Show uncommitted changes
+  - name: "Git Diff (Staged)"
+    command: "git diff --cached"
+    on_failure: "ignore"
+    timeout: 10
+
+  # Show unstaged changes
+  - name: "Git Diff (Unstaged)"
+    command: "git diff"
+    on_failure: "ignore"
+    timeout: 10
+
+  # Show modified files summary
+  - name: "Git Status"
+    command: "git status --short"
+    on_failure: "warn"
+    timeout: 5
+
+  # Recent commit for context
+  - name: "Recent Commit"
+    command: "git log -1 --stat"
+    on_failure: "ignore"
+    timeout: 5
+
+  # Current branch
+  - name: "Current Branch"
+    command: "git branch --show-current"
+    on_failure: "ignore"
+    timeout: 5
+
+# Reliability
 timeout: 90
 num_retries: 2
 
+json_schema_file: https://raw.githubusercontent.com/o3-cloud/artifact-specs/refs/heads/main/specs/artifacts/pr_review_summary.schema.json
+
+
+# Fallback models
 fallbacks:
-  - "claude-3-opus-20240229"
-  - "gpt-3.5-turbo-16k"
-
-default_system_message: |
-  You are reviewing code for the CLLM project. Analyze the provided diff and provide:
-
-  ## Code Quality
-  - Check adherence to CLLM design principles (bash-first, LiteLLM abstraction)
-  - Verify proper use of uv (not pip) for dependencies
-  - Ensure tests mock external API calls (never call real LLM APIs in tests)
-  - Check for proper type hints and Google-style docstrings
-
-  ## Testing
-  - Verify test coverage for new functionality
-  - Check that tests use @patch('cllm.client.completion') for mocking
-  - Ensure stdin piping workflows are tested
-
-  ## Architecture
-  - Confirm LiteLLM is used (no direct provider SDKs)
-  - Verify configuration system (ADR-0003) is used correctly
-  - Check that CLI maintains bash-friendliness
-
-  ## Security
-  - Flag any hardcoded API keys or secrets
-  - Verify YAML parsing uses yaml.safe_load()
-  - Check environment variable handling
-
-  Be constructive and specific. Provide examples for suggested improvements.
+  - "gpt-4.1"

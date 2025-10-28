@@ -472,3 +472,265 @@ class TestDebugging:
 
                 # Verify JSON logs were enabled via environment variable
                 assert mock_litellm.json_logs is True
+
+
+class TestContextInjection:
+    """Integration tests for context injection (ADR-0011)."""
+
+    @patch("sys.stdin.isatty", return_value=True)
+    @patch("cllm.cli.LLMClient")
+    @patch("cllm.cli.load_config", return_value={})
+    def test_exec_flag_single_command(self, mock_load_config, mock_client, mock_isatty):
+        """Test --exec flag with single command."""
+        with patch("sys.argv", ["cllm", "--exec", "echo 'test context'", "Analyze this"]):
+            # Mock the client to capture what prompt was sent
+            mock_instance = MagicMock()
+            mock_instance.complete.return_value = "response"
+            mock_client.return_value = mock_instance
+
+            try:
+                main()
+            except SystemExit:
+                pass
+
+            # Verify complete was called with context-injected prompt
+            assert mock_instance.complete.called
+            call_args = mock_instance.complete.call_args
+            messages = call_args[1]["messages"]
+
+            # The prompt should contain context block
+            assert "--- Context: CLI Command 1 ---" in messages
+            assert "test context" in messages
+            assert "Analyze this" in messages
+
+    @patch("sys.stdin.isatty", return_value=True)
+    @patch("cllm.cli.LLMClient")
+    @patch("cllm.cli.load_config", return_value={})
+    def test_exec_flag_multiple_commands(self, mock_load_config, mock_client, mock_isatty):
+        """Test --exec flag with multiple commands."""
+        with patch(
+            "sys.argv",
+            [
+                "cllm",
+                "--exec",
+                "echo 'first'",
+                "--exec",
+                "echo 'second'",
+                "Analyze",
+            ],
+        ):
+            # Mock the client
+            mock_instance = MagicMock()
+            mock_instance.complete.return_value = "response"
+            mock_client.return_value = mock_instance
+
+            try:
+                main()
+            except SystemExit:
+                pass
+
+            # Verify both context blocks are present
+            call_args = mock_instance.complete.call_args
+            messages = call_args[1]["messages"]
+
+            assert "--- Context: CLI Command 1 ---" in messages
+            assert "first" in messages
+            assert "--- Context: CLI Command 2 ---" in messages
+            assert "second" in messages
+            assert "Analyze" in messages
+
+    @patch("sys.stdin.isatty", return_value=True)
+    @patch("cllm.cli.LLMClient")
+    def test_context_commands_from_config(self, mock_client, mock_isatty):
+        """Test context_commands from Cllmfile configuration."""
+        config = {
+            "context_commands": [
+                {"name": "Git Status", "command": "echo 'M file.py'"},
+                {"name": "Test Output", "command": "echo 'All tests passed'"},
+            ]
+        }
+
+        with patch("cllm.cli.load_config", return_value=config):
+            with patch("sys.argv", ["cllm", "Analyze this"]):
+                # Mock the client
+                mock_instance = MagicMock()
+                mock_instance.complete.return_value = "response"
+                mock_client.return_value = mock_instance
+
+                try:
+                    main()
+                except SystemExit:
+                    pass
+
+                # Verify context blocks from config
+                call_args = mock_instance.complete.call_args
+                messages = call_args[1]["messages"]
+
+                assert "--- Context: Git Status ---" in messages
+                assert "M file.py" in messages
+                assert "--- Context: Test Output ---" in messages
+                assert "All tests passed" in messages
+
+    @patch("sys.stdin.isatty", return_value=True)
+    @patch("cllm.cli.LLMClient")
+    def test_no_context_exec_flag(self, mock_client, mock_isatty):
+        """Test --no-context-exec disables config commands."""
+        config = {
+            "context_commands": [
+                {"name": "Should Be Skipped", "command": "echo 'skipped'"}
+            ]
+        }
+
+        with patch("cllm.cli.load_config", return_value=config):
+            with patch("sys.argv", ["cllm", "--no-context-exec", "Prompt"]):
+                # Mock the client
+                mock_instance = MagicMock()
+                mock_instance.complete.return_value = "response"
+                mock_client.return_value = mock_instance
+
+                try:
+                    main()
+                except SystemExit:
+                    pass
+
+                # Verify context was NOT injected
+                call_args = mock_instance.complete.call_args
+                messages = call_args[1]["messages"]
+
+                assert "Should Be Skipped" not in messages
+                assert "skipped" not in messages
+                assert messages == "Prompt"  # Original prompt unchanged
+
+    @patch("sys.stdin.isatty", return_value=True)
+    @patch("cllm.cli.LLMClient")
+    def test_config_and_cli_commands_precedence(self, mock_client, mock_isatty):
+        """Test that config commands run first, then CLI commands."""
+        config = {
+            "context_commands": [{"name": "Config Cmd", "command": "echo 'from config'"}]
+        }
+
+        with patch("cllm.cli.load_config", return_value=config):
+            with patch("sys.argv", ["cllm", "--exec", "echo 'from cli'", "Prompt"]):
+                # Mock the client
+                mock_instance = MagicMock()
+                mock_instance.complete.return_value = "response"
+                mock_client.return_value = mock_instance
+
+                try:
+                    main()
+                except SystemExit:
+                    pass
+
+                # Verify both are present
+                call_args = mock_instance.complete.call_args
+                messages = call_args[1]["messages"]
+
+                assert "--- Context: Config Cmd ---" in messages
+                assert "from config" in messages
+                assert "--- Context: CLI Command 1 ---" in messages
+                assert "from cli" in messages
+
+                # Verify order: config command appears before CLI command
+                config_idx = messages.index("Config Cmd")
+                cli_idx = messages.index("CLI Command 1")
+                assert config_idx < cli_idx
+
+    @patch("sys.stdin.isatty", return_value=True)
+    @patch("cllm.cli.LLMClient")
+    def test_command_failure_with_warn(self, mock_client, mock_isatty):
+        """Test that failing command with on_failure=warn includes error."""
+        config = {
+            "context_commands": [
+                {
+                    "name": "Failing Cmd",
+                    "command": "exit 1",
+                    "on_failure": "warn",
+                }
+            ]
+        }
+
+        with patch("cllm.cli.load_config", return_value=config):
+            with patch("sys.argv", ["cllm", "Prompt"]):
+                # Mock the client
+                mock_instance = MagicMock()
+                mock_instance.complete.return_value = "response"
+                mock_client.return_value = mock_instance
+
+                try:
+                    main()
+                except SystemExit:
+                    pass
+
+                # Verify error block is included
+                call_args = mock_instance.complete.call_args
+                messages = call_args[1]["messages"]
+
+                assert "--- Context Error: Failing Cmd ---" in messages
+                assert "exited with code 1" in messages
+
+    @patch("sys.stdin.isatty", return_value=True)
+    @patch("cllm.cli.LLMClient")
+    def test_command_failure_with_ignore(self, mock_client, mock_isatty):
+        """Test that failing command with on_failure=ignore is skipped."""
+        config = {
+            "context_commands": [
+                {
+                    "name": "Failing Cmd",
+                    "command": "exit 1",
+                    "on_failure": "ignore",
+                }
+            ]
+        }
+
+        with patch("cllm.cli.load_config", return_value=config):
+            with patch("sys.argv", ["cllm", "Prompt"]):
+                # Mock the client
+                mock_instance = MagicMock()
+                mock_instance.complete.return_value = "response"
+                mock_client.return_value = mock_instance
+
+                try:
+                    main()
+                except SystemExit:
+                    pass
+
+                # Verify error block is NOT included
+                call_args = mock_instance.complete.call_args
+                messages = call_args[1]["messages"]
+
+                assert "Failing Cmd" not in messages
+                assert messages == "Prompt"  # Original prompt unchanged
+
+    @patch("sys.stdin.isatty", return_value=True)
+    @patch("cllm.cli.LLMClient")
+    def test_command_failure_with_fail(self, mock_client, mock_isatty, capsys):
+        """Test that failing command with on_failure=fail aborts."""
+        config = {
+            "context_commands": [
+                {
+                    "name": "Failing Cmd",
+                    "command": "exit 1",
+                    "on_failure": "fail",
+                }
+            ]
+        }
+
+        with patch("cllm.cli.load_config", return_value=config):
+            with patch("sys.argv", ["cllm", "Prompt"]):
+                # Mock the client (should not be called)
+                mock_instance = MagicMock()
+                mock_client.return_value = mock_instance
+
+                with pytest.raises(SystemExit) as exc_info:
+                    main()
+
+                # Should exit with error code
+                assert exc_info.value.code == 1
+
+                # Verify error message was printed
+                captured = capsys.readouterr()
+                assert "Context error:" in captured.err
+                assert "Failing Cmd" in captured.err
+
+                # Verify LLM was NOT called
+                assert not mock_instance.complete.called
