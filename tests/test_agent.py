@@ -337,3 +337,104 @@ class TestExecuteWithDynamicCommands:
             execute_with_dynamic_commands("Test", config)
 
         assert "API call failed" in str(exc_info.value)
+
+    @patch("cllm.agent.litellm.completion")
+    def test_supports_json_schema(self, mock_completion):
+        """Should support JSON schema with dynamic commands (ADR-0014)."""
+        # Mock LLM requesting a tool call
+        tool_call_response = MagicMock()
+        tool_call_response.choices = [
+            MagicMock(
+                finish_reason="tool_calls",
+                message=MagicMock(
+                    tool_calls=[
+                        MagicMock(
+                            id="call_123",
+                            function=MagicMock(
+                                arguments=json.dumps({
+                                    "command": "echo test",
+                                    "reason": "Testing",
+                                })
+                            ),
+                        )
+                    ]
+                ),
+            )
+        ]
+
+        # Mock final response with JSON structure
+        final_response = MagicMock()
+        final_response.choices = [
+            MagicMock(
+                finish_reason="stop",
+                message=MagicMock(content='{"result": "test output", "status": "success"}'),
+            )
+        ]
+
+        mock_completion.side_effect = [tool_call_response, final_response]
+
+        config = {
+            "model": "gpt-4",
+            "dynamic_commands": {"allow": ["echo*"]},
+        }
+
+        schema = {
+            "type": "object",
+            "properties": {
+                "result": {"type": "string"},
+                "status": {"type": "string"},
+            },
+            "required": ["result", "status"],
+        }
+
+        result = execute_with_dynamic_commands("Run echo test", config, schema=schema)
+
+        # Verify result matches schema structure
+        assert "test output" in result
+        assert "success" in result
+
+        # Verify schema was passed to litellm.completion
+        # Check both calls (tool call and final response)
+        for call in mock_completion.call_args_list:
+            call_kwargs = call[1]
+            assert "response_format" in call_kwargs
+            assert call_kwargs["response_format"]["type"] == "json_schema"
+            assert call_kwargs["response_format"]["json_schema"]["name"] == "response_schema"
+            assert call_kwargs["response_format"]["json_schema"]["schema"] == schema
+
+    @patch("cllm.agent.litellm.completion")
+    def test_json_schema_without_tool_calls(self, mock_completion):
+        """Should support JSON schema when LLM responds immediately without tool calls."""
+        # Mock final response with JSON structure (no tool calls)
+        final_response = MagicMock()
+        final_response.choices = [
+            MagicMock(
+                finish_reason="stop",
+                message=MagicMock(content='{"answer": 42, "explanation": "The answer to everything"}'),
+            )
+        ]
+
+        mock_completion.return_value = final_response
+
+        config = {"model": "gpt-4"}
+
+        schema = {
+            "type": "object",
+            "properties": {
+                "answer": {"type": "number"},
+                "explanation": {"type": "string"},
+            },
+            "required": ["answer"],
+        }
+
+        result = execute_with_dynamic_commands("What is the answer?", config, schema=schema)
+
+        # Verify result is JSON
+        assert "42" in result
+        assert "answer" in result
+
+        # Verify schema was passed to litellm.completion
+        call_kwargs = mock_completion.call_args[1]
+        assert "response_format" in call_kwargs
+        assert call_kwargs["response_format"]["type"] == "json_schema"
+        assert call_kwargs["response_format"]["json_schema"]["schema"] == schema

@@ -13,3 +13,4 @@ dynamic_commands:
       description: "Get the current date"
     - command: "curl"
       description: "Make HTTP requests to fetch data from APIs or web resources"
+json_schema_file: https://raw.githubusercontent.com/o3-cloud/artifact-specs/refs/heads/main/specs/extractors/summary.schema.json

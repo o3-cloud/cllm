@@ -46,3 +46,8 @@ context_commands:
     command: "git diff --cached"
     on_failure: "ignore"
     timeout: 10
+
+dynamic_commands:
+  available_commands:
+    - command: "git commit -a -m '<message>'"
+      description: "Commit all changes with a message."

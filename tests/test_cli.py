@@ -734,3 +734,157 @@ class TestContextInjection:
 
                 # Verify LLM was NOT called
                 assert not mock_instance.complete.called
+
+
+class TestDynamicCommandsWithJsonSchema:
+    """Integration tests for --allow-commands with --json-schema (ADR-0014)."""
+
+    @patch("sys.stdin.isatty", return_value=True)
+    @patch("cllm.cli.execute_with_dynamic_commands")
+    @patch("cllm.cli.load_config", return_value={})
+    def test_allow_commands_with_json_schema(
+        self, mock_load_config, mock_execute, mock_isatty, capsys
+    ):
+        """Test that --allow-commands works with --json-schema."""
+        schema = '{"type": "object", "properties": {"result": {"type": "string"}}}'
+
+        with patch(
+            "sys.argv",
+            ["cllm", "--allow-commands", "--json-schema", schema, "test prompt"],
+        ):
+            # Mock execute_with_dynamic_commands to return JSON
+            mock_execute.return_value = '{"result": "test output"}'
+
+            try:
+                main()
+            except SystemExit:
+                pass
+
+            # Verify execute_with_dynamic_commands was called with schema
+            assert mock_execute.called
+            call_kwargs = mock_execute.call_args[1]
+            assert "schema" in call_kwargs
+            assert call_kwargs["schema"]["type"] == "object"
+            assert "result" in call_kwargs["schema"]["properties"]
+
+            # Verify no warning about unsupported feature
+            captured = capsys.readouterr()
+            assert "not yet supported" not in captured.err
+            assert "not supported" not in captured.err or "Streaming is not supported" in captured.err
+
+    @patch("sys.stdin.isatty", return_value=True)
+    @patch("cllm.cli.execute_with_dynamic_commands")
+    @patch("cllm.cli.load_config", return_value={})
+    def test_allow_commands_with_json_schema_file(
+        self, mock_load_config, mock_execute, mock_isatty
+    ):
+        """Test that --allow-commands works with --json-schema-file."""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            schema = {
+                "type": "object",
+                "properties": {"answer": {"type": "number"}},
+                "required": ["answer"],
+            }
+            import json
+
+            json.dump(schema, f)
+            schema_file = f.name
+
+        try:
+            with patch(
+                "sys.argv",
+                [
+                    "cllm",
+                    "--allow-commands",
+                    "--json-schema-file",
+                    schema_file,
+                    "calculate",
+                ],
+            ):
+                # Mock execute_with_dynamic_commands to return JSON
+                mock_execute.return_value = '{"answer": 42}'
+
+                try:
+                    main()
+                except SystemExit:
+                    pass
+
+                # Verify execute_with_dynamic_commands was called with schema
+                assert mock_execute.called
+                call_kwargs = mock_execute.call_args[1]
+                assert "schema" in call_kwargs
+                assert call_kwargs["schema"]["type"] == "object"
+                assert "answer" in call_kwargs["schema"]["properties"]
+                assert call_kwargs["schema"]["required"] == ["answer"]
+        finally:
+            # Clean up temp file
+            os.unlink(schema_file)
+
+    @patch("sys.stdin.isatty", return_value=True)
+    @patch("cllm.cli.execute_with_dynamic_commands")
+    def test_allow_commands_with_json_schema_from_config(
+        self, mock_execute, mock_isatty
+    ):
+        """Test that --allow-commands works with JSON schema from Cllmfile."""
+        config = {
+            "allow_dynamic_commands": True,
+            "json_schema": {
+                "type": "object",
+                "properties": {"status": {"type": "string"}},
+            },
+        }
+
+        with patch("cllm.cli.load_config", return_value=config):
+            with patch("sys.argv", ["cllm", "check status"]):
+                # Mock execute_with_dynamic_commands to return JSON
+                mock_execute.return_value = '{"status": "ok"}'
+
+                try:
+                    main()
+                except SystemExit:
+                    pass
+
+                # Verify execute_with_dynamic_commands was called with schema
+                assert mock_execute.called
+                call_kwargs = mock_execute.call_args[1]
+                assert "schema" in call_kwargs
+                assert call_kwargs["schema"]["type"] == "object"
+                assert "status" in call_kwargs["schema"]["properties"]
+
+    @patch("sys.stdin.isatty", return_value=True)
+    @patch("cllm.cli.execute_with_dynamic_commands")
+    @patch("cllm.cli.load_config", return_value={})
+    def test_streaming_warning_with_allow_commands(
+        self, mock_load_config, mock_execute, mock_isatty, capsys
+    ):
+        """Test that streaming shows warning with --allow-commands."""
+        with patch("sys.argv", ["cllm", "--allow-commands", "--stream", "test"]):
+            mock_execute.return_value = "response"
+
+            try:
+                main()
+            except SystemExit:
+                pass
+
+            # Verify warning is shown
+            captured = capsys.readouterr()
+            assert "Streaming is not supported with --allow-commands" in captured.err
+
+    @patch("sys.stdin.isatty", return_value=True)
+    @patch("cllm.cli.execute_with_dynamic_commands")
+    @patch("cllm.cli.load_config", return_value={})
+    def test_raw_response_warning_with_allow_commands(
+        self, mock_load_config, mock_execute, mock_isatty, capsys
+    ):
+        """Test that raw response shows warning with --allow-commands."""
+        with patch("sys.argv", ["cllm", "--allow-commands", "--raw", "test"]):
+            mock_execute.return_value = "response"
+
+            try:
+                main()
+            except SystemExit:
+                pass
+
+            # Verify warning is shown
+            captured = capsys.readouterr()
+            assert "Raw response is not supported with --allow-commands" in captured.err

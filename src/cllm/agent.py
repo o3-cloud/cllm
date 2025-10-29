@@ -85,6 +85,7 @@ def execute_with_dynamic_commands(
     config: Dict[str, Any],
     require_confirmation: bool = False,
     verbose: bool = False,
+    schema: Dict[str, Any] | None = None,
 ) -> str:
     """Execute LLM call with dynamic command execution capability.
 
@@ -95,14 +96,17 @@ def execute_with_dynamic_commands(
     4. Feed result back to LLM
     5. Repeat until LLM provides final answer
 
+    Implements ADR-0014: JSON Structured Output with --allow-commands
+
     Args:
         prompt: User's prompt/question
         config: Configuration dictionary
         require_confirmation: If True, prompt user before each command execution
         verbose: If True, print execution details to stderr
+        schema: Optional JSON schema for structured output (ADR-0014)
 
     Returns:
-        Final LLM response text
+        Final LLM response text (conforming to schema if provided)
 
     Raises:
         AgentExecutionError: If execution loop fails
@@ -129,17 +133,30 @@ def execute_with_dynamic_commands(
     while commands_executed < max_commands:
         # Call LLM with tool definition
         try:
-            response = litellm.completion(
-                model=config.get("model", "gpt-4"),
-                messages=messages,
-                tools=[tool],
-                tool_choice="auto",
-                temperature=config.get("temperature"),
-                max_tokens=config.get("max_tokens"),
-                timeout=config.get("timeout"),
-                num_retries=config.get("num_retries"),
-                fallbacks=config.get("fallbacks"),
-            )
+            # Prepare kwargs for litellm.completion
+            kwargs = {
+                "model": config.get("model", "gpt-4"),
+                "messages": messages,
+                "tools": [tool],
+                "tool_choice": "auto",
+                "temperature": config.get("temperature"),
+                "max_tokens": config.get("max_tokens"),
+                "timeout": config.get("timeout"),
+                "num_retries": config.get("num_retries"),
+                "fallbacks": config.get("fallbacks"),
+            }
+
+            # Add response_format for structured output if schema is present (ADR-0014)
+            if schema is not None:
+                kwargs["response_format"] = {
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": "response_schema",
+                        "schema": schema,
+                    },
+                }
+
+            response = litellm.completion(**kwargs)
         except Exception as e:
             raise AgentExecutionError(f"LLM API call failed: {e}")
 

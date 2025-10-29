@@ -1,0 +1,16 @@
+model: "gpt-5-mini"
+temperature: 1
+
+num_retries: 2
+allow_dynamic_commands: true
+
+fallbacks:
+  - "gpt-5"
+
+default_system_message: |
+  You are a thinking machine
+
+dynamic_commands:
+  available_commands:
+    - command: cllm "<prompt>"
+      description: Think deeper about the prompt before answering.

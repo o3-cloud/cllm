@@ -912,16 +912,10 @@ def main():
     if config.get("allow_dynamic_commands", False):
         # Use agentic execution loop instead of regular LLM call
         try:
-            # Dynamic commands don't support streaming, raw response, or structured output yet
+            # Dynamic commands don't support streaming or raw response yet
             if stream:
                 print(
                     "Warning: Streaming is not supported with --allow-commands. Disabling streaming.",
-                    file=sys.stderr,
-                )
-
-            if schema is not None:
-                print(
-                    "Warning: Structured output (JSON schema) is not yet supported with --allow-commands.",
                     file=sys.stderr,
                 )
 
@@ -931,7 +925,7 @@ def main():
                     file=sys.stderr,
                 )
 
-            # Execute with dynamic commands
+            # Execute with dynamic commands (ADR-0014: now supports JSON schema)
             response = execute_with_dynamic_commands(
                 prompt=prompt if messages_for_llm is None or isinstance(messages_for_llm, str) else messages_for_llm[-1]["content"],
                 config=config,
@@ -939,6 +933,7 @@ def main():
                     "require_confirmation", args.confirm_commands
                 ),
                 verbose=config.get("debug", False),
+                schema=schema,  # ADR-0014: Pass schema for structured output
             )
 
             print(response)
