@@ -21,6 +21,11 @@ CLLM bridges the gap between ChatGPT GUIs and complex automation by providing tr
   - [Bash Script Examples](#bash-script-examples)
   - [Structured Output](#structured-output-with-json-schema)
   - [Configuration Files](#configuration-files-cllmfileyml)
+  - [Dynamic Context Injection](#dynamic-context-injection)
+  - [Variable Expansion](#variable-expansion-with-jinja2)
+  - [LLM-Driven Command Execution](#llm-driven-command-execution)
+- [Security Best Practices](#security-best-practices)
+- [Examples](#examples)
 - [CLI Reference](#cli-reference)
 - [Providers & Models](#providers--models)
 - [Development](#development)
@@ -34,6 +39,9 @@ CLLM bridges the gap between ChatGPT GUIs and complex automation by providing tr
 - **💬 Conversation Threading**: Multi-turn conversations with automatic context management
 - **⚡ Real-time Streaming**: Stream responses as they're generated for long-form content
 - **🔍 Debugging & Logging**: Built-in debug mode with structured JSON logging
+- **🤖 Dynamic Context Injection**: Execute commands automatically to inject system context (git status, logs, etc.)
+- **🔧 Variable Expansion**: Parameterized commands with Jinja2 templates for reusable workflows
+- **🧠 LLM-Driven Command Execution**: Let the LLM intelligently choose and run commands as needed
 - **🏢 Multi-Provider Support** (100+ providers via LiteLLM):
   - OpenAI (GPT-3.5, GPT-4, GPT-4 Turbo, GPT-4o)
   - Anthropic (Claude 3 Haiku, Sonnet, Opus, 3.5 Sonnet)
@@ -248,6 +256,7 @@ cllm "What is 2+2?"  # Debug output automatically enabled
 ```
 
 **Debug Output Includes:**
+
 - Full request/response details
 - API endpoint and headers
 - Token usage and costs
@@ -464,6 +473,429 @@ cllm --show-config --config my-profile
 
 See [`examples/configs/`](examples/configs/) for example configurations.
 
+### Dynamic Context Injection
+
+Automatically execute commands to inject system context into your prompts (ADR-0011):
+
+```bash
+# Execute a command and inject its output as context
+cllm "What should I commit?" --exec "git status"
+
+# Multiple commands (executed in order)
+cllm "Debug this error" --exec "git diff" --exec "cat error.log"
+
+# Use with any prompt
+echo "Analyze the changes" | cllm --exec "git log -5 --oneline"
+```
+
+**Configuration-based context injection** in Cllmfile.yml:
+
+```yaml
+# code-review.Cllmfile.yml
+model: gpt-4
+context_commands:
+  - name: "Git Status"
+    command: "git status --short"
+    on_failure: "warn"  # "warn" | "ignore" | "fail"
+    timeout: 5          # seconds
+
+  - name: "Recent Changes"
+    command: "git diff HEAD~1"
+    on_failure: "ignore"
+
+  - name: "Test Results"
+    command: "npm test --silent"
+    on_failure: "warn"
+```
+
+```bash
+# Use the configuration
+cllm --config code-review "Review my changes"
+
+# Disable context commands from config
+cllm --config code-review --no-context-exec "Quick question"
+
+# Combine config + ad-hoc commands
+cllm --config code-review --exec "cat additional.log" "Analyze"
+```
+
+**Key Features:**
+
+- Context injected as labeled blocks in the prompt
+- Commands run in parallel for efficiency
+- Configurable error handling (fail/warn/ignore)
+- Timeout protection for long-running commands
+- Works with all LLM providers
+
+### Variable Expansion with Jinja2
+
+Create reusable, parameterized workflows with Jinja2 templates (ADR-0012):
+
+```bash
+# Pass variables via CLI flags
+cllm "Review this file" \
+  --var FILE_PATH=src/main.py \
+  --var VERBOSE=true \
+  --exec "cat {{ FILE_PATH }}"
+
+# Variables work in context commands
+cllm --var BRANCH=feature/auth \
+  --exec "git diff main..{{ BRANCH }}" \
+  "What changed?"
+```
+
+**Declare variables in Cllmfile.yml:**
+
+```yaml
+# review-file.Cllmfile.yml
+variables:
+  FILE_PATH: "README.md"     # Default value
+  MAX_LINES: 50              # Numeric default
+  VERBOSE: false             # Boolean
+  TEST_NAME: null            # Required (no default)
+
+context_commands:
+  - name: "File Contents"
+    command: "cat {{ FILE_PATH }} | head -n {{ MAX_LINES }}"
+
+  - name: "Git Diff"
+    command: "git diff {% if VERBOSE %}--stat{% endif %} {{ FILE_PATH }}"
+
+  - name: "Test Output"
+    command: "pytest -k {{ TEST_NAME }} {% if VERBOSE %}-vv{% else %}-v{% endif %}"
+```
+
+```bash
+# Override defaults with CLI flags
+cllm --config review-file --var FILE_PATH=src/app.py --var TEST_NAME=test_login
+
+# Use environment variables
+export BRANCH=feature/new-feature
+cllm --var FILE_PATH=src/auth.py  # Uses CLI file, env BRANCH
+
+# Variables with filters and logic
+cllm --var NAME=john \
+  --exec "echo 'Hello {{ NAME | upper }}'" \
+  "Process this greeting"
+```
+
+**Variable Precedence** (highest to lowest):
+
+1. CLI flags (`--var KEY=VALUE`)
+2. Environment variables (`$KEY`)
+3. Cllmfile.yml defaults (`variables:` section)
+
+**Jinja2 Features:**
+
+- Filters: `{{ VAR | upper }}`, `{{ VAR | default('fallback') }}`
+- Conditionals: `{% if VERBOSE %}--verbose{% endif %}`
+- Loops and transformations
+- Sandboxed execution for security
+
+### LLM-Driven Command Execution
+
+Let the LLM intelligently choose and execute commands as needed (ADR-0013):
+
+```bash
+# Enable dynamic command execution (requires tool-calling capable model)
+cllm "Why is my build failing?" --allow-commands
+
+# The LLM can now:
+# 1. Analyze your question
+# 2. Decide which commands to run (e.g., "npm run build")
+# 3. Execute commands and read output
+# 4. Iteratively gather more information if needed
+# 5. Provide a complete answer with context
+```
+
+**Safety Controls:**
+
+```bash
+# Allowlist specific commands (wildcards supported)
+cllm "Debug this" --allow-commands --command-allow "git*,npm*,cat*,ls*"
+
+# Denylist dangerous commands
+cllm "Analyze system" --allow-commands --command-deny "rm*,mv*,dd*,sudo*"
+
+# Configure in Cllmfile.yml
+```
+
+**Example Cllmfile.yml:**
+
+```yaml
+# debug.Cllmfile.yml
+model: gpt-4
+allow_commands: true
+command_allow:
+  - "git*"
+  - "npm*"
+  - "pytest*"
+  - "cat*"
+  - "ls*"
+  - "grep*"
+command_deny:
+  - "rm*"
+  - "mv*"
+  - "sudo*"
+```
+
+**Use Cases:**
+
+- **Debugging**: "Why is this test failing?" → LLM runs test, reads output, analyzes
+- **Code Review**: "What changed in this PR?" → LLM checks git diff, analyzes files
+- **System Diagnostics**: "Why is my app slow?" → LLM checks logs, metrics, processes
+- **Build Issues**: "Fix my build" → LLM runs build, identifies errors, suggests fixes
+
+**Combining with Structured Output** (ADR-0014):
+
+```bash
+# Get structured JSON output after dynamic command execution
+cllm "Analyze the test failures" \
+  --allow-commands \
+  --json-schema '{
+    "type": "object",
+    "properties": {
+      "failures": {"type": "array"},
+      "root_cause": {"type": "string"},
+      "fix_steps": {"type": "array"}
+    }
+  }'
+```
+
+**Requirements:**
+
+- Tool-calling capable model (GPT-4, Claude 3+, Gemini Pro)
+- Explicit opt-in via `--allow-commands` flag
+- Commands visible in debug output (`--debug`)
+
+## Security Best Practices
+
+CLLM's command execution features (`--exec`, `context_commands`, `--allow-commands`) are powerful but require careful security consideration. Follow these best practices to use them safely.
+
+### Command Execution Safety Levels
+
+| Feature | Safety Level | Use Case | Security Notes |
+|---------|--------------|----------|----------------|
+| `--exec` | Medium | Ad-hoc, known commands | You control what runs |
+| `context_commands` | Medium | Reusable workflows | Review shared configs |
+| `--allow-commands` | Requires Care | Exploratory debugging | LLM decides what runs |
+
+### Protecting Against Dangerous Commands
+
+**Always use allowlists with `--allow-commands`:**
+
+```bash
+# ✅ GOOD: Restrict to safe, read-only commands
+cllm "Debug this" --allow-commands \
+  --command-allow "git*,cat*,ls*,grep*,find*,head*,tail*,npm test*,pytest*"
+
+# ❌ BAD: No restrictions (dangerous!)
+cllm "Debug this" --allow-commands
+```
+
+**Denylist common destructive commands:**
+
+```yaml
+# secure-debug.Cllmfile.yml
+model: gpt-4
+allow_commands: true
+command_allow:
+  - "git*"
+  - "cat*"
+  - "ls*"
+  - "npm test*"
+  - "pytest*"
+command_deny:
+  # File operations
+  - "rm*"
+  - "mv*"
+  - "cp*"  # Could overwrite files
+  - "dd*"  # Disk operations
+  - "chmod*"
+  - "chown*"
+
+  # System operations
+  - "sudo*"
+  - "su*"
+  - "kill*"
+  - "reboot*"
+  - "shutdown*"
+
+  # Network operations (context-dependent)
+  - "curl*"  # Could exfiltrate data
+  - "wget*"
+  - "ssh*"
+  - "scp*"
+
+  # Package managers (could install malware)
+  - "npm install*"
+  - "pip install*"
+  - "apt*"
+  - "yum*"
+```
+
+### Shared Configuration Safety
+
+**Review configs before using them:**
+
+```bash
+# ✅ GOOD: Review before running
+cat team-config.Cllmfile.yml  # Check what commands are defined
+cllm --config team-config --show-config  # See effective configuration
+
+# Then decide if it's safe
+cllm --config team-config "Your prompt"
+
+# ❌ BAD: Blindly trust shared configs
+cllm --config untrusted-config "Run something"
+```
+
+**Project-specific configs with version control:**
+
+```bash
+# Store configs in version control for review
+mkdir -p .cllm
+cat > .cllm/Cllmfile.yml <<EOF
+# This config is reviewed by the team
+context_commands:
+  - name: "Git Status"
+    command: "git status --short"
+  - name: "Test Suite"
+    command: "npm test"
+EOF
+
+# Add to git for team review
+git add .cllm/Cllmfile.yml
+git commit -m "Add CLLM config for code review workflow"
+```
+
+### Environment-Specific Safety
+
+**Production environments:**
+
+```bash
+# ❌ NEVER use --allow-commands in production
+# ❌ NEVER use --debug in production (logs API keys)
+
+# ✅ DO use explicit, locked-down configs
+cllm --config production-safe \
+  --no-context-exec \
+  "Generate report from data"
+```
+
+**CI/CD environments:**
+
+```yaml
+# .github/workflows/cllm-review.yml
+- name: Run CLLM code review
+  run: |
+    # ✅ Use read-only commands only
+    cllm --config ci-review \
+      --command-deny "*install*,*rm*,*mv*" \
+      "Review PR changes"
+  env:
+    OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+```
+
+**Development environments:**
+
+```bash
+# ✅ Safe for local dev with allowlists
+export CLLM_COMMAND_ALLOW="git*,cat*,ls*,npm test*,pytest*"
+cllm --allow-commands "Why is my test failing?"
+```
+
+### Variables and Command Injection
+
+**Sanitize user input when using variables:**
+
+```bash
+# ❌ DANGEROUS: Unsanitized user input
+USER_FILE="$(cat user-input.txt)"  # Could contain: "; rm -rf /"
+cllm --var FILE="$USER_FILE" --exec "cat {{ FILE }}" "Analyze"
+
+# ✅ SAFER: Validate input first
+if [[ "$USER_FILE" =~ ^[a-zA-Z0-9_./\-]+$ ]]; then
+  cllm --var FILE="$USER_FILE" --exec "cat {{ FILE }}" "Analyze"
+else
+  echo "Invalid filename"
+  exit 1
+fi
+```
+
+**Use Jinja2's sandboxed environment (already enabled):**
+
+```yaml
+# CLLM automatically sandboxes Jinja2 templates
+# No code execution possible via templates
+variables:
+  SAFE_VAR: "{{ malicious }}"  # Cannot execute code
+```
+
+### API Key Protection
+
+**Debug mode logs API keys:**
+
+```bash
+# ⚠️  NEVER use --debug with sensitive data or shared logs
+cllm --debug "Test" > debug.log  # API keys may be in debug.log!
+
+# ✅ Use --log-file to control output
+cllm --debug --log-file /tmp/debug.log "Test"
+chmod 600 /tmp/debug.log  # Restrict permissions
+```
+
+**Store API keys securely:**
+
+```bash
+# ✅ GOOD: Use environment variables
+export OPENAI_API_KEY="sk-..."  # Set in shell, not in code
+
+# ✅ GOOD: Use secret management
+export OPENAI_API_KEY="$(aws secretsmanager get-secret-value --secret-id openai-key)"
+
+# ❌ BAD: Hardcode in configs
+# Cllmfile.yml
+# api_key: "sk-proj-hardcoded-key"  # DON'T DO THIS
+```
+
+### Audit and Monitoring
+
+**Log command execution:**
+
+```bash
+# Enable debug logging to audit what commands run
+cllm --allow-commands --debug --log-file audit.log "Debug this"
+
+# Review what the LLM executed
+grep "Executing command" audit.log
+```
+
+**Review LLM decisions:**
+
+```bash
+# Check what commands the LLM chose
+cllm --allow-commands --json-logs "Why is build failing?" 2>commands.log
+jq '.command_executed' commands.log
+```
+
+### Summary Checklist
+
+Before using command execution features:
+
+- [ ] Use `--command-allow` with specific patterns (not wildcards)
+- [ ] Deny destructive commands with `--command-deny`
+- [ ] Review shared configurations before running
+- [ ] Never use `--allow-commands` in production without strict allowlists
+- [ ] Never use `--debug` with confidential data
+- [ ] Validate user input before passing to `--var`
+- [ ] Store API keys in environment variables or secret managers
+- [ ] Review command execution logs periodically
+- [ ] Use least-privilege principle: only allow what's needed
+- [ ] Test configurations in safe environments first
+
+**Remember: With great power comes great responsibility. Command execution features should be used thoughtfully and with appropriate safeguards.**
+
 ## Examples
 
 ### Code Review Pipeline
@@ -533,6 +965,12 @@ cllm [OPTIONS] [PROMPT]
 | `--show-config`                | Display effective configuration                  |
 | `--json-schema FILE/URL`       | Enforce JSON schema for structured output        |
 | `--validate-schema`            | Validate schema without making API call          |
+| `--exec COMMAND`               | Execute command and inject output as context     |
+| `--no-context-exec`            | Disable context commands from config             |
+| `--var KEY=VALUE`              | Set template variable (repeatable)               |
+| `--allow-commands`             | Enable LLM-driven dynamic command execution      |
+| `--command-allow PATTERN`      | Allowlist commands (wildcards supported)         |
+| `--command-deny PATTERN`       | Denylist commands (wildcards supported)          |
 | `--debug`                      | Enable debug mode (⚠️ logs API keys)             |
 | `--json-logs`                  | Enable structured JSON logging                   |
 | `--log-file PATH`              | Write debug output to file                       |
@@ -544,33 +982,40 @@ CLLM supports 100+ providers through LiteLLM. Use `cllm --list-models` to see al
 
 ### Popular Providers
 
-**OpenAI**
+#### OpenAI
+
 - `gpt-3.5-turbo` (default)
 - `gpt-4`, `gpt-4-turbo`, `gpt-4o`
 - `gpt-4o-mini`
 
-**Anthropic**
+#### Anthropic
+
 - `claude-3-haiku-20240307`
 - `claude-3-sonnet-20240229`
 - `claude-3-opus-20240229`
 - `claude-3-5-sonnet-20240620`
 
-**Google**
+#### Google
+
 - `gemini-pro`, `gemini-1.5-pro`, `gemini-1.5-flash`
 
-**Groq (Fast Inference)**
+#### Groq (Fast Inference)
+
 - `groq/mixtral-8x7b-32768`
 - `groq/llama-3.1-70b-versatile`
 - `groq/llama-3.3-70b-versatile`
 
-**Ollama (Local Models)**
+#### Ollama (Local Models)
+
 - `ollama/llama3`, `ollama/codellama`, `ollama/mistral`
 - Any custom Ollama model
 
-**Other Providers**
+#### Other Providers
+
 - AWS Bedrock, Azure OpenAI, Cohere, Replicate, Together AI, Hugging Face, and 90+ more
 
-**Model Discovery:**
+#### Model Discovery
+
 ```bash
 # List all 1343+ available models
 cllm --list-models
@@ -671,10 +1116,15 @@ CLLM's architecture and features are documented in ADRs (Architecture Decision R
 - [ADR-0008](docs/decisions/0008-add-bash-script-examples.md): Bash Script Examples Library
 - [ADR-0009](docs/decisions/0009-add-debugging-and-logging-support.md): Debugging & Logging Support
 - [ADR-0010](docs/decisions/0010-implement-litellm-streaming-support.md): LiteLLM Streaming Support
+- [ADR-0011](docs/decisions/0011-dynamic-context-injection-via-command-execution.md): Dynamic Context Injection via Command Execution
+- [ADR-0012](docs/decisions/0012-variable-expansion-in-context-commands.md): Variable Expansion in Context Commands with Jinja2 Templates
+- [ADR-0013](docs/decisions/0013-llm-driven-dynamic-command-execution.md): LLM-Driven Dynamic Command Execution
+- [ADR-0014](docs/decisions/0014-json-structured-output-with-allow-commands.md): JSON Structured Output with --allow-commands
 
 ## Roadmap
 
 **Completed:**
+
 - ✅ Multi-provider support (100+ providers)
 - ✅ Real-time streaming responses
 - ✅ Conversation threading
@@ -683,16 +1133,22 @@ CLLM's architecture and features are documented in ADRs (Architecture Decision R
 - ✅ Debugging and logging
 - ✅ Model discovery
 - ✅ Bash script examples
+- ✅ Dynamic context injection via command execution
+- ✅ Variable expansion with Jinja2 templates
+- ✅ LLM-driven dynamic command execution (agentic workflows)
+- ✅ Combined JSON schema with dynamic commands
 
 **Planned:**
+
 - [ ] Enhanced error recovery and retry strategies
 - [ ] Token usage tracking and cost estimation
 - [ ] Built-in prompt templates library
 - [ ] Prompt caching support
-- [ ] Function calling / tool use
 - [ ] Multimodal support (images, audio)
 - [ ] Plugin system for extensibility
 - [ ] Integration with popular dev tools (VSCode, Emacs)
+- [ ] Interactive command approval/confirmation mode
+- [ ] Command execution history and replay
 
 ---
 
