@@ -97,7 +97,7 @@ This allows you to set global defaults, override per-project, and customize per-
 ### Via pip (when published)
 
 ```bash
-pip install cllm
+uv tool install https://github.com/o3-cloud/cllm.git
 ```
 
 ### From source (current method)
