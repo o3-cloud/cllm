@@ -94,7 +94,7 @@ This allows you to set global defaults, override per-project, and customize per-
 
 ## Installation
 
-### Via pip (when published)
+### From github using uv tool install
 
 ```bash
 uv tool install https://github.com/o3-cloud/cllm.git
