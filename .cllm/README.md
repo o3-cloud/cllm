@@ -191,6 +191,163 @@ cat tests/test_config.py | cllm --config explain "How do these tests work?"
 
 ---
 
+### `dynamic-debug.Cllmfile.yml` - LLM-Driven Debugging ⚡ NEW
+
+**Requires:** `--allow-commands` flag (ADR-0013)
+
+Intelligent debugging where the LLM dynamically chooses which commands to execute based on your question.
+
+**The LLM can:**
+
+- Run tests to see failures
+- Check git status and recent changes
+- Inspect project structure
+- Verify dependencies and environment
+
+**Usage:**
+
+```bash
+cllm "Why is test_client.py failing?" --config dynamic-debug --allow-commands
+cllm "My build is broken" --config dynamic-debug --allow-commands --confirm-commands
+```
+
+**How it works:**
+
+1. You ask a question
+2. LLM analyzes what information it needs
+3. LLM executes relevant commands (e.g., `uv run pytest`, `git diff`)
+4. LLM interprets results and provides diagnosis
+
+See [`README-DYNAMIC-COMMANDS.md`](./README-DYNAMIC-COMMANDS.md) for detailed documentation.
+
+---
+
+### `analyze.Cllmfile.yml` - Code Analysis ⚡ NEW
+
+**Requires:** `--allow-commands` flag (ADR-0013)
+
+Comprehensive codebase analysis with advanced tools (ripgrep, find, git).
+
+**Analysis capabilities:**
+
+- Project structure and complexity
+- Code metrics and patterns
+- Dependency analysis
+- TODO/FIXME tracking
+- Git history and contributors
+
+**Usage:**
+
+```bash
+cllm "What's the codebase complexity?" --config analyze --allow-commands
+cllm "Find all API endpoints" --config analyze --allow-commands
+cllm "Analyze test coverage" --config analyze --allow-commands
+```
+
+---
+
+### `troubleshoot.Cllmfile.yml` - Systematic Troubleshooting ⚡ NEW
+
+**Requires:** `--allow-commands` flag (ADR-0013)
+
+Diagnoses common development issues through systematic command execution.
+
+**Troubleshoots:**
+
+- Broken dependencies
+- Environment issues
+- Test failures and hangs
+- Build problems
+- Process conflicts
+
+**Usage:**
+
+```bash
+cllm "My dependencies are broken" --config troubleshoot --allow-commands
+cllm "Tests are hanging" --config troubleshoot --allow-commands
+cllm "Port 8000 already in use" --config troubleshoot --allow-commands
+```
+
+---
+
+### `custom-scripts.Cllmfile.yml` - Custom Scripts Template ⚡ NEW
+
+**Requires:** `--allow-commands` flag (ADR-0013)
+
+Template showing how to document custom project scripts so the LLM knows how to use them.
+
+**Demonstrates:**
+
+- Scripts with required parameters
+- Scripts with optional flags
+- Uncommon tools (jq, fd, rg) with syntax examples
+- Safety considerations
+
+**Use this as a starting point for your own project-specific commands.**
+
+See [`README-DYNAMIC-COMMANDS.md`](./README-DYNAMIC-COMMANDS.md) for comprehensive examples and best practices.
+
+---
+
+### `research.Cllmfile.yml` - Codebase Research ⚡ NEW
+
+**Requires:** `--allow-commands` flag (ADR-0013)
+
+Intelligent codebase exploration where the LLM uses search and inspection commands to answer research questions.
+
+**Research capabilities:**
+
+- Find implementations of features
+- Understand relationships between components
+- Discover design patterns and decisions
+- Track down specific code references
+- Explore git history and evolution
+
+**The LLM can:**
+
+- Search code with grep (with context)
+- Read relevant files
+- Find function/class definitions
+- Trace imports and dependencies
+- Read ADRs and documentation
+- Check git history and blame
+
+**Usage:**
+
+```bash
+cllm "How does the configuration system work?" --config research --allow-commands
+cllm "Find all places where we handle API errors" --config research --allow-commands
+cllm "What's the relationship between context and templates?" --config research --allow-commands
+cllm "Show me how streaming is implemented" --config research --allow-commands
+```
+
+**Example output format:**
+
+> The configuration system works through three main components:
+>
+> 1. **Config Loading** (`src/cllm/config.py:119`)
+>    - `load_config()` finds and merges Cllmfile.yml files
+>    - Precedence: ~/.cllm/ → ./.cllm/ → ./
+>
+> 2. **Environment Variable Interpolation** (`src/cllm/config.py:33`)
+>    - Supports `${VAR_NAME}` syntax
+>    - Handled by `_interpolate_env_vars()`
+>
+> 3. **CLI Integration** (`src/cllm/cli.py:564`)
+>    - Loaded via `load_config(config_name=args.config)`
+>    - Merged with CLI args in `merge_config_with_args()`
+>
+> See ADR-0003 for design rationale.
+
+**Best for:**
+- Understanding how features work
+- Finding code examples
+- Exploring unfamiliar codebases
+- Discovering design patterns
+- Learning project architecture
+
+---
+
 ## Configuration Precedence
 
 When using these configs from the CLLM project directory:
@@ -263,8 +420,29 @@ Usage:
 cllm --config profile "Your prompt here"
 ```
 
+## Dynamic Command Execution (ADR-0013)
+
+The configurations marked with ⚡ NEW use **LLM-driven dynamic command execution**, where the LLM can intelligently choose and execute shell commands to gather information.
+
+**Key benefits:**
+
+- **Intelligent**: LLM decides what information it needs
+- **Efficient**: Only executes relevant commands
+- **Safe**: Allowlist/denylist validation, user confirmation options
+- **Flexible**: Works with custom scripts and uncommon tools
+
+**Learn more:** See [`README-DYNAMIC-COMMANDS.md`](./README-DYNAMIC-COMMANDS.md) for:
+
+- Detailed usage guide
+- How to write effective command descriptions
+- Safety best practices
+- Examples by use case
+- Creating your own configurations
+
 ## See Also
 
 - [ADR-0003: Cllmfile Configuration System](../docs/decisions/0003-cllmfile-configuration-system.md)
+- [ADR-0013: LLM-Driven Dynamic Command Execution](../docs/decisions/0013-llm-driven-dynamic-command-execution.md)
+- [Dynamic Commands README](./README-DYNAMIC-COMMANDS.md) - Comprehensive guide
 - [Configuration Examples](../examples/configs/README.md)
 - [CLAUDE.md](../CLAUDE.md) - Full project documentation

@@ -1,0 +1,93 @@
+# Code Analysis Configuration (ADR-0013)
+# LLM-driven analysis with custom scripts and advanced tools
+#
+# Usage:
+#   cllm "Analyze the codebase complexity" --config analyze --allow-commands
+#   cllm "Find all TODO comments" --config analyze --allow-commands
+#   cllm "What are the main dependencies?" --config analyze --allow-commands
+
+model: "gpt-4"
+temperature: 0.2
+
+default_system_message: |
+  You are a code analysis expert. Use available commands to:
+
+  1. Examine codebase structure and metrics
+  2. Identify patterns, issues, and improvements
+  3. Analyze dependencies and relationships
+  4. Provide actionable insights
+
+  Be thorough but concise. Focus on what's most relevant to the user's question.
+
+allow_dynamic_commands: true
+
+dynamic_commands:
+  available_commands:
+    # Project structure analysis
+    - command: "find . -type f -name '*.py' | wc -l"
+      description: "Count total Python files in project. Gives a sense of project size."
+
+    - command: "find src -type f -name '*.py' -exec wc -l {} + | sort -nr | head -20"
+      description: "Find the 20 largest Python files by line count. Use this to identify complex modules."
+
+    - command: "ls -R src/"
+      description: "Recursively list all files in src/ directory. Shows complete project structure."
+
+    # Code search with ripgrep (if available)
+    - command: "rg 'TODO|FIXME' --json"
+      description: "Search for TODO/FIXME comments with JSON output. Use this to find pending work or known issues."
+
+    - command: "rg 'class ' --type py --count"
+      description: "Count Python classes in each file. Shows object-oriented structure."
+
+    - command: "rg 'def ' --type py --count"
+      description: "Count Python functions in each file. Shows code modularity."
+
+    - command: "rg 'import|from' --type py"
+      description: "Show all import statements. Use this to understand dependencies between modules."
+
+    # Dependency analysis
+    - command: "cat pyproject.toml"
+      description: "Show project metadata and dependencies. Contains all package requirements and configuration."
+
+    - command: "cat uv.lock | head -100"
+      description: "Show first 100 lines of lock file. Contains exact dependency versions."
+
+    # Git analysis
+    - command: "git log --oneline --all --graph -20"
+      description: "Show last 20 commits as a graph. Visualizes branching and development history."
+
+    - command: "git log --pretty=format:'%an' | sort | uniq -c | sort -rn"
+      description: "Show commit counts by author. Identifies main contributors."
+
+    - command: "git diff --stat main..HEAD"
+      description: "Show file change statistics compared to main branch. Summarizes current work."
+
+    # Test coverage (if applicable)
+    - command: "uv run pytest --collect-only -q"
+      description: "List all tests without running them. Shows test coverage breadth."
+
+    - command: "find tests -name 'test_*.py' -o -name '*_test.py'"
+      description: "Find all test files. Shows testing structure."
+
+    # Documentation
+    - command: "find . -name '*.md' -type f"
+      description: "Find all Markdown documentation files. Shows documentation coverage."
+
+    - command: "cat README.md"
+      description: "Show main project documentation. Provides high-level overview."
+
+  # Deny destructive operations
+  deny:
+    - "rm *"
+    - "sudo *"
+    - "dd *"
+    - "mv *"
+    - "> *"
+
+  timeout: 45
+  max_commands: 10
+  require_confirmation: false
+
+timeout: 90
+num_retries: 2

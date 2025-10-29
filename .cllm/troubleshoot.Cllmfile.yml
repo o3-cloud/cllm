@@ -1,0 +1,117 @@
+# Troubleshooting Configuration (ADR-0013)
+# LLM-driven troubleshooting for common development issues
+#
+# Usage:
+#   cllm "My tests are hanging" --config troubleshoot --allow-commands
+#   cllm "I'm getting import errors" --config troubleshoot --allow-commands
+#   cllm "Dependencies seem broken" --config troubleshoot --allow-commands
+
+model: "gpt-4"
+temperature: 0.3
+
+default_system_message: |
+  You are a troubleshooting expert. When users report issues:
+
+  1. Ask clarifying questions if needed
+  2. Use available commands to diagnose the problem
+  3. Check common failure points (environment, dependencies, configuration)
+  4. Provide step-by-step solutions
+
+  Be methodical: gather evidence, form hypotheses, test them, and iterate.
+
+allow_dynamic_commands: true
+
+dynamic_commands:
+  available_commands:
+    # Environment verification
+    - command: "python --version"
+      description: "Check Python version. Verify correct Python is being used."
+
+    - command: "which python"
+      description: "Show Python executable path. Confirms which Python installation is active."
+
+    - command: "uv --version"
+      description: "Check uv package manager version. Verify uv is installed and accessible."
+
+    - command: "env | grep -E '(PYTHON|UV|VIRTUAL_ENV|PATH)'"
+      description: "Show relevant environment variables. Use this to debug environment setup issues."
+
+    # Dependency troubleshooting
+    - command: "uv pip list"
+      description: "List all installed packages with versions. Check for missing or wrong versions."
+
+    - command: "uv pip check"
+      description: "Verify installed packages have compatible dependencies. Finds dependency conflicts."
+
+    - command: "cat pyproject.toml"
+      description: "Show project dependencies and configuration. Verify requirements are correct."
+
+    - command: "cat uv.lock | grep -A 5 -B 5"
+      description: "Search lock file. Use with specific package names to check exact versions. Syntax: grep -A 5 -B 5 'package-name'"
+
+    # Test troubleshooting
+    - command: "uv run pytest --collect-only -q"
+      description: "List all tests without running. Verify tests are discoverable."
+
+    - command: "uv run pytest -x -v"
+      description: "Run tests, stop at first failure with verbose output. Quickly identify first failing test."
+
+    - command: "uv run pytest --lf -v"
+      description: "Re-run only last failed tests. Useful for iterative debugging."
+
+    - command: "uv run pytest --markers"
+      description: "List all test markers. Check available test categories."
+
+    # Build troubleshooting
+    - command: "uv build --verbose"
+      description: "Build package with verbose output. Shows detailed build process and errors. Note: May fail if build is broken - use to diagnose build issues."
+
+    - command: "uv sync --verbose"
+      description: "Synchronize dependencies with verbose output. Shows what's being installed/updated."
+
+    # Git state
+    - command: "git status"
+      description: "Show working tree status. Check for unexpected changes."
+
+    - command: "git diff"
+      description: "Show unstaged changes. See what code was recently modified."
+
+    - command: "git branch -v"
+      description: "List branches with last commit. Verify you're on the correct branch."
+
+    # File system issues
+    - command: "ls -la"
+      description: "List all files including hidden ones. Check for unexpected files."
+
+    - command: "find . -name __pycache__ -type d"
+      description: "Find Python cache directories. Sometimes cache corruption causes issues."
+
+    - command: "find . -name '*.pyc' -o -name '*.pyo'"
+      description: "Find compiled Python files. Old bytecode can cause import problems."
+
+    # Process and system
+    - command: "ps aux | grep python"
+      description: "Show running Python processes. Check for hanging or conflicting processes."
+
+    - command: "lsof -i :8000"
+      description: "Check what's using port 8000 (change number as needed). Useful for 'address already in use' errors."
+
+  deny:
+    - "rm *"
+    - "sudo *"
+    - "dd *"
+    - "kill -9*"  # Prevent force killing
+    - "pkill *"
+    - "> *"
+
+  # Allow user to review each command in troubleshooting mode
+  require_confirmation: false
+
+  timeout: 45
+  max_commands: 12
+
+timeout: 120
+num_retries: 3
+fallbacks:
+  - "gpt-4-turbo"
+  - "claude-3-opus-20240229"

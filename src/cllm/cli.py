@@ -16,6 +16,7 @@ from typing import Any, Dict, Optional
 
 import litellm
 
+from .agent import AgentExecutionError, execute_with_dynamic_commands
 from .client import LLMClient
 from .config import (
     ConfigurationError,
@@ -34,6 +35,7 @@ from .context import (
 )
 from .conversation import Conversation, ConversationManager
 from .templates import TemplateError, build_template_context
+from .tools import CommandValidationError
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -200,6 +202,31 @@ For full provider list: https://docs.litellm.ai/docs/providers
         "--no-context-exec",
         action="store_true",
         help="Disable context commands from configuration file",
+    )
+
+    # Dynamic command execution arguments (ADR-0013)
+    parser.add_argument(
+        "--allow-commands",
+        action="store_true",
+        help="Enable LLM-driven dynamic command execution (requires tool-calling capable model)",
+    )
+
+    parser.add_argument(
+        "--command-allow",
+        metavar="PATTERNS",
+        help="Comma-separated command patterns to allow (e.g., 'git*,npm*')",
+    )
+
+    parser.add_argument(
+        "--command-deny",
+        metavar="PATTERNS",
+        help="Comma-separated command patterns to deny (takes precedence over allow)",
+    )
+
+    parser.add_argument(
+        "--confirm-commands",
+        action="store_true",
+        help="Prompt for confirmation before executing each command",
     )
 
     # Variable expansion arguments (ADR-0012)
@@ -568,6 +595,30 @@ def main():
     # Merge config with CLI args (CLI takes precedence)
     config = merge_config_with_args(file_config, cli_args)
 
+    # Handle dynamic command execution flags (ADR-0013)
+    # These are processed after config merge to ensure proper precedence
+    if args.allow_commands:
+        config["allow_dynamic_commands"] = True
+
+    if args.command_allow:
+        # Parse comma-separated patterns
+        patterns = [p.strip() for p in args.command_allow.split(",") if p.strip()]
+        if "dynamic_commands" not in config:
+            config["dynamic_commands"] = {}
+        config["dynamic_commands"]["allow"] = patterns
+
+    if args.command_deny:
+        # Parse comma-separated patterns
+        patterns = [p.strip() for p in args.command_deny.split(",") if p.strip()]
+        if "dynamic_commands" not in config:
+            config["dynamic_commands"] = {}
+        config["dynamic_commands"]["deny"] = patterns
+
+    if args.confirm_commands:
+        if "dynamic_commands" not in config:
+            config["dynamic_commands"] = {}
+        config["dynamic_commands"]["require_confirmation"] = True
+
     # Support environment variables for debug settings (ADR-0009)
     # Precedence: CLI flags > Cllmfile > Environment variables
     if "debug" not in config and os.getenv("CLLM_DEBUG") == "1":
@@ -791,6 +842,8 @@ def main():
             "debug",  # ADR-0009: debug mode config
             "json_logs",  # ADR-0009: JSON logging config
             "log_file",  # ADR-0009: log file config
+            "allow_dynamic_commands",  # ADR-0013: dynamic command execution flag
+            "dynamic_commands",  # ADR-0013: dynamic command execution config
         ]
     }
 
@@ -854,6 +907,73 @@ def main():
 
     if raw_response:
         kwargs["raw_response"] = True
+
+    # Check if dynamic command execution is enabled (ADR-0013)
+    if config.get("allow_dynamic_commands", False):
+        # Use agentic execution loop instead of regular LLM call
+        try:
+            # Dynamic commands don't support streaming, raw response, or structured output yet
+            if stream:
+                print(
+                    "Warning: Streaming is not supported with --allow-commands. Disabling streaming.",
+                    file=sys.stderr,
+                )
+
+            if schema is not None:
+                print(
+                    "Warning: Structured output (JSON schema) is not yet supported with --allow-commands.",
+                    file=sys.stderr,
+                )
+
+            if raw_response:
+                print(
+                    "Warning: Raw response is not supported with --allow-commands.",
+                    file=sys.stderr,
+                )
+
+            # Execute with dynamic commands
+            response = execute_with_dynamic_commands(
+                prompt=prompt if messages_for_llm is None or isinstance(messages_for_llm, str) else messages_for_llm[-1]["content"],
+                config=config,
+                require_confirmation=config.get("dynamic_commands", {}).get(
+                    "require_confirmation", args.confirm_commands
+                ),
+                verbose=config.get("debug", False),
+            )
+
+            print(response)
+
+            # Save conversation if in conversation mode
+            if conversation is not None:
+                conversation.add_message("user", prompt)
+                conversation.add_message("assistant", response)
+                # Update token count
+                try:
+                    tokens = client.count_tokens(model, conversation.get_messages())
+                    conversation.total_tokens = tokens
+                except Exception:
+                    pass  # Token counting is optional
+                conversation_manager.save(conversation)
+
+        except AgentExecutionError as e:
+            print(f"Agent error: {e}", file=sys.stderr)
+            if log_file_handle:
+                log_file_handle.close()
+            sys.exit(1)
+        except CommandValidationError as e:
+            print(f"Command validation error: {e}", file=sys.stderr)
+            if log_file_handle:
+                log_file_handle.close()
+            sys.exit(1)
+        except KeyboardInterrupt:
+            print("\n\nInterrupted by user.", file=sys.stderr)
+            if log_file_handle:
+                log_file_handle.close()
+            sys.exit(130)
+        finally:
+            if log_file_handle:
+                log_file_handle.close()
+        return
 
     try:
         # Make the request

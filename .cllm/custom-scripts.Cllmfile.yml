@@ -1,0 +1,142 @@
+# Custom Scripts Configuration (ADR-0013)
+# Example showing how to use project-specific custom scripts with LLM-driven execution
+#
+# This is a template showing how to document custom bash scripts so the LLM
+# knows how to use them correctly, including required parameters and optional flags.
+#
+# Usage:
+#   cllm "Check if my dependencies are outdated" --config custom-scripts --allow-commands
+#   cllm "Analyze the API response time" --config custom-scripts --allow-commands
+
+model: "gpt-4"
+temperature: 0.3
+
+default_system_message: |
+  You are a development assistant with access to custom project scripts.
+  Use these scripts to help with development workflows, analysis, and automation.
+
+  When using scripts with parameters:
+  - Read the description carefully to understand required vs optional parameters
+  - Use the example syntax provided
+  - Explain to the user what the script will do before running it
+
+allow_dynamic_commands: true
+
+dynamic_commands:
+  available_commands:
+    # Custom script examples (these would need to exist in your project)
+
+    # Example: Dependency checker script
+    - command: "./scripts/check-deps.sh"
+      description: |
+        Check for outdated dependencies and security vulnerabilities.
+        Optional flags:
+          --fix : Automatically update outdated packages
+          --verbose : Show detailed output
+        Example: ./scripts/check-deps.sh --fix
+
+    # Example: Log analyzer script with required parameter
+    - command: "./scripts/analyze-logs.sh <log_file>"
+      description: |
+        Analyze application logs for errors and patterns.
+        Required: log_file - Path to log file (e.g., logs/app.log, /var/log/app.log)
+        Optional flags:
+          --since=YYYY-MM-DD : Only analyze logs after this date
+          --level=ERROR : Filter by log level (ERROR, WARN, INFO)
+        Example: ./scripts/analyze-logs.sh logs/app.log --since=2024-01-01
+
+    # Example: Performance benchmarking script
+    - command: "./scripts/benchmark.sh [test_name]"
+      description: |
+        Run performance benchmarks.
+        Optional: test_name - Specific test to run (default: all tests)
+        Options:
+          --iterations=N : Number of iterations (default: 100)
+          --output=FILE : Save results to file
+        Example: ./scripts/benchmark.sh api_response --iterations=1000
+
+    # Example: Database backup script
+    - command: "./scripts/db-backup.sh <database> [--compress]"
+      description: |
+        Create a backup of specified database.
+        Required: database - Database name (e.g., 'production', 'dev', 'test')
+        Optional: --compress - Compress backup with gzip
+        Output: Backup saved to ./backups/ directory
+        WARNING: This writes to the filesystem
+        Example: ./scripts/db-backup.sh production --compress
+
+    # Example: Code metrics script
+    - command: "./scripts/metrics.sh [directory]"
+      description: |
+        Calculate code complexity metrics.
+        Optional: directory - Path to analyze (default: ./src)
+        Outputs:
+          - Lines of code
+          - Cyclomatic complexity
+          - Test coverage percentage
+        Example: ./scripts/metrics.sh src/api
+
+    # Uncommon command-line tools with specific syntax
+
+    # jq - JSON processor
+    - command: "jq '.dependencies' package.json"
+      description: |
+        Extract dependencies from package.json using jq (JSON processor).
+        Change the query to extract different fields:
+          '.devDependencies' - Development dependencies
+          '.scripts' - Available npm scripts
+          '.version' - Package version
+        Can chain queries: jq '.dependencies | keys' package.json (list dependency names)
+
+    # fd - Fast file finder (alternative to find)
+    - command: "fd -e py -x wc -l"
+      description: |
+        Count lines in all Python files using fd (fast find alternative).
+        Syntax: fd -e EXTENSION -x COMMAND
+        Change -e py to match different extensions (-e js, -e ts, -e md)
+        The -x flag executes command on each match
+        Example: fd -e js -x head -5 (show first 5 lines of each JS file)
+
+    # rg - ripgrep (fast grep alternative)
+    - command: "rg 'pattern' --type py"
+      description: |
+        Search code using ripgrep (faster than grep).
+        Replace 'pattern' with your search term (supports regex)
+        File type filters: --type py, --type js, --type md
+        Useful flags:
+          --json : Output as JSON
+          -i : Case insensitive
+          -C 3 : Show 3 lines of context
+        Example: rg 'TODO|FIXME' --type py -i
+
+    # Standard commands for reference
+    - command: "git status"
+      description: "Show working tree status - modified, staged, and untracked files."
+
+    - command: "cat pyproject.toml"
+      description: "Display project configuration and dependencies."
+
+  # Deny dangerous operations
+  deny:
+    - "rm *"
+    - "sudo *"
+    - "dd *"
+    - "mv *"
+    - "> *"
+    # Be careful with scripts that modify the filesystem
+    # You might want to require confirmation for certain operations
+
+  timeout: 60
+  max_commands: 8
+  require_confirmation: false  # Set to true for scripts that modify data
+
+# Note: For production use, you might want to:
+# 1. Create the actual scripts in ./scripts/
+# 2. Set require_confirmation: true for destructive operations
+# 3. Add more specific allowlist patterns for your use case
+# 4. Document your scripts in a README
+
+timeout: 90
+num_retries: 2
+fallbacks:
+  - "gpt-4-turbo"

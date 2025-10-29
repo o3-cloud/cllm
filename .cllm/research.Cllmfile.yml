@@ -1,0 +1,223 @@
+# Research Configuration (ADR-0013)
+# LLM-driven codebase exploration and understanding
+#
+# Usage:
+#   cllm "How does the configuration system work?" --config research --allow-commands
+#   cllm "Find all places where we handle API errors" --config research --allow-commands
+#   cllm "What's the relationship between context and templates?" --config research --allow-commands
+
+model: gpt-5-mini
+temperature: 1
+
+default_system_message: |
+  You are a code research assistant. Help users explore and understand codebases by:
+
+  1. Analyzing the question to identify what information is needed
+  2. Using available commands to gather relevant code, documentation, and context
+  3. Synthesizing findings into clear, comprehensive explanations
+  4. Providing code examples and file references (file:line format)
+
+  Focus on:
+  - Showing connections between components
+  - Explaining design decisions and patterns
+  - Referencing relevant documentation (ADRs, README, docstrings)
+  - Providing concrete code examples with file locations
+
+allow_dynamic_commands: true
+
+dynamic_commands:
+  available_commands:
+    # Code search - Finding implementations
+    - command: grep -r "pattern" src/ --include="*.py"
+      description: |
+        Search for text patterns in Python source code.
+        Replace "pattern" with your search term (can use regex).
+        Use this to find function definitions, class usage, imports, etc.
+        Example: grep -r "class.*Manager" src/ --include="*.py"
+
+    - command: grep -rn "pattern" src/ --include="*.py"
+      description: |
+        Search with line numbers. Same as grep -r but includes line numbers.
+        Useful for providing exact file:line references.
+        Example: grep -rn "def load_config" src/ --include="*.py"
+
+    - command: find src -name "*.py" -type f -exec grep -l "pattern" {} \;
+      description: |
+        Find files containing a pattern (shows only filenames).
+        Use this to discover which files are related to a feature.
+        Example: find src -name "*.py" -type f -exec grep -l "LiteLLM" {} \;
+
+    # File inspection
+    - command: cat src/path/to/file.py
+      description: |
+        Read entire file contents. Replace path with actual file path.
+        Use after finding relevant files with grep/find.
+        Example: cat src/cllm/config.py
+
+    - command: head -50 src/path/to/file.py
+      description: |
+        Show first 50 lines of a file (adjust number as needed).
+        Use this for large files to see the structure without reading everything.
+        Example: head -50 src/cllm/cli.py
+
+    - command: tail -50 src/path/to/file.py
+      description: |
+        Show last 50 lines of a file.
+        Useful for seeing the end of modules, main functions, or recent additions.
+
+    # Finding definitions and usage
+    - command: grep -rn "^def function_name" src/ --include="*.py"
+      description: |
+        Find function definitions (lines starting with 'def').
+        Replace function_name with actual function.
+        The ^ ensures we match at line start (actual definitions, not calls).
+        Example: grep -rn "^def load_config" src/ --include="*.py"
+
+    - command: grep -rn "^class ClassName" src/ --include="*.py"
+      description: |
+        Find class definitions (lines starting with 'class').
+        Replace ClassName with actual class name.
+        Example: grep -rn "^class LLMClient" src/ --include="*.py"
+
+    - command: grep -rn "import.*module\|from.*module" src/ --include="*.py"
+      description: |
+        Find where a module is imported.
+        Replace 'module' with the module name.
+        Shows both 'import module' and 'from module import' patterns.
+        Example: grep -rn "import.*litellm\|from.*litellm" src/ --include="*.py"
+
+    # Project structure
+    - command: ls -la src/
+      description: |
+        List all files in src/ directory.
+        Shows project structure at the top level.
+        Use to understand overall organization.
+
+    - command: find src -name "*.py" -type f | head -30
+      description: |
+        List first 30 Python files in the project.
+        Gives an overview of available modules.
+        Adjust number or remove 'head' to see all files.
+
+    - command: ls -R src/ | grep -E "\.py$"
+      description: |
+        Recursively list all Python files with their directory structure.
+        Shows complete file organization.
+
+    # Understanding tests
+    - command: find tests -name "test_*.py" -o -name "*_test.py"
+      description: |
+        Find all test files.
+        Use this to discover tests related to a feature.
+
+    - command: grep -rn "def test_" tests/ --include="*.py"
+      description: |
+        List all test function names with file locations.
+        Use to see what's being tested.
+
+    - command: grep -rn "class Test" tests/ --include="*.py"
+      description: |
+        Find test classes.
+        Shows how tests are organized.
+
+    # Documentation
+    - command: find . -name "*.md" -type f
+      description: |
+        Find all Markdown documentation files.
+        Includes README, ADRs, guides, etc.
+
+    - command: find docs -name "*.md" -type f
+      description: |
+        Find documentation in docs/ directory.
+        More focused than searching everywhere.
+
+    - command: cat docs/decisions/NNNN-topic.md
+      description: |
+        Read an ADR (Architecture Decision Record).
+        Replace NNNN with actual number (e.g., 0003, 0013).
+        Example: cat docs/decisions/0013-llm-driven-dynamic-command-execution.md
+
+    - command: ls docs/decisions/
+      description: |
+        List all ADRs.
+        Use to discover what architectural decisions have been documented.
+
+    - command: cat README.md
+      description: |
+        Read project README.
+        Provides high-level overview and getting started info.
+
+    - command: cat CLAUDE.md
+      description: |
+        Read Claude Code project instructions (if present).
+        Contains architecture overview and development guidelines.
+
+    # Git history and blame
+    - command: git log --oneline --all --grep="keyword" -10
+      description: |
+        Search commit messages for keywords.
+        Replace 'keyword' with search term.
+        Shows last 10 matching commits (adjust number as needed).
+        Example: git log --oneline --all --grep="config" -10
+
+    - command: git log --oneline -20 -- path/to/file
+      description: |
+        Show commit history for a specific file.
+        Replace path with actual file path.
+        Shows last 20 commits affecting that file.
+        Example: git log --oneline -20 -- src/cllm/config.py
+
+    - command: git blame -L start,end path/to/file
+      description: |
+        Show who last modified specific lines.
+        Replace start,end with line numbers and path with file.
+        Use to understand when/why code changed.
+        Example: git blame -L 10,20 src/cllm/config.py
+
+    - command: git diff main..HEAD -- path/to/file
+      description: |
+        Show changes to a file compared to main branch.
+        Replace path with actual file path.
+        Example: git diff main..HEAD -- src/cllm/cli.py
+
+    # Dependencies and configuration
+    - command: cat pyproject.toml
+      description: |
+        Show project configuration and dependencies.
+        Contains package requirements, scripts, and metadata.
+
+    - command: grep -A 5 "dependencies" pyproject.toml
+      description: |
+        Show project dependencies section.
+        The -A 5 shows 5 lines after the match.
+
+    # Cross-references
+    - command: grep -rn "keyword1" src/ --include="*.py" | grep "keyword2"
+      description: |
+        Find files containing both keyword1 AND keyword2.
+        Chain grep commands to narrow down search.
+        Example: grep -rn "config" src/ --include="*.py" | grep "load"
+
+    - command: grep -rn "function_name" src/ --include="*.py" -A 10
+      description: |
+        Find function with 10 lines of context after match.
+        Use to see function implementation without reading entire file.
+        Example: grep -rn "def complete" src/ --include="*.py" -A 10
+
+  # Safety: read-only operations for research
+  deny:
+    - rm *
+    - sudo *
+    - dd *
+    - mv *
+    - "> *"
+    - ">>*"
+
+  timeout: 45
+  max_commands: 12
+  require_confirmation: false
+
+timeout: 90
+num_retries: 2
+fallbacks:
+  - gpt-5

@@ -1,0 +1,94 @@
+# Dynamic Debugging Configuration (ADR-0013)
+# LLM-driven command execution for intelligent debugging
+#
+# Usage:
+#   cllm "Why is my test failing?" --config dynamic-debug --allow-commands
+#   cllm "Debug the build error" --config dynamic-debug --allow-commands
+#
+# The LLM will dynamically choose which commands to execute based on your question.
+
+model: "gpt-4"
+temperature: 0.3
+
+default_system_message: |
+  You are an expert debugging assistant. When the user asks about issues:
+
+  1. Analyze the problem description
+  2. Use available commands to gather relevant information
+  3. Examine the output to identify root causes
+  4. Provide clear explanations and actionable solutions
+
+  Focus on systematic debugging: check logs, examine state, verify configurations.
+
+# Enable LLM-driven dynamic command execution
+allow_dynamic_commands: true
+
+dynamic_commands:
+  # Structured command definitions with descriptions
+  # These help the LLM understand what each command does and when to use it
+  available_commands:
+    # Git commands for understanding changes
+    - command: "git status --short"
+      description: "Show current git status - which files are modified, staged, or untracked. Use this to understand what changed recently."
+
+    - command: "git diff"
+      description: "Show unstaged changes in detail. Use this to see exactly what code was modified."
+
+    - command: "git log --oneline -10"
+      description: "Show last 10 commits. Use this to understand recent development history."
+
+    # Build and test commands
+    - command: "uv run pytest -v"
+      description: "Run Python tests with verbose output. Use this to see which tests are failing and why."
+
+    - command: "uv run pytest --collect-only"
+      description: "List all available tests without running them. Use this to understand test structure."
+
+    - command: "uv build"
+      description: "Build the Python package. Use this to check for build errors or packaging issues."
+
+    # Code inspection commands
+    - command: "find src -name '*.py' -type f"
+      description: "List all Python source files. Use this to understand project structure."
+
+    - command: "wc -l src/**/*.py"
+      description: "Count lines in Python files. Use this to gauge code complexity or find large files."
+
+    # Environment and dependencies
+    - command: "uv pip list"
+      description: "List installed Python packages and versions. Use this to check dependency issues."
+
+    - command: "python --version"
+      description: "Show Python version. Use this to verify environment setup."
+
+    # Log and output inspection
+    - command: "cat pyproject.toml"
+      description: "Show project configuration. Use this to understand dependencies, scripts, and settings."
+
+    - command: "ls -lah"
+      description: "List all files with details including hidden files. Use this to see project structure."
+
+  # Deny dangerous commands
+  deny:
+    - "rm *"
+    - "sudo *"
+    - "dd *"
+    - "mv *"
+    - "> *"  # Prevent file overwrites
+    - ">>*"  # Prevent file appends
+
+  # Require user confirmation before each command (optional)
+  require_confirmation: false
+
+  # Command timeout (seconds)
+  timeout: 30
+
+  # Maximum number of commands LLM can execute
+  max_commands: 8
+
+# LiteLLM parameters
+timeout: 90
+num_retries: 2
+fallbacks:
+  - "gpt-4-turbo"
+  - "gpt-3.5-turbo"
