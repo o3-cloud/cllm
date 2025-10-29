@@ -16,3 +16,10 @@ fallbacks:
 # Default system message for CLLM development
 default_system_message: |
   You are a helpful assistant.
+
+context_commands:
+  # Show uncommitted changes
+  - name: "Get current time"
+    command: "date"
+    on_failure: "ignore"
+    timeout: 10

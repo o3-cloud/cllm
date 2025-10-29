@@ -54,3 +54,6 @@ Thumbs.db
 
 .cllm/conversations/
 .claude/settings.local.json
+
+# CLLM
+.cllm/*.log

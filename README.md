@@ -12,6 +12,7 @@ CLLM bridges the gap between ChatGPT GUIs and complex automation by providing tr
 - [Key Concepts](#key-concepts)
 - [Installation](#installation)
 - [Quick Start](#quick-start)
+  - [Project Initialization](#project-initialization)
   - [Basic Usage](#basic-usage)
   - [Conversation Threading](#conversation-threading)
   - [Debugging & Troubleshooting](#debugging--troubleshooting)
@@ -34,6 +35,7 @@ CLLM bridges the gap between ChatGPT GUIs and complex automation by providing tr
 ## Features
 
 - **🚀 Simple CLI Interface**: Generate text from prompts with straightforward commands
+- **📦 Project Initialization**: Bootstrap `.cllm` directories with `cllm init` using pre-built templates
 - **🔗 LLM Chaining**: Chain multiple LLM calls using bash pipes and scripts
 - **📋 Structured Output**: Get guaranteed JSON output conforming to JSON Schema specifications
 - **💬 Conversation Threading**: Multi-turn conversations with automatic context management
@@ -123,6 +125,84 @@ uv pip install -e .
 ```
 
 ## Quick Start
+
+### Project Initialization
+
+Bootstrap your CLLM setup with the `init` command to create `.cllm` directories with configuration templates (ADR-0015):
+
+```bash
+# Initialize local .cllm directory in current project
+cllm init
+
+# Initialize global ~/.cllm directory
+cllm init --global
+
+# Initialize both local and global
+cllm init --global --local
+
+# List available templates
+cllm init --list-templates
+# Available templates:
+#   code-review      - GPT-4 configuration for code review with structured output
+#   summarize        - Optimized for summarization tasks
+#   creative         - Higher temperature for creative writing
+#   debug            - Configuration for debugging assistance
+#   extraction       - Data extraction with structured output
+#   task-parser      - Parse tasks from natural language
+#   context-demo     - Demonstrates dynamic context injection
+
+# Initialize with a specific template
+cllm init --template code-review
+cllm init --template summarize
+cllm init --template creative
+
+# Combine template with location
+cllm init --global --template debug
+
+# Force reinitialize (overwrite existing files)
+cllm init --force
+```
+
+**What gets created:**
+
+```
+# Without template:
+.cllm/
+├── conversations/         # Conversation storage (local-first)
+├── Cllmfile.yml          # Default configuration
+└── .gitignore            # Excludes conversations/ and logs (local only)
+
+# With --template code-review:
+.cllm/
+├── conversations/         # Conversation storage (local-first)
+├── code-review.Cllmfile.yml  # Named config (use with --config code-review)
+└── .gitignore            # Excludes conversations/ and logs (local only)
+```
+
+**Key Features:**
+
+- **Template library**: 7 pre-built templates for common use cases
+- **Smart defaults**: Sensible starter configuration with helpful comments
+- **Gitignore management**: Automatically excludes conversation history from version control
+- **Local-first**: Defaults to `./.cllm/` (project-specific) unless `--global` specified
+- **Template-aware guidance**: Next-step suggestions adapt to your chosen template
+- **Idempotent**: Safe to run multiple times with `--force` flag
+
+**Example Workflow:**
+
+```bash
+# Start a new project
+mkdir my-project && cd my-project
+
+# Initialize with code-review template
+cllm init --template code-review
+
+# Review the configuration (creates code-review.Cllmfile.yml)
+vim .cllm/code-review.Cllmfile.yml
+
+# Use the named config with --config flag
+git diff | cllm --config code-review "Review these changes"
+```
 
 ### Basic Usage
 
@@ -423,7 +503,21 @@ See [`examples/schemas/README.md`](examples/schemas/README.md) for detailed usag
 
 ### Configuration Files (Cllmfile.yml)
 
-Create reusable configuration profiles to reduce repetitive CLI flags (ADR-0003):
+Create reusable configuration profiles to reduce repetitive CLI flags (ADR-0003).
+
+**Quick setup** with templates:
+
+```bash
+# Bootstrap with a pre-built template
+cllm init --template code-review  # GPT-4 config for code reviews
+cllm init --template summarize     # Optimized for summarization
+cllm init --template creative      # Higher temperature for creative tasks
+
+# See all available templates
+cllm init --list-templates
+```
+
+**Manual configuration**:
 
 ```yaml
 # Cllmfile.yml - Project-wide defaults
@@ -948,6 +1042,38 @@ cat sales_data.csv | \
 cllm [OPTIONS] [PROMPT]
 ```
 
+### Init Subcommand
+
+Bootstrap `.cllm` directory structure with configuration templates:
+
+```bash
+cllm init [OPTIONS]
+```
+
+| Option                  | Description                                           |
+| ----------------------- | ----------------------------------------------------- |
+| `--global`              | Initialize `~/.cllm` (global configuration)           |
+| `--local`               | Initialize `./.cllm` (project-specific, default)      |
+| `--template NAME`       | Use specific template (code-review, summarize, etc.)  |
+| `--list-templates`      | Show all available templates                          |
+| `--force`, `-f`         | Overwrite existing files                              |
+
+**Examples:**
+
+```bash
+# Initialize local project
+cllm init
+
+# Initialize with template
+cllm init --template code-review
+
+# Initialize both global and local
+cllm init --global --local
+
+# List available templates
+cllm init --list-templates
+```
+
 ### Key Options
 
 | Option                         | Description                                      |
@@ -1120,6 +1246,7 @@ CLLM's architecture and features are documented in ADRs (Architecture Decision R
 - [ADR-0012](docs/decisions/0012-variable-expansion-in-context-commands.md): Variable Expansion in Context Commands with Jinja2 Templates
 - [ADR-0013](docs/decisions/0013-llm-driven-dynamic-command-execution.md): LLM-Driven Dynamic Command Execution
 - [ADR-0014](docs/decisions/0014-json-structured-output-with-allow-commands.md): JSON Structured Output with --allow-commands
+- [ADR-0015](docs/decisions/0015-add-init-command-for-directory-setup.md): Init Command for Directory Setup (project bootstrapping with templates)
 
 ## Roadmap
 
@@ -1129,7 +1256,8 @@ CLLM's architecture and features are documented in ADRs (Architecture Decision R
 - ✅ Real-time streaming responses
 - ✅ Conversation threading
 - ✅ Structured JSON output with schema validation
-- ✅ Configuration file system
+- ✅ Configuration file system with templates
+- ✅ Project initialization command (`cllm init`)
 - ✅ Debugging and logging
 - ✅ Model discovery
 - ✅ Bash script examples

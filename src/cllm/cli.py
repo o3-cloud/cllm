@@ -34,6 +34,7 @@ from .context import (
     parse_context_commands,
 )
 from .conversation import Conversation, ConversationManager
+from .init import InitError, initialize, list_available_templates
 from .templates import TemplateError, build_template_context
 from .tools import CommandValidationError
 
@@ -63,6 +64,10 @@ Examples:
 
   # Limit response length
   cllm "Explain quantum computing" --model gpt-4 --max-tokens 100
+
+Subcommands:
+  init                  Initialize .cllm directory structure
+                        Run 'cllm init --help' for more information
 
 Supported Providers (partial list):
   - OpenAI: gpt-4, gpt-3.5-turbo
@@ -556,8 +561,108 @@ def configure_debugging(
     return log_file_handle
 
 
+def create_init_parser() -> argparse.ArgumentParser:
+    """Create the argument parser for the init command."""
+    parser = argparse.ArgumentParser(
+        prog="cllm init",
+        description="Initialize .cllm directory structure with optional templates",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Initialize local .cllm directory
+  cllm init
+
+  # Initialize global ~/.cllm directory
+  cllm init --global
+
+  # Initialize both local and global
+  cllm init --global --local
+
+  # Initialize with a template
+  cllm init --template code-review
+  cllm init --template summarize
+
+  # List available templates
+  cllm init --list-templates
+
+  # Force reinitialize (overwrite existing files)
+  cllm init --force
+        """,
+    )
+
+    parser.add_argument(
+        "--global",
+        dest="global_init",
+        action="store_true",
+        help="Initialize global ~/.cllm directory",
+    )
+
+    parser.add_argument(
+        "--local",
+        dest="local_init",
+        action="store_true",
+        help="Initialize local ./.cllm directory (default if no location specified)",
+    )
+
+    parser.add_argument(
+        "--template",
+        "-t",
+        metavar="NAME",
+        help="Use a specific template (e.g., code-review, summarize, creative)",
+    )
+
+    parser.add_argument(
+        "--list-templates",
+        action="store_true",
+        help="List available templates and exit",
+    )
+
+    parser.add_argument(
+        "--force",
+        "-f",
+        action="store_true",
+        help="Overwrite existing files and directories",
+    )
+
+    return parser
+
+
+def handle_init_command(args: list[str]) -> None:
+    """
+    Handle the init subcommand.
+
+    Args:
+        args: Command-line arguments (excluding 'init')
+    """
+    parser = create_init_parser()
+    parsed_args = parser.parse_args(args)
+
+    # Handle --list-templates
+    if parsed_args.list_templates:
+        list_available_templates()
+        sys.exit(0)
+
+    # Initialize directories
+    try:
+        initialize(
+            global_init=parsed_args.global_init,
+            local_init=parsed_args.local_init,
+            template_name=parsed_args.template,
+            force=parsed_args.force,
+        )
+    except InitError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
 def main():
     """Main CLI entry point."""
+    # Check if first argument is 'init' - handle as subcommand
+    if len(sys.argv) > 1 and sys.argv[1] == "init":
+        # Remove 'init' from argv and handle separately
+        handle_init_command(sys.argv[2:])
+        return
+
     parser = create_parser()
     args = parser.parse_args()
 
