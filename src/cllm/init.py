@@ -331,15 +331,19 @@ def initialize(
     local_init: bool = False,
     template_name: Optional[str] = None,
     force: bool = False,
+    cllm_path: Optional[str] = None,
 ) -> None:
     """
     Initialize .cllm directory structure.
+
+    Implements ADR-0016: Configurable .cllm Directory Path
 
     Args:
         global_init: If True, initialize ~/.cllm
         local_init: If True, initialize ./.cllm
         template_name: Optional template name to use
         force: If True, overwrite existing files
+        cllm_path: Optional custom directory path (overrides global_init/local_init)
 
     Raises:
         InitError: If initialization fails
@@ -347,7 +351,11 @@ def initialize(
     # Determine which directories to initialize
     dirs_to_init = []
 
-    if global_init and local_init:
+    # ADR-0016: Custom path takes precedence
+    if cllm_path:
+        custom_path = Path(cllm_path)
+        dirs_to_init.append(("custom", custom_path))
+    elif global_init and local_init:
         dirs_to_init.append(("global", get_home_cllm_dir()))
         dirs_to_init.append(("local", get_local_cllm_dir()))
     elif global_init:

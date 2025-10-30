@@ -121,6 +121,12 @@ For full provider list: https://docs.litellm.ai/docs/providers
     )
 
     parser.add_argument(
+        "--cllm-path",
+        metavar="PATH",
+        help="Custom .cllm directory path (overrides default search and CLLM_PATH env var)",
+    )
+
+    parser.add_argument(
         "--list-models",
         action="store_true",
         help="List all available models and exit",
@@ -624,12 +630,20 @@ Examples:
         help="Overwrite existing files and directories",
     )
 
+    parser.add_argument(
+        "--cllm-path",
+        metavar="PATH",
+        help="Custom .cllm directory path (overrides default locations)",
+    )
+
     return parser
 
 
 def handle_init_command(args: list[str]) -> None:
     """
     Handle the init subcommand.
+
+    Implements ADR-0016: Configurable .cllm Directory Path
 
     Args:
         args: Command-line arguments (excluding 'init')
@@ -642,6 +656,9 @@ def handle_init_command(args: list[str]) -> None:
         list_available_templates()
         sys.exit(0)
 
+    # ADR-0016: Check for custom path (CLI flag > CLLM_PATH env var)
+    custom_path = parsed_args.cllm_path or os.getenv("CLLM_PATH")
+
     # Initialize directories
     try:
         initialize(
@@ -649,6 +666,7 @@ def handle_init_command(args: list[str]) -> None:
             local_init=parsed_args.local_init,
             template_name=parsed_args.template,
             force=parsed_args.force,
+            cllm_path=custom_path,
         )
     except InitError as e:
         print(f"Error: {e}", file=sys.stderr)
@@ -667,8 +685,8 @@ def main():
     args = parser.parse_args()
 
     try:
-        # Load configuration from files
-        file_config = load_config(config_name=args.config)
+        # Load configuration from files (ADR-0016: support custom .cllm path)
+        file_config = load_config(config_name=args.config, cllm_path=args.cllm_path)
     except ConfigurationError as e:
         print(f"Configuration error: {e}", file=sys.stderr)
         sys.exit(1)
@@ -763,7 +781,13 @@ def main():
         sys.exit(1)
 
     # Initialize conversation manager (needed for conversation commands)
-    conversation_manager = ConversationManager()
+    # ADR-0016: Support custom .cllm path
+    conversation_storage_dir = None
+    if args.cllm_path:
+        conversation_storage_dir = Path(args.cllm_path) / "conversations"
+    elif os.getenv("CLLM_PATH"):
+        conversation_storage_dir = Path(os.getenv("CLLM_PATH")) / "conversations"
+    conversation_manager = ConversationManager(storage_dir=conversation_storage_dir)
 
     # Handle --list-conversations
     if args.list_conversations:
@@ -812,13 +836,18 @@ def main():
 
     # Handle --show-config
     if args.show_config:
-        sources = get_config_sources(config_name=args.config)
+        sources = get_config_sources(config_name=args.config, cllm_path=args.cllm_path)
         print("Configuration sources (in order of precedence):")
         if sources:
             for source in sources:
                 print(f"  - {source}")
         else:
             print("  (no configuration files found)")
+        # Show effective .cllm path if custom (ADR-0016)
+        if args.cllm_path:
+            print(f"\nCustom .cllm path: {args.cllm_path}")
+        elif os.getenv("CLLM_PATH"):
+            print(f"\nCustom .cllm path (from CLLM_PATH): {os.getenv('CLLM_PATH')}")
         print("\nEffective configuration:")
         print(json.dumps(config, indent=2))
         print("\nResolved variables:")

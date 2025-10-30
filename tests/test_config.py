@@ -15,6 +15,7 @@ from cllm.config import (
     _load_yaml_file,
     clear_schema_cache,
     get_cache_path,
+    get_cllm_base_path,
     get_config_sources,
     is_remote_schema,
     load_config,
@@ -831,3 +832,144 @@ class TestLoadJsonSchemaWithUrls:
             with patch("cllm.config.requests.get", return_value=response):
                 schema = load_json_schema("https://example.com/schema.json")
                 assert schema == valid_schema
+
+
+class TestCustomCllmPath:
+    """Tests for ADR-0016: Configurable .cllm Directory Path."""
+
+    def test_get_cllm_base_path_with_cli_flag(self, tmp_path):
+        """Test that CLI flag path is returned when provided."""
+        custom_dir = tmp_path / "custom-cllm"
+        custom_dir.mkdir()
+
+        result = get_cllm_base_path(str(custom_dir))
+        assert result == custom_dir
+
+    def test_get_cllm_base_path_with_env_var(self, tmp_path):
+        """Test that CLLM_PATH env var is used when CLI flag not provided."""
+        custom_dir = tmp_path / "env-cllm"
+        custom_dir.mkdir()
+
+        with patch.dict(os.environ, {"CLLM_PATH": str(custom_dir)}):
+            result = get_cllm_base_path(cllm_path=None)
+            assert result == custom_dir
+
+    def test_get_cllm_base_path_cli_overrides_env(self, tmp_path):
+        """Test that CLI flag takes precedence over CLLM_PATH env var."""
+        cli_dir = tmp_path / "cli-cllm"
+        env_dir = tmp_path / "env-cllm"
+        cli_dir.mkdir()
+        env_dir.mkdir()
+
+        with patch.dict(os.environ, {"CLLM_PATH": str(env_dir)}):
+            result = get_cllm_base_path(str(cli_dir))
+            assert result == cli_dir
+
+    def test_get_cllm_base_path_no_override_returns_none(self):
+        """Test that None is returned when no custom path is specified."""
+        with patch.dict(os.environ, {}, clear=True):
+            result = get_cllm_base_path(cllm_path=None)
+            assert result is None
+
+    def test_get_cllm_base_path_nonexistent_cli_path_raises_error(self, tmp_path):
+        """Test that nonexistent CLI path raises ConfigurationError."""
+        nonexistent = tmp_path / "does-not-exist"
+
+        with pytest.raises(ConfigurationError, match="does not exist"):
+            get_cllm_base_path(str(nonexistent))
+
+    def test_get_cllm_base_path_nonexistent_env_path_raises_error(self, tmp_path):
+        """Test that nonexistent CLLM_PATH raises ConfigurationError."""
+        nonexistent = tmp_path / "does-not-exist"
+
+        with patch.dict(os.environ, {"CLLM_PATH": str(nonexistent)}):
+            with pytest.raises(ConfigurationError, match="CLLM_PATH directory does not exist"):
+                get_cllm_base_path(cllm_path=None)
+
+    def test_get_cllm_base_path_file_instead_of_dir_raises_error(self, tmp_path):
+        """Test that path pointing to file (not directory) raises error."""
+        file_path = tmp_path / "config.yml"
+        file_path.write_text("test: value")
+
+        with pytest.raises(ConfigurationError, match="not a directory"):
+            get_cllm_base_path(str(file_path))
+
+    def test_find_config_files_with_custom_path(self, tmp_path):
+        """Test that _find_config_files uses custom path when provided."""
+        custom_dir = tmp_path / "custom-cllm"
+        custom_dir.mkdir()
+
+        # Create a config file in custom directory
+        config_file = custom_dir / "Cllmfile.yml"
+        config_file.write_text("model: gpt-4\n")
+
+        # Find config files with custom path
+        result = _find_config_files(config_name=None, cllm_path=str(custom_dir))
+
+        assert len(result) == 1
+        assert result[0] == config_file
+
+    def test_find_config_files_custom_path_only_searches_that_dir(self, tmp_path):
+        """Test that custom path doesn't fall back to default search."""
+        custom_dir = tmp_path / "custom-cllm"
+        custom_dir.mkdir()
+
+        # Create config in home directory (should be ignored)
+        home_cllm = tmp_path / "home-cllm"
+        home_cllm.mkdir()
+        home_config = home_cllm / "Cllmfile.yml"
+        home_config.write_text("model: gpt-3.5-turbo\n")
+
+        # Custom dir has no config file
+        with patch("pathlib.Path.home", return_value=tmp_path):
+            result = _find_config_files(config_name=None, cllm_path=str(custom_dir))
+
+            # Should not find anything (doesn't search home directory)
+            assert len(result) == 0
+
+    def test_load_config_with_custom_path(self, tmp_path):
+        """Test loading config from custom path."""
+        custom_dir = tmp_path / "custom-cllm"
+        custom_dir.mkdir()
+
+        config_file = custom_dir / "Cllmfile.yml"
+        config_file.write_text("model: custom-model\ntemperature: 0.9\n")
+
+        config = load_config(config_name=None, cllm_path=str(custom_dir))
+
+        assert config["model"] == "custom-model"
+        assert config["temperature"] == 0.9
+
+    def test_load_named_config_with_custom_path(self, tmp_path):
+        """Test loading named config from custom path."""
+        custom_dir = tmp_path / "custom-cllm"
+        custom_dir.mkdir()
+
+        config_file = custom_dir / "myconfig.Cllmfile.yml"
+        config_file.write_text("model: named-model\n")
+
+        config = load_config(config_name="myconfig", cllm_path=str(custom_dir))
+
+        assert config["model"] == "named-model"
+
+    def test_load_config_custom_path_not_found_raises_error(self, tmp_path):
+        """Test that missing config in custom path raises error with helpful message."""
+        custom_dir = tmp_path / "custom-cllm"
+        custom_dir.mkdir()
+
+        # No config file created
+        with pytest.raises(ConfigurationError, match="not found in custom path"):
+            load_config(config_name="missing", cllm_path=str(custom_dir))
+
+    def test_get_config_sources_with_custom_path(self, tmp_path):
+        """Test that get_config_sources respects custom path."""
+        custom_dir = tmp_path / "custom-cllm"
+        custom_dir.mkdir()
+
+        config_file = custom_dir / "Cllmfile.yml"
+        config_file.write_text("model: gpt-4\n")
+
+        sources = get_config_sources(config_name=None, cllm_path=str(custom_dir))
+
+        assert len(sources) == 1
+        assert str(custom_dir / "Cllmfile.yml") in sources[0]

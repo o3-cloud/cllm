@@ -87,37 +87,108 @@ def _load_yaml_file(file_path: Path) -> Dict[str, Any]:
         raise ConfigurationError(f"Error reading file {file_path}: {e}")
 
 
-def _find_config_files(config_name: Optional[str] = None) -> list[Path]:
+def get_cllm_base_path(cllm_path: Optional[str] = None) -> Optional[Path]:
+    """Get the effective .cllm base directory path based on precedence.
+
+    Implements ADR-0016: Configurable .cllm Directory Path
+
+    Precedence order:
+    1. cllm_path parameter (from --cllm-path CLI flag)
+    2. CLLM_PATH environment variable
+    3. None (use default search order)
+
+    Args:
+        cllm_path: Optional custom path from CLI flag
+
+    Returns:
+        Path to custom .cllm directory, or None to use default search order
+
+    Raises:
+        ConfigurationError: If custom path is specified but doesn't exist
+    """
+    # Check CLI flag first
+    if cllm_path is not None:
+        custom_path = Path(cllm_path)
+        if not custom_path.exists():
+            raise ConfigurationError(
+                f"Custom .cllm path does not exist: {cllm_path}\n"
+                f"Suggestion: Create the directory or verify the path is correct"
+            )
+        if not custom_path.is_dir():
+            raise ConfigurationError(
+                f"Custom .cllm path is not a directory: {cllm_path}"
+            )
+        return custom_path
+
+    # Check environment variable
+    env_path = os.getenv("CLLM_PATH")
+    if env_path:
+        custom_path = Path(env_path)
+        if not custom_path.exists():
+            raise ConfigurationError(
+                f"CLLM_PATH directory does not exist: {env_path}\n"
+                f"Suggestion: Create the directory, unset CLLM_PATH, or verify the path"
+            )
+        if not custom_path.is_dir():
+            raise ConfigurationError(
+                f"CLLM_PATH is not a directory: {env_path}"
+            )
+        return custom_path
+
+    # No custom path specified, use default search order
+    return None
+
+
+def _find_config_files(config_name: Optional[str] = None, cllm_path: Optional[str] = None) -> list[Path]:
     """Find all applicable configuration files in order of precedence.
 
-    Search order (lowest to highest precedence):
+    Implements ADR-0016: Configurable .cllm Directory Path
+
+    If cllm_path is specified (via CLI flag or CLLM_PATH env var), searches only
+    in that directory. Otherwise, uses default search order:
+
+    Default search order (lowest to highest precedence):
     1. ~/.cllm/Cllmfile.yml (or ~/.cllm/<name>.Cllmfile.yml)
     2. ./.cllm/Cllmfile.yml (or ./.cllm/<name>.Cllmfile.yml)
     3. ./Cllmfile.yml (or ./<name>.Cllmfile.yml)
 
     Args:
         config_name: Optional named configuration (e.g., "summarize")
+        cllm_path: Optional custom .cllm directory path (from --cllm-path or CLLM_PATH)
 
     Returns:
         List of existing config file paths, in order from lowest to highest precedence
+
+    Raises:
+        ConfigurationError: If custom path is specified but invalid
     """
     if config_name:
         filename = f"{config_name}.Cllmfile.yml"
     else:
         filename = "Cllmfile.yml"
 
-    search_paths = [
-        Path.home() / ".cllm" / filename,  # User home
-        Path.cwd() / ".cllm" / filename,  # Project .cllm folder
-        Path.cwd() / filename,  # Current directory
-    ]
+    # Check for custom path override
+    base_path = get_cllm_base_path(cllm_path)
+
+    if base_path is not None:
+        # Custom path specified - search only in that directory
+        search_paths = [base_path / filename]
+    else:
+        # Default search order
+        search_paths = [
+            Path.home() / ".cllm" / filename,  # User home
+            Path.cwd() / ".cllm" / filename,  # Project .cllm folder
+            Path.cwd() / filename,  # Current directory
+        ]
 
     # Return only files that exist, in order
     return [path for path in search_paths if path.exists() and path.is_file()]
 
 
-def load_config(config_name: Optional[str] = None) -> Dict[str, Any]:
+def load_config(config_name: Optional[str] = None, cllm_path: Optional[str] = None) -> Dict[str, Any]:
     """Load and merge configuration files.
+
+    Implements ADR-0016: Configurable .cllm Directory Path
 
     Configurations are loaded from multiple locations and merged with later
     files taking precedence. CLI arguments should override these values.
@@ -125,22 +196,29 @@ def load_config(config_name: Optional[str] = None) -> Dict[str, Any]:
     Args:
         config_name: Optional named configuration (e.g., "summarize" loads
                     "summarize.Cllmfile.yml")
+        cllm_path: Optional custom .cllm directory path (from --cllm-path or CLLM_PATH)
 
     Returns:
         Merged configuration dictionary
 
     Raises:
-        ConfigurationError: If a specified named config doesn't exist
+        ConfigurationError: If a specified named config doesn't exist or custom path is invalid
     """
-    config_files = _find_config_files(config_name)
+    config_files = _find_config_files(config_name, cllm_path)
 
     if config_name and not config_files:
         # If user explicitly requested a named config but it doesn't exist, error
-        raise ConfigurationError(
-            f"Configuration '{config_name}' not found. "
-            f"Searched for {config_name}.Cllmfile.yml in: "
-            f"~/.cllm/, ./.cllm/, ./"
-        )
+        if cllm_path:
+            raise ConfigurationError(
+                f"Configuration '{config_name}' not found in custom path: {cllm_path}\n"
+                f"Searched for {config_name}.Cllmfile.yml"
+            )
+        else:
+            raise ConfigurationError(
+                f"Configuration '{config_name}' not found. "
+                f"Searched for {config_name}.Cllmfile.yml in: "
+                f"~/.cllm/, ./.cllm/, ./"
+            )
 
     # Merge configs from lowest to highest precedence
     merged_config: Dict[str, Any] = {}
@@ -176,18 +254,21 @@ def merge_config_with_args(
     return result
 
 
-def get_config_sources(config_name: Optional[str] = None) -> list[str]:
+def get_config_sources(config_name: Optional[str] = None, cllm_path: Optional[str] = None) -> list[str]:
     """Get list of configuration file paths that would be loaded.
+
+    Implements ADR-0016: Configurable .cllm Directory Path
 
     Useful for --show-config to display where settings came from.
 
     Args:
         config_name: Optional named configuration
+        cllm_path: Optional custom .cllm directory path
 
     Returns:
         List of configuration file paths as strings
     """
-    return [str(path) for path in _find_config_files(config_name)]
+    return [str(path) for path in _find_config_files(config_name, cllm_path)]
 
 
 def is_remote_schema(path: str) -> bool:

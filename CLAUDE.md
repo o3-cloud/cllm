@@ -30,27 +30,31 @@ CLLM is a bash-centric command-line interface for interacting with large languag
 - Reads from stdin (for piping) or command-line arguments
 - Supports `--stream`, `--temperature`, `--max-tokens`, `--raw`, `--config`, `--show-config` flags
 - Conversation flags: `--conversation`, `--list-conversations`, `--show-conversation`, `--delete-conversation`
+- Path override: `--cllm-path` flag (see ADR-0016)
 - Default model: `gpt-3.5-turbo`
-- Loads configuration from Cllmfile.yml (see ADR-0003)
+- Loads configuration from Cllmfile.yml (see ADR-0003, ADR-0016)
 - Default behavior: stateless (no conversation saved unless `--conversation` flag used)
 
-**`src/cllm/conversation.py`** - Conversation management (ADR-0007)
+**`src/cllm/conversation.py`** - Conversation management (ADR-0007, ADR-0016)
 
 - `Conversation` dataclass: Holds conversation data (id, model, messages, metadata)
 - `ConversationManager` class: Handles CRUD operations for conversations
 - Storage precedence (aligns with Cllmfile precedence):
-  1. `./.cllm/conversations/` (local/project-specific, if `.cllm` exists)
-  2. `~/.cllm/conversations/` (global/home directory, fallback)
+  1. Custom path: `<cllm_path>/conversations/` (if `--cllm-path` or `CLLM_PATH` set)
+  2. `./.cllm/conversations/` (local/project-specific, if `.cllm` exists)
+  3. `~/.cllm/conversations/` (global/home directory, fallback)
 - ID generation: UUID-based (`conv-<8-char-hex>`) or user-specified
 - Features: Atomic writes, token counting, message history preservation
 - Key methods: `create()`, `load()`, `save()`, `delete()`, `list_conversations()`
 
-**`src/cllm/config.py`** - Configuration loading (ADR-0003)
+**`src/cllm/config.py`** - Configuration loading (ADR-0003, ADR-0016)
 
 - Loads and merges Cllmfile.yml files with cascading precedence
 - Supports named configurations (e.g., `--config summarize`)
 - Environment variable interpolation with `${VAR_NAME}` syntax
-- File lookup order: `~/.cllm/` → `./.cllm/` → `./` (lowest to highest precedence)
+- File lookup order (default): `~/.cllm/` → `./.cllm/` → `./` (lowest to highest precedence)
+- Path override support (ADR-0016): `--cllm-path` CLI flag or `CLLM_PATH` env var
+  - Precedence: CLI flag > `CLLM_PATH` > default search order
 - CLI arguments always override file-based configuration
 
 **Provider Abstraction (ADR-0002)**
@@ -90,6 +94,7 @@ docs/decisions/    # Architecture Decision Records (ADRs)
   0005-structured-output-json-schema.md
   0006-support-remote-json-schema-urls.md
   0007-conversation-threading-and-context-management.md
+  0016-configurable-cllm-directory-path.md
 ```
 
 ## Development Commands
@@ -281,6 +286,69 @@ cllm --show-conversation bug-investigation
     "total_tokens": 1500
   }
 }
+```
+
+### ADR-0016: Configurable .cllm Directory Path
+
+- **Why:** Support diverse deployment environments (Docker, CI/CD, testing, custom org structures) that need explicit control over `.cllm` directory location
+- **Mechanism:** CLI flag (`--cllm-path`) and environment variable (`CLLM_PATH`)
+- **Precedence order:**
+  1. `--cllm-path` CLI flag (highest)
+  2. `CLLM_PATH` environment variable
+  3. Default search order: `./.cllm/` → `~/.cllm/` → `./` (lowest)
+- **Behavior:** When custom path specified, ONLY searches that directory (no fallback to defaults)
+- **Validation:** Path must exist and be a directory (fails fast with clear error)
+
+**Example - Docker Deployment:**
+
+```dockerfile
+# Mount config at custom location
+ENV CLLM_PATH=/app/config/.cllm
+COPY .cllm/ /app/config/.cllm/
+```
+
+**Example - CI/CD (GitHub Actions):**
+
+```yaml
+- name: Run CLLM analysis
+  env:
+    CLLM_PATH: ${{ github.workspace }}/.cllm-ci
+  run: cllm --config code-review < diff.txt
+```
+
+**Example - Testing (pytest):**
+
+```python
+def test_custom_config(tmp_path):
+    cllm_dir = tmp_path / ".cllm"
+    cllm_dir.mkdir()
+    (cllm_dir / "Cllmfile.yml").write_text("model: test-model")
+
+    result = subprocess.run(
+        ["cllm", "--cllm-path", str(cllm_dir), "test prompt"],
+        capture_output=True
+    )
+```
+
+**Example - Per-invocation override:**
+
+```bash
+# Use default .cllm config normally
+cllm "analyze this"
+
+# Override for specific invocation
+cllm --cllm-path /tmp/experiment/.cllm "try experimental config"
+```
+
+**Example - Init with custom path:**
+
+```bash
+# Initialize custom directory
+mkdir -p /custom/path
+cllm init --cllm-path /custom/path
+
+# Use it
+cllm --cllm-path /custom/path "hello world"
 ```
 
 ## API Key Configuration
