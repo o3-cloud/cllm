@@ -127,6 +127,12 @@ For full provider list: https://docs.litellm.ai/docs/providers
     )
 
     parser.add_argument(
+        "--conversations-path",
+        metavar="PATH",
+        help="Custom conversations directory path (overrides --cllm-path and CLLM_CONVERSATIONS_PATH env var)",
+    )
+
+    parser.add_argument(
         "--list-models",
         action="store_true",
         help="List all available models and exit",
@@ -781,13 +787,27 @@ def main():
         sys.exit(1)
 
     # Initialize conversation manager (needed for conversation commands)
-    # ADR-0016: Support custom .cllm path
-    conversation_storage_dir = None
+    # ADR-0017: Support custom conversations path with proper precedence
+    # Precedence: --conversations-path > CLLM_CONVERSATIONS_PATH > conversations_path in config > --cllm-path > CLLM_PATH > defaults
+    conversations_path = None
+    if args.conversations_path:
+        # CLI flag takes highest precedence
+        conversations_path = Path(args.conversations_path)
+    elif os.getenv("CLLM_CONVERSATIONS_PATH"):
+        # Environment variable takes second precedence
+        conversations_path = Path(os.getenv("CLLM_CONVERSATIONS_PATH"))
+    elif "conversations_path" in config:
+        # Configuration file takes third precedence
+        conversations_path = Path(config["conversations_path"])
+
+    cllm_path = None
     if args.cllm_path:
-        conversation_storage_dir = Path(args.cllm_path) / "conversations"
-    elif os.getenv("CLLM_PATH"):
-        conversation_storage_dir = Path(os.getenv("CLLM_PATH")) / "conversations"
-    conversation_manager = ConversationManager(storage_dir=conversation_storage_dir)
+        cllm_path = Path(args.cllm_path)
+
+    conversation_manager = ConversationManager(
+        cllm_path=cllm_path,
+        conversations_path=conversations_path
+    )
 
     # Handle --list-conversations
     if args.list_conversations:
@@ -848,6 +868,20 @@ def main():
             print(f"\nCustom .cllm path: {args.cllm_path}")
         elif os.getenv("CLLM_PATH"):
             print(f"\nCustom .cllm path (from CLLM_PATH): {os.getenv('CLLM_PATH')}")
+        # Show effective conversations path (ADR-0017)
+        print(f"\nEffective conversations path: {conversation_manager.storage_dir}")
+        if args.conversations_path:
+            print(f"  Source: --conversations-path CLI flag")
+        elif os.getenv("CLLM_CONVERSATIONS_PATH"):
+            print(f"  Source: CLLM_CONVERSATIONS_PATH environment variable")
+        elif "conversations_path" in config:
+            print(f"  Source: conversations_path in Cllmfile.yml")
+        elif args.cllm_path or os.getenv("CLLM_PATH"):
+            print(f"  Source: Custom .cllm path")
+        elif (Path.cwd() / ".cllm").exists():
+            print(f"  Source: Local .cllm directory")
+        else:
+            print(f"  Source: Global home directory")
         print("\nEffective configuration:")
         print(json.dumps(config, indent=2))
         print("\nResolved variables:")

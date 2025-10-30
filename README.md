@@ -270,7 +270,7 @@ cllm --delete-conversation code-review
 - **Context preservation**: Full message history is maintained across calls
 - **Model consistency**: The model is remembered for each conversation
 - **Token tracking**: Automatic token counting to help manage context windows
-- **Smart storage**: Conversations stored in `./.cllm/conversations/` (project-specific) or `~/.cllm/conversations/` (global)
+- **Configurable storage**: Conversations can be stored anywhere (see [Configurable Conversations Path](#configurable-conversations-path))
 
 **Example Workflow:**
 
@@ -289,6 +289,89 @@ cllm --conversation bug-123 "How should I fix this?"
 
 # Review the conversation later
 cllm --show-conversation bug-123
+```
+
+#### Configurable Conversations Path
+
+CLLM allows you to customize where conversations are stored independently of configuration files (ADR-0017). This enables powerful workflows like:
+
+- **Shared conversations across projects**: Multiple projects sharing the same conversation history
+- **Cloud-backed storage**: Store conversations on network drives, S3 mounts, or database filesystems
+- **Team collaboration**: Multiple team members accessing shared conversation storage
+- **Different storage tiers**: Fast local config with durable remote conversations
+
+**Storage precedence:**
+
+1. `--conversations-path` CLI flag (highest)
+2. `CLLM_CONVERSATIONS_PATH` environment variable
+3. `conversations_path` in Cllmfile.yml
+4. Custom .cllm path via `--cllm-path` or `CLLM_PATH`: `<path>/conversations/`
+5. Local project: `./.cllm/conversations/` (if `.cllm` directory exists)
+6. Global home: `~/.cllm/conversations/` (fallback)
+
+**Example - Cllmfile.yml configuration:**
+
+```yaml
+# .cllm/Cllmfile.yml - Project-specific conversation storage
+
+# Relative path (resolved from current working directory)
+conversations_path: ./conversations
+conversations_path: ./data/conversations
+
+# Absolute path
+conversations_path: /mnt/shared-conversations
+
+# Supports environment variable interpolation
+conversations_path: ${HOME}/project-conversations
+
+# Combined with other config
+model: gpt-4
+temperature: 0.7
+conversations_path: ./data/conversations
+```
+
+**Example - Shared conversations across projects (env var):**
+
+```bash
+# Set up shared conversation storage
+export CLLM_CONVERSATIONS_PATH=~/shared-conversations
+
+# All projects share the same conversation history
+cd ~/project1
+cllm --conversation code-review "Review these changes"
+
+cd ~/project2
+cllm --conversation code-review "Continue reviewing"  # Same conversation!
+```
+
+**Example - Cloud-backed storage:**
+
+```bash
+# Mount S3 bucket or NFS share
+export CLLM_CONVERSATIONS_PATH=/mnt/s3-conversations
+
+# Conversations automatically persisted to cloud
+cllm --conversation important-decisions "Document our architecture choice"
+```
+
+**Example - Team collaboration:**
+
+```bash
+# All team members point to shared network drive
+export CLLM_CONVERSATIONS_PATH=/network/team/cllm-conversations
+
+# Team can collaborate on conversations
+cllm --conversation team-brainstorm "Let's explore this feature"
+```
+
+**Example - Per-invocation override:**
+
+```bash
+# Normal usage
+cllm --conversation prod "Production conversation"
+
+# Test with temporary location
+cllm --conversations-path /tmp/test-conv --conversation test "Test conversation"
 ```
 
 ### Configuration
@@ -1247,6 +1330,8 @@ CLLM's architecture and features are documented in ADRs (Architecture Decision R
 - [ADR-0013](docs/decisions/0013-llm-driven-dynamic-command-execution.md): LLM-Driven Dynamic Command Execution
 - [ADR-0014](docs/decisions/0014-json-structured-output-with-allow-commands.md): JSON Structured Output with --allow-commands
 - [ADR-0015](docs/decisions/0015-add-init-command-for-directory-setup.md): Init Command for Directory Setup (project bootstrapping with templates)
+- [ADR-0016](docs/decisions/0016-configurable-cllm-directory-path.md): Configurable .cllm Directory Path (custom config locations)
+- [ADR-0017](docs/decisions/0017-configurable-conversations-path.md): Configurable Conversations Path (independent control over conversation storage)
 
 ## Roadmap
 

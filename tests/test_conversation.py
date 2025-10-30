@@ -389,3 +389,237 @@ class TestConversationManager:
         assert loaded.messages[0]["content"] == "What is Python?"
         assert loaded.messages[1]["role"] == "assistant"
         assert loaded.messages[2]["content"] == "Tell me more"
+
+
+class TestConversationPathPrecedence:
+    """Test suite for conversation path precedence (ADR-0017)."""
+
+    def test_conversations_path_parameter_takes_precedence(self, tmp_path):
+        """Test that conversations_path parameter takes highest precedence."""
+        # Set up different paths
+        conversations_dir = tmp_path / "conversations"
+        conversations_dir.mkdir()
+        cllm_dir = tmp_path / "cllm"
+        cllm_dir.mkdir()
+
+        # conversations_path should take precedence over cllm_path
+        manager = ConversationManager(
+            cllm_path=cllm_dir,
+            conversations_path=conversations_dir
+        )
+
+        assert manager.storage_dir == conversations_dir
+
+    def test_cllm_conversations_path_env_var(self, tmp_path, monkeypatch):
+        """Test CLLM_CONVERSATIONS_PATH environment variable."""
+        conversations_dir = tmp_path / "env_conversations"
+        conversations_dir.mkdir(parents=True)
+
+        # Set environment variable
+        monkeypatch.setenv("CLLM_CONVERSATIONS_PATH", str(conversations_dir))
+
+        manager = ConversationManager()
+        assert manager.storage_dir == conversations_dir
+
+    def test_conversations_path_precedence_over_env_var(self, tmp_path, monkeypatch):
+        """Test that CLI conversations_path takes precedence over environment variable."""
+        env_dir = tmp_path / "env_conversations"
+        env_dir.mkdir()
+        cli_dir = tmp_path / "cli_conversations"
+        cli_dir.mkdir()
+
+        # Set environment variable
+        monkeypatch.setenv("CLLM_CONVERSATIONS_PATH", str(env_dir))
+
+        # CLI parameter should override env var
+        manager = ConversationManager(conversations_path=cli_dir)
+        assert manager.storage_dir == cli_dir
+
+    def test_cllm_path_with_conversations_subdirectory(self, tmp_path):
+        """Test that cllm_path creates conversations subdirectory."""
+        cllm_dir = tmp_path / "custom_cllm"
+        cllm_dir.mkdir()
+
+        manager = ConversationManager(cllm_path=cllm_dir)
+        expected_path = cllm_dir / "conversations"
+        assert manager.storage_dir == expected_path
+
+    def test_cllm_path_env_var_conversations(self, tmp_path, monkeypatch):
+        """Test CLLM_PATH environment variable creates conversations subdirectory."""
+        cllm_dir = tmp_path / "env_cllm"
+        cllm_dir.mkdir()
+
+        monkeypatch.setenv("CLLM_PATH", str(cllm_dir))
+
+        manager = ConversationManager()
+        expected_path = cllm_dir / "conversations"
+        assert manager.storage_dir == expected_path
+
+    def test_conversations_path_precedence_over_cllm_path(self, tmp_path):
+        """Test that conversations_path takes precedence over cllm_path."""
+        conversations_dir = tmp_path / "conversations"
+        conversations_dir.mkdir()
+        cllm_dir = tmp_path / "cllm"
+        cllm_dir.mkdir()
+
+        manager = ConversationManager(
+            cllm_path=cllm_dir,
+            conversations_path=conversations_dir
+        )
+
+        # conversations_path should win
+        assert manager.storage_dir == conversations_dir
+
+    def test_conversations_path_precedence_over_cllm_path_env(self, tmp_path, monkeypatch):
+        """Test that CLLM_CONVERSATIONS_PATH takes precedence over CLLM_PATH."""
+        conversations_dir = tmp_path / "conversations"
+        conversations_dir.mkdir()
+        cllm_dir = tmp_path / "cllm"
+        cllm_dir.mkdir()
+
+        monkeypatch.setenv("CLLM_PATH", str(cllm_dir))
+        monkeypatch.setenv("CLLM_CONVERSATIONS_PATH", str(conversations_dir))
+
+        manager = ConversationManager()
+
+        # CLLM_CONVERSATIONS_PATH should win
+        assert manager.storage_dir == conversations_dir
+
+    def test_full_precedence_order(self, tmp_path, monkeypatch):
+        """Test complete precedence order from ADR-0017."""
+        # Create all possible paths
+        cli_conversations = tmp_path / "cli_conversations"
+        cli_conversations.mkdir()
+        env_conversations = tmp_path / "env_conversations"
+        env_conversations.mkdir()
+        cllm_path_dir = tmp_path / "cllm_path"
+        cllm_path_dir.mkdir()
+
+        # Set environment variables
+        monkeypatch.setenv("CLLM_PATH", str(cllm_path_dir))
+        monkeypatch.setenv("CLLM_CONVERSATIONS_PATH", str(env_conversations))
+
+        # Test 1: CLI conversations_path wins over everything
+        manager1 = ConversationManager(
+            cllm_path=cllm_path_dir,
+            conversations_path=cli_conversations
+        )
+        assert manager1.storage_dir == cli_conversations
+
+        # Test 2: Env var CLLM_CONVERSATIONS_PATH wins over CLLM_PATH
+        manager2 = ConversationManager()
+        assert manager2.storage_dir == env_conversations
+
+        # Test 3: CLLM_PATH used when CLLM_CONVERSATIONS_PATH not set
+        monkeypatch.delenv("CLLM_CONVERSATIONS_PATH")
+        manager3 = ConversationManager()
+        assert manager3.storage_dir == cllm_path_dir / "conversations"
+
+    def test_local_cllm_fallback(self, tmp_path, monkeypatch):
+        """Test fallback to local .cllm directory when no overrides set."""
+        # Create local .cllm directory
+        local_cllm = tmp_path / ".cllm"
+        local_cllm.mkdir()
+
+        # Change to that directory
+        monkeypatch.chdir(tmp_path)
+
+        manager = ConversationManager()
+        expected_path = tmp_path / ".cllm" / "conversations"
+        assert manager.storage_dir == expected_path
+
+    def test_home_directory_fallback(self, tmp_path, monkeypatch):
+        """Test fallback to home directory when no other options available."""
+        # Change to a directory without .cllm
+        monkeypatch.chdir(tmp_path)
+
+        manager = ConversationManager()
+        expected_path = Path.home() / ".cllm" / "conversations"
+        assert manager.storage_dir == expected_path
+
+    def test_storage_dir_backwards_compatibility(self, tmp_path):
+        """Test that storage_dir parameter still works for backwards compatibility."""
+        storage = tmp_path / "custom_storage"
+        storage.mkdir()
+
+        manager = ConversationManager(storage_dir=storage)
+        assert manager.storage_dir == storage
+
+    def test_conversations_path_auto_creation(self, tmp_path):
+        """Test that conversations directory is auto-created if parent exists."""
+        conversations_dir = tmp_path / "conversations"
+        # Don't create the directory - it should be auto-created
+
+        manager = ConversationManager(conversations_path=conversations_dir)
+        assert manager.storage_dir.exists()
+        assert manager.storage_dir == conversations_dir
+
+
+class TestConversationPathFromConfig:
+    """Test suite for conversations_path from Cllmfile.yml (ADR-0017)."""
+
+    def test_config_conversations_path_used(self, tmp_path, monkeypatch):
+        """Test that conversations_path from config is used when set."""
+        # This simulates the CLI passing the config value to ConversationManager
+        config_path = tmp_path / "config_conversations"
+        config_path.mkdir()
+
+        # CLI would parse config and pass this value
+        manager = ConversationManager(conversations_path=config_path)
+        assert manager.storage_dir == config_path
+
+    def test_config_path_precedence_over_defaults(self, tmp_path, monkeypatch):
+        """Test that config conversations_path takes precedence over defaults."""
+        # Create local .cllm directory
+        local_cllm = tmp_path / ".cllm"
+        local_cllm.mkdir()
+
+        # Change to that directory
+        monkeypatch.chdir(tmp_path)
+
+        # Config path should override local .cllm
+        config_path = tmp_path / "from_config"
+        config_path.mkdir()
+
+        manager = ConversationManager(conversations_path=config_path)
+
+        # Should use config path, not local .cllm/conversations
+        assert manager.storage_dir == config_path
+        assert manager.storage_dir != local_cllm / "conversations"
+
+    def test_env_var_precedence_over_config(self, tmp_path, monkeypatch):
+        """Test that CLLM_CONVERSATIONS_PATH env var takes precedence over config."""
+        env_path = tmp_path / "from_env"
+        env_path.mkdir()
+        config_path = tmp_path / "from_config"
+        config_path.mkdir()
+
+        monkeypatch.setenv("CLLM_CONVERSATIONS_PATH", str(env_path))
+
+        # Even if config path is passed, env var should not be used
+        # because CLI should resolve the precedence before calling ConversationManager
+        # This test verifies the manager uses what it's given
+        manager = ConversationManager(conversations_path=config_path)
+        assert manager.storage_dir == config_path
+
+        # If no conversations_path is passed, env var should be used
+        manager2 = ConversationManager()
+        assert manager2.storage_dir == env_path
+
+    def test_relative_path_from_config(self, tmp_path, monkeypatch):
+        """Test that relative paths work from Cllmfile.yml."""
+        # Change to temp directory
+        monkeypatch.chdir(tmp_path)
+
+        # Relative path should be stored as-is and work correctly
+        from pathlib import Path
+        relative_path = Path("./conversations")
+
+        manager = ConversationManager(conversations_path=relative_path)
+
+        # Path is stored as relative (normalized)
+        assert manager.storage_dir == Path("conversations")
+        assert manager.storage_dir.exists()  # Should be auto-created
+
+        # But it resolves to the correct absolute path when used
+        assert manager.storage_dir.resolve() == tmp_path / "conversations"

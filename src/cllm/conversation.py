@@ -2,10 +2,12 @@
 Conversation management for multi-turn interactions.
 
 This module implements ADR-0007: Conversation Threading and Context Management.
+This module implements ADR-0017: Configurable Conversations Path.
 It provides file-based storage for conversation history using JSON format.
 """
 
 import json
+import os
 import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
@@ -104,8 +106,14 @@ class ConversationManager:
     """
     Manages conversation storage and retrieval.
 
-    Handles CRUD operations for conversations stored as JSON files
-    in ~/.cllm/conversations/
+    Handles CRUD operations for conversations stored as JSON files.
+
+    Storage location precedence (ADR-0017):
+      1. CLI flag: --conversations-path (highest)
+      2. Environment variable: CLLM_CONVERSATIONS_PATH
+      3. Custom .cllm path: <cllm_path>/conversations/ (if --cllm-path or CLLM_PATH set)
+      4. Local project: ./.cllm/conversations/ (if .cllm directory exists)
+      5. Global home: ~/.cllm/conversations/ (fallback)
 
     Examples:
         >>> manager = ConversationManager()
@@ -115,30 +123,65 @@ class ConversationManager:
         >>> loaded = manager.load("test")
     """
 
-    def __init__(self, storage_dir: Optional[Path] = None):
+    def __init__(
+        self,
+        storage_dir: Optional[Path] = None,
+        cllm_path: Optional[Path] = None,
+        conversations_path: Optional[Path] = None,
+    ):
         """
         Initialize the conversation manager.
 
         Args:
-            storage_dir: Optional custom storage directory.
-                        Defaults to ./.cllm/conversations/ if exists,
-                        otherwise ~/.cllm/conversations/
+            storage_dir: Deprecated. Optional custom storage directory.
+                        Use conversations_path instead for explicit path override.
+            cllm_path: Optional custom .cllm directory path (from --cllm-path or CLLM_PATH).
+                      If set, conversations are stored in <cllm_path>/conversations/
+            conversations_path: Optional custom conversations directory path
+                              (from --conversations-path or CLLM_CONVERSATIONS_PATH).
+                              Takes precedence over all other path settings.
         """
-        if storage_dir is None:
-            storage_dir = self._get_default_storage_dir()
-        self.storage_dir = Path(storage_dir)
+        # Precedence: conversations_path > storage_dir > cllm_path > defaults
+        if conversations_path is not None:
+            self.storage_dir = Path(conversations_path)
+        elif storage_dir is not None:
+            # Backwards compatibility: storage_dir is used if provided
+            self.storage_dir = Path(storage_dir)
+        else:
+            self.storage_dir = self._get_default_storage_dir(cllm_path)
         self._ensure_storage_dir()
 
-    def _get_default_storage_dir(self) -> Path:
+    def _get_default_storage_dir(self, cllm_path: Optional[Path] = None) -> Path:
         """
-        Get the default storage directory.
+        Get the default storage directory following precedence rules.
 
-        Checks for local .cllm directory first, then falls back to home directory.
-        This aligns with the Cllmfile.yml precedence (ADR-0003).
+        Implements ADR-0017: Configurable Conversations Path
+
+        Precedence order:
+          1. CLLM_CONVERSATIONS_PATH environment variable
+          2. Custom .cllm path (if cllm_path parameter or CLLM_PATH env var set)
+          3. Local .cllm directory (project-specific, if exists)
+          4. Home .cllm directory (global, fallback)
+
+        Args:
+            cllm_path: Optional custom .cllm directory path
 
         Returns:
             Path to the conversations directory
         """
+        # Check CLLM_CONVERSATIONS_PATH environment variable
+        env_conversations_path = os.getenv("CLLM_CONVERSATIONS_PATH")
+        if env_conversations_path:
+            return Path(env_conversations_path)
+
+        # Check for custom .cllm path (cllm_path parameter or CLLM_PATH env var)
+        if cllm_path is not None:
+            return Path(cllm_path) / "conversations"
+
+        env_cllm_path = os.getenv("CLLM_PATH")
+        if env_cllm_path:
+            return Path(env_cllm_path) / "conversations"
+
         # Check for local .cllm directory (project-specific)
         local_dir = Path.cwd() / ".cllm" / "conversations"
         if (Path.cwd() / ".cllm").exists():

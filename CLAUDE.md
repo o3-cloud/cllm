@@ -35,14 +35,17 @@ CLLM is a bash-centric command-line interface for interacting with large languag
 - Loads configuration from Cllmfile.yml (see ADR-0003, ADR-0016)
 - Default behavior: stateless (no conversation saved unless `--conversation` flag used)
 
-**`src/cllm/conversation.py`** - Conversation management (ADR-0007, ADR-0016)
+**`src/cllm/conversation.py`** - Conversation management (ADR-0007, ADR-0016, ADR-0017)
 
 - `Conversation` dataclass: Holds conversation data (id, model, messages, metadata)
 - `ConversationManager` class: Handles CRUD operations for conversations
-- Storage precedence (aligns with Cllmfile precedence):
-  1. Custom path: `<cllm_path>/conversations/` (if `--cllm-path` or `CLLM_PATH` set)
-  2. `./.cllm/conversations/` (local/project-specific, if `.cllm` exists)
-  3. `~/.cllm/conversations/` (global/home directory, fallback)
+- Storage precedence (ADR-0017):
+  1. CLI flag: `--conversations-path` (highest)
+  2. Environment variable: `CLLM_CONVERSATIONS_PATH`
+  3. Configuration file: `conversations_path` in Cllmfile.yml
+  4. Custom .cllm path: `<cllm_path>/conversations/` (if `--cllm-path` or `CLLM_PATH` set)
+  5. Local project: `./.cllm/conversations/` (if `.cllm` exists)
+  6. Global home: `~/.cllm/conversations/` (fallback)
 - ID generation: UUID-based (`conv-<8-char-hex>`) or user-specified
 - Features: Atomic writes, token counting, message history preservation
 - Key methods: `create()`, `load()`, `save()`, `delete()`, `list_conversations()`
@@ -95,6 +98,7 @@ docs/decisions/    # Architecture Decision Records (ADRs)
   0006-support-remote-json-schema-urls.md
   0007-conversation-threading-and-context-management.md
   0016-configurable-cllm-directory-path.md
+  0017-configurable-conversations-path.md
 ```
 
 ## Development Commands
@@ -349,6 +353,90 @@ cllm init --cllm-path /custom/path
 
 # Use it
 cllm --cllm-path /custom/path "hello world"
+```
+
+### ADR-0017: Configurable Conversations Path
+
+- **Why:** Enable independent control over conversation storage and configuration locations for shared conversations, cloud-backed storage, and different retention policies
+- **Mechanism:** CLI flag (`--conversations-path`), environment variable (`CLLM_CONVERSATIONS_PATH`), and Cllmfile.yml (`conversations_path`)
+- **Precedence order:**
+  1. `--conversations-path` CLI flag (highest)
+  2. `CLLM_CONVERSATIONS_PATH` environment variable
+  3. `conversations_path` in Cllmfile.yml
+  4. Custom .cllm path: `<cllm_path>/conversations/` (if `--cllm-path` or `CLLM_PATH` set)
+  5. Local project: `./.cllm/conversations/` (if `.cllm` exists)
+  6. Global home: `~/.cllm/conversations/` (fallback)
+- **Interaction:** Works independently of `--cllm-path` - configuration and conversations can be stored in different locations
+- **Use cases:** Shared team conversations, cloud-backed storage, separate retention policies, storage optimization
+
+**Example - Cllmfile.yml configuration:**
+
+```yaml
+# .cllm/Cllmfile.yml - Project-specific conversation storage
+
+# Relative path (resolved from current working directory)
+conversations_path: ./conversations
+conversations_path: ./data/conversations
+
+# Absolute path
+conversations_path: /mnt/shared-conversations
+
+# Supports environment variable interpolation
+conversations_path: ${HOME}/project-conversations
+```
+
+**Example - Shared conversations across projects:**
+
+```bash
+# Set up shared conversation storage
+export CLLM_CONVERSATIONS_PATH=~/shared-conversations
+
+# All projects share conversation history
+cd ~/project1
+cllm --conversation code-review "Review these changes"
+
+cd ~/project2
+cllm --conversation code-review "Continue reviewing"  # Same conversation!
+```
+
+**Example - Cloud-backed storage:**
+
+```bash
+# Mount S3 bucket or NFS share
+export CLLM_CONVERSATIONS_PATH=/mnt/s3-conversations
+
+# Conversations automatically persisted to cloud
+cllm --conversation important-decisions "Document our architecture choice"
+```
+
+**Example - Team collaboration:**
+
+```bash
+# All team members point to shared network drive
+export CLLM_CONVERSATIONS_PATH=/network/team/cllm-conversations
+
+# Team can collaborate on conversations
+cllm --conversation team-brainstorm "Let's explore this feature"
+```
+
+**Example - Split config and conversations:**
+
+```bash
+# Fast local config, durable remote conversations
+export CLLM_PATH=~/.cllm                        # Local config
+export CLLM_CONVERSATIONS_PATH=/mnt/backup      # Backup-enabled storage
+
+cllm "Process large document"  # Config is fast, conversations are durable
+```
+
+**Example - Per-invocation override:**
+
+```bash
+# Normal usage stores in default location
+cllm --conversation prod "Production conversation"
+
+# Test with temporary location
+cllm --conversations-path /tmp/test-conv --conversation test "Test conversation"
 ```
 
 ## API Key Configuration

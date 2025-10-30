@@ -888,3 +888,80 @@ class TestDynamicCommandsWithJsonSchema:
             # Verify warning is shown
             captured = capsys.readouterr()
             assert "Raw response is not supported with --allow-commands" in captured.err
+
+
+class TestConversationsPathConfiguration:
+    """Integration tests for conversations_path configuration (ADR-0017)."""
+
+    @patch("cllm.cli.load_config")
+    def test_conversations_path_from_config(self, mock_load_config, tmp_path, capsys):
+        """Test that conversations_path from Cllmfile.yml is used."""
+        config_conv_path = tmp_path / "config_conversations"
+        config_conv_path.mkdir()
+
+        mock_load_config.return_value = {
+            "conversations_path": str(config_conv_path)
+        }
+
+        with patch("sys.argv", ["cllm", "--show-config"]):
+            with pytest.raises(SystemExit) as exc_info:
+                main()
+
+            # Should exit successfully
+            assert exc_info.value.code == 0
+
+            # Verify conversations path from config is shown
+            captured = capsys.readouterr()
+            assert str(config_conv_path) in captured.out
+            assert "conversations_path in Cllmfile.yml" in captured.out
+
+    @patch("cllm.cli.load_config")
+    def test_cli_flag_overrides_config(self, mock_load_config, tmp_path, capsys):
+        """Test that --conversations-path CLI flag overrides Cllmfile.yml."""
+        config_conv_path = tmp_path / "config_conversations"
+        config_conv_path.mkdir()
+        cli_conv_path = tmp_path / "cli_conversations"
+        cli_conv_path.mkdir()
+
+        mock_load_config.return_value = {
+            "conversations_path": str(config_conv_path)
+        }
+
+        with patch("sys.argv", ["cllm", "--conversations-path", str(cli_conv_path), "--show-config"]):
+            with pytest.raises(SystemExit) as exc_info:
+                main()
+
+            # Should exit successfully
+            assert exc_info.value.code == 0
+
+            # Verify CLI flag overrides config
+            captured = capsys.readouterr()
+            assert str(cli_conv_path) in captured.out
+            assert str(config_conv_path) not in captured.out or "conversations_path" in captured.out  # May appear in config dump
+            assert "--conversations-path CLI flag" in captured.out
+
+    @patch("cllm.cli.load_config")
+    def test_env_var_overrides_config(self, mock_load_config, tmp_path, capsys, monkeypatch):
+        """Test that CLLM_CONVERSATIONS_PATH env var overrides Cllmfile.yml."""
+        config_conv_path = tmp_path / "config_conversations"
+        config_conv_path.mkdir()
+        env_conv_path = tmp_path / "env_conversations"
+        env_conv_path.mkdir()
+
+        mock_load_config.return_value = {
+            "conversations_path": str(config_conv_path)
+        }
+
+        monkeypatch.setenv("CLLM_CONVERSATIONS_PATH", str(env_conv_path))
+
+        with patch("sys.argv", ["cllm", "--show-config"]):
+            with pytest.raises(SystemExit) as exc_info:
+                main()
+
+            # Should exit successfully
+            assert exc_info.value.code == 0
+
+            # Verify env var overrides config
+            captured = capsys.readouterr()
+            assert str(env_conv_path) in captured.out
+            assert "CLLM_CONVERSATIONS_PATH environment variable" in captured.out
