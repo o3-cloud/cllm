@@ -10,7 +10,7 @@ import json
 import os
 import uuid
 from dataclasses import asdict, dataclass, field
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -42,10 +42,14 @@ class Conversation:
     model: str
     messages: List[Dict[str, str]] = field(default_factory=list)
     created_at: str = field(
-        default_factory=lambda: datetime.now(UTC).isoformat().replace("+00:00", "Z")
+        default_factory=lambda: datetime.now(timezone.utc)
+        .isoformat()
+        .replace("+00:00", "Z")
     )
     updated_at: str = field(
-        default_factory=lambda: datetime.now(UTC).isoformat().replace("+00:00", "Z")
+        default_factory=lambda: datetime.now(timezone.utc)
+        .isoformat()
+        .replace("+00:00", "Z")
     )
     metadata: Dict[str, Any] = field(default_factory=dict)
 
@@ -58,7 +62,7 @@ class Conversation:
             content: Message content
         """
         self.messages.append({"role": role, "content": content})
-        self.updated_at = datetime.now(UTC).isoformat().replace("+00:00", "Z")
+        self.updated_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
     def get_messages(self) -> List[Dict[str, str]]:
         """
@@ -94,7 +98,16 @@ class Conversation:
     @property
     def total_tokens(self) -> int:
         """Get total token count from metadata."""
-        return self.metadata.get("total_tokens", 0)
+        value = self.metadata.get("total_tokens", 0)
+        if isinstance(value, bool):
+            # Prevent True/False from being considered 1/0
+            return int(value)
+        if isinstance(value, (int, float)):
+            return int(value)
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return 0
 
     @total_tokens.setter
     def total_tokens(self, value: int) -> None:
@@ -279,7 +292,7 @@ class ConversationManager:
             conversation: Conversation to save
 
         Raises:
-            IOError: If file operations fail
+            OSError: If file operations fail
         """
         filepath = self._get_filepath(conversation.id)
         temp_filepath = filepath.with_suffix(".tmp")
@@ -295,7 +308,7 @@ class ConversationManager:
             # Clean up temp file if it exists
             if temp_filepath.exists():
                 temp_filepath.unlink()
-            raise IOError(
+            raise OSError(
                 f"Failed to save conversation '{conversation.id}': {e}"
             ) from e
 
@@ -319,7 +332,7 @@ class ConversationManager:
             raise FileNotFoundError(f"Conversation '{conversation_id}' not found")
 
         try:
-            with open(filepath, "r") as f:
+            with open(filepath) as f:
                 data = json.load(f)
             return Conversation.from_dict(data)
         except json.JSONDecodeError as e:
@@ -369,7 +382,7 @@ class ConversationManager:
 
         for filepath in self.storage_dir.glob("*.json"):
             try:
-                with open(filepath, "r") as f:
+                with open(filepath) as f:
                     data = json.load(f)
 
                 conversations.append(
@@ -381,7 +394,7 @@ class ConversationManager:
                         "created_at": data.get("created_at", ""),
                     }
                 )
-            except (json.JSONDecodeError, IOError):
+            except (json.JSONDecodeError, OSError):
                 # Skip malformed or inaccessible files
                 continue
 

@@ -5,13 +5,15 @@ Implements ADR-0005: Add Structured Output Support with JSON Schema
 Implements ADR-0006: Support Remote JSON Schema URLs
 """
 
+from __future__ import annotations
+
 import hashlib
 import json
 import os
 import re
 import time
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Match, cast
 
 import jsonschema
 import requests
@@ -46,7 +48,7 @@ def _interpolate_env_vars(value: Any) -> Any:
         # Match ${VAR_NAME} pattern
         pattern = r"\$\{([^}]+)\}"
 
-        def replacer(match):
+        def replacer(match: Match[str]) -> str:
             var_name = match.group(1)
             return os.environ.get(var_name, match.group(0))
 
@@ -59,7 +61,7 @@ def _interpolate_env_vars(value: Any) -> Any:
         return value
 
 
-def _load_yaml_file(file_path: Path) -> Dict[str, Any]:
+def _load_yaml_file(file_path: Path) -> dict[str, Any]:
     """Load and parse a YAML configuration file.
 
     Args:
@@ -72,7 +74,7 @@ def _load_yaml_file(file_path: Path) -> Dict[str, Any]:
         ConfigurationError: If file cannot be read or parsed
     """
     try:
-        with open(file_path, "r") as f:
+        with open(file_path) as f:
             config = yaml.safe_load(f)
             if config is None:
                 return {}
@@ -80,14 +82,19 @@ def _load_yaml_file(file_path: Path) -> Dict[str, Any]:
                 raise ConfigurationError(
                     f"Configuration file {file_path} must contain a YAML dictionary"
                 )
-            return _interpolate_env_vars(config)
+            interpolated = _interpolate_env_vars(config)
+            if not isinstance(interpolated, dict):
+                raise ConfigurationError(
+                    f"Configuration file {file_path} must produce a dictionary after interpolation"
+                )
+            return cast(dict[str, Any], interpolated)
     except yaml.YAMLError as e:
         raise ConfigurationError(f"Error parsing YAML file {file_path}: {e}") from e
     except OSError as e:
         raise ConfigurationError(f"Error reading file {file_path}: {e}") from e
 
 
-def get_cllm_base_path(cllm_path: Optional[str] = None) -> Optional[Path]:
+def get_cllm_base_path(cllm_path: str | None = None) -> Path | None:
     """Get the effective .cllm base directory path based on precedence.
 
     Implements ADR-0016: Configurable .cllm Directory Path
@@ -138,7 +145,7 @@ def get_cllm_base_path(cllm_path: Optional[str] = None) -> Optional[Path]:
 
 
 def _find_config_files(
-    config_name: Optional[str] = None, cllm_path: Optional[str] = None
+    config_name: str | None = None, cllm_path: str | None = None
 ) -> list[Path]:
     """Find all applicable configuration files in order of precedence.
 
@@ -172,7 +179,7 @@ def _find_config_files(
 
     if base_path is not None:
         # Custom path specified - search only in that directory
-        search_paths = [base_path / filename]
+        search_paths: list[Path] = [base_path / filename]
     else:
         # Default search order
         search_paths = [
@@ -186,8 +193,8 @@ def _find_config_files(
 
 
 def load_config(
-    config_name: Optional[str] = None, cllm_path: Optional[str] = None
-) -> Dict[str, Any]:
+    config_name: str | None = None, cllm_path: str | None = None
+) -> dict[str, Any]:
     """Load and merge configuration files.
 
     Implements ADR-0016: Configurable .cllm Directory Path
@@ -223,7 +230,7 @@ def load_config(
             )
 
     # Merge configs from lowest to highest precedence
-    merged_config: Dict[str, Any] = {}
+    merged_config: dict[str, Any] = {}
     for config_file in config_files:
         file_config = _load_yaml_file(config_file)
         merged_config.update(file_config)
@@ -232,8 +239,8 @@ def load_config(
 
 
 def merge_config_with_args(
-    config: Dict[str, Any], cli_args: Dict[str, Any]
-) -> Dict[str, Any]:
+    config: dict[str, Any], cli_args: dict[str, Any]
+) -> dict[str, Any]:
     """Merge configuration file values with CLI arguments.
 
     CLI arguments take precedence over configuration file values.
@@ -257,7 +264,7 @@ def merge_config_with_args(
 
 
 def get_config_sources(
-    config_name: Optional[str] = None, cllm_path: Optional[str] = None
+    config_name: str | None = None, cllm_path: str | None = None
 ) -> list[str]:
     """Get list of configuration file paths that would be loaded.
 
@@ -302,7 +309,7 @@ def get_cache_path(url: str) -> Path:
     return CACHE_DIR / f"{url_hash}.json"
 
 
-def load_remote_schema(url: str) -> Dict[str, Any]:
+def load_remote_schema(url: str) -> dict[str, Any]:
     """Download and cache remote schema with security checks.
 
     Implements ADR-0006 security measures:
@@ -513,7 +520,7 @@ def resolve_schema_file_path(schema_file: str) -> Path:
     )
 
 
-def load_json_schema(schema_source: Any) -> Dict[str, Any]:
+def load_json_schema(schema_source: Any) -> dict[str, Any]:
     """Load and validate a JSON schema from various sources.
 
     Supports local files and remote URLs (ADR-0006).
@@ -550,7 +557,7 @@ def load_json_schema(schema_source: Any) -> Dict[str, Any]:
         # Otherwise, load from local file
         schema_path = resolve_schema_file_path(schema_str)
         try:
-            with open(schema_path, "r") as f:
+            with open(schema_path) as f:
                 schema = json.load(f)
             # Validate the loaded schema
             jsonschema.Draft7Validator.check_schema(schema)
@@ -574,7 +581,7 @@ def load_json_schema(schema_source: Any) -> Dict[str, Any]:
     )
 
 
-def validate_against_schema(data: Any, schema: Dict[str, Any]) -> None:
+def validate_against_schema(data: Any, schema: dict[str, Any]) -> None:
     """Validate data against a JSON schema.
 
     Args:

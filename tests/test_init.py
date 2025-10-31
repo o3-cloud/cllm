@@ -104,7 +104,7 @@ class TestDirectoryCreation:
         cllm_dir = tmp_path / ".cllm"
         cllm_dir.mkdir()
 
-        created_new, messages = create_directory_structure(cllm_dir, force=True)
+        created_new, _messages = create_directory_structure(cllm_dir, force=True)
 
         assert created_new is False
         assert cllm_dir.exists()

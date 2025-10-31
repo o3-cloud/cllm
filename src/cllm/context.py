@@ -171,7 +171,7 @@ async def _execute_command_async(
             name=cmd.name,
             output="",
             success=False,
-            error_message=f"Execution error: {str(e)}",
+            error_message=f"Execution error: {e}",
         )
 
 

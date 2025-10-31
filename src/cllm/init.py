@@ -373,7 +373,7 @@ def initialize(
 
         try:
             # Create directory structure
-            created_new, dir_messages = create_directory_structure(
+            _created_new, dir_messages = create_directory_structure(
                 cllm_dir, force=force
             )
             for msg in dir_messages:

@@ -57,3 +57,4 @@ Thumbs.db
 
 # CLLM
 .cllm/*.log
+coverage.xml

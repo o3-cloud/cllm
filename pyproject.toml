@@ -52,4 +52,48 @@ build-backend = "hatchling.build"
 packages = ["src/cllm"]
 
 [tool.uv]
-dev-dependencies = ["pytest>=8.3.5", "pytest-asyncio>=0.24.0"]
+dev-dependencies = [
+  "mypy>=1.12.0",
+  "pytest>=8.3.5",
+  "pytest-asyncio>=0.24.0",
+  "pytest-cov>=5.0.0",
+  "ruff>=0.6.7",
+  "types-jsonschema>=4.23.0.20240923",
+  "types-PyYAML>=6.0.12.20240908",
+  "types-requests>=2.32.0.20241016",
+]
+
+[tool.pytest.ini_options]
+addopts = "--cov=src/cllm --cov-report=term-missing"
+testpaths = ["tests"]
+
+[tool.mypy]
+python_version = "3.8"
+strict = true
+namespace_packages = true
+pretty = true
+show_error_codes = true
+implicit_optional = false
+warn_unused_configs = true
+warn_unreachable = true
+# Gradual type adoption strategy: Currently checking conversation.py (fully typed)
+# TODO: Expand to all of src/cllm/ after addressing type issues in other modules
+# Running `mypy src/cllm/` reveals 66 errors across 6 files that need fixing
+files = ["src/cllm/conversation.py"]
+
+[[tool.mypy.overrides]]
+module = ["tests.*"]
+strict = false
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+check_untyped_defs = false
+warn_return_any = false
+warn_unused_ignores = false
+
+[tool.ruff]
+target-version = "py38"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "Q", "RUF"]
+ignore = ["E203", "E501"]

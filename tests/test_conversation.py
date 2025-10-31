@@ -227,7 +227,7 @@ class TestConversationManager:
         assert filepath.exists()
 
         # Verify JSON is well-formed
-        with open(filepath, "r") as f:
+        with open(filepath) as f:
             data = json.load(f)
         assert data["id"] == "test"
 
