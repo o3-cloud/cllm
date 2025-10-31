@@ -623,3 +623,193 @@ class TestConversationPathFromConfig:
 
         # But it resolves to the correct absolute path when used
         assert manager.storage_dir.resolve() == tmp_path / "conversations"
+
+
+class TestSystemMessageCapture:
+    """Test suite for ADR-0020: Capture System Prompt in Conversation Data."""
+
+    @pytest.fixture
+    def temp_storage(self):
+        """Create a temporary storage directory for tests."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            yield Path(tmpdir)
+
+    @pytest.fixture
+    def manager(self, temp_storage):
+        """Create a ConversationManager with temporary storage."""
+        return ConversationManager(storage_dir=temp_storage)
+
+    def test_has_system_message_empty_conversation(self):
+        """Test has_system_message returns False for empty conversation."""
+        conv = Conversation(id="test", model="gpt-4")
+        assert not conv.has_system_message()
+
+    def test_has_system_message_with_system_message(self):
+        """Test has_system_message returns True when system message exists."""
+        conv = Conversation(
+            id="test",
+            model="gpt-4",
+            messages=[{"role": "system", "content": "You are helpful."}],
+        )
+        assert conv.has_system_message()
+
+    def test_has_system_message_with_user_message_first(self):
+        """Test has_system_message returns False when first message is not system."""
+        conv = Conversation(
+            id="test",
+            model="gpt-4",
+            messages=[{"role": "user", "content": "Hello"}],
+        )
+        assert not conv.has_system_message()
+
+    def test_set_system_message_on_empty_conversation(self):
+        """Test setting system message on empty conversation."""
+        conv = Conversation(id="test", model="gpt-4")
+        conv.set_system_message("You are a helpful assistant.")
+
+        assert len(conv.messages) == 1
+        assert conv.messages[0]["role"] == "system"
+        assert conv.messages[0]["content"] == "You are a helpful assistant."
+
+    def test_set_system_message_updates_existing(self):
+        """Test setting system message updates existing system message."""
+        conv = Conversation(
+            id="test",
+            model="gpt-4",
+            messages=[{"role": "system", "content": "Old system message"}],
+        )
+        conv.set_system_message("New system message")
+
+        assert len(conv.messages) == 1
+        assert conv.messages[0]["role"] == "system"
+        assert conv.messages[0]["content"] == "New system message"
+
+    def test_set_system_message_inserts_before_user_messages(self):
+        """Test setting system message inserts at beginning even with existing messages."""
+        conv = Conversation(
+            id="test",
+            model="gpt-4",
+            messages=[
+                {"role": "user", "content": "Hello"},
+                {"role": "assistant", "content": "Hi!"},
+            ],
+        )
+        conv.set_system_message("You are helpful.")
+
+        assert len(conv.messages) == 3
+        assert conv.messages[0]["role"] == "system"
+        assert conv.messages[0]["content"] == "You are helpful."
+        assert conv.messages[1]["role"] == "user"
+        assert conv.messages[2]["role"] == "assistant"
+
+    def test_create_conversation_with_system_message(self, manager):
+        """Test creating a conversation with system message."""
+        conv = manager.create(
+            conversation_id="test",
+            model="gpt-4",
+            system_message="You are a helpful assistant.",
+        )
+
+        assert conv.id == "test"
+        assert conv.model == "gpt-4"
+        assert len(conv.messages) == 1
+        assert conv.messages[0]["role"] == "system"
+        assert conv.messages[0]["content"] == "You are a helpful assistant."
+
+    def test_create_conversation_without_system_message(self, manager):
+        """Test creating a conversation without system message."""
+        conv = manager.create(conversation_id="test", model="gpt-4")
+
+        assert conv.id == "test"
+        assert conv.model == "gpt-4"
+        assert len(conv.messages) == 0
+        assert not conv.has_system_message()
+
+    def test_save_and_load_conversation_with_system_message(self, manager):
+        """Test saving and loading conversation preserves system message."""
+        conv = manager.create(
+            conversation_id="test",
+            model="gpt-4",
+            system_message="You are a helpful assistant.",
+        )
+        conv.add_message("user", "Hello")
+        conv.add_message("assistant", "Hi there!")
+        manager.save(conv)
+
+        loaded = manager.load("test")
+        assert len(loaded.messages) == 3
+        assert loaded.messages[0]["role"] == "system"
+        assert loaded.messages[0]["content"] == "You are a helpful assistant."
+        assert loaded.messages[1]["role"] == "user"
+        assert loaded.messages[2]["role"] == "assistant"
+
+    def test_backward_compatibility_load_without_system_message(self, manager):
+        """Test loading old conversations without system message works."""
+        # Create conversation manually without system message (simulating old format)
+        conv = Conversation(
+            id="old-conv",
+            model="gpt-4",
+            messages=[
+                {"role": "user", "content": "Hello"},
+                {"role": "assistant", "content": "Hi!"},
+            ],
+        )
+        manager.save(conv)
+
+        # Load and verify
+        loaded = manager.load("old-conv")
+        assert not loaded.has_system_message()
+        assert len(loaded.messages) == 2
+        assert loaded.messages[0]["role"] == "user"
+
+    def test_system_message_persisted_in_json(self, manager):
+        """Test system message is persisted in JSON file."""
+        conv = manager.create(
+            conversation_id="test",
+            model="gpt-4",
+            system_message="You are a coding assistant.",
+        )
+        manager.save(conv)
+
+        # Read JSON file directly
+        filepath = manager.storage_dir / "test.json"
+        with open(filepath) as f:
+            data = json.load(f)
+
+        assert len(data["messages"]) == 1
+        assert data["messages"][0]["role"] == "system"
+        assert data["messages"][0]["content"] == "You are a coding assistant."
+
+    def test_system_message_not_duplicated_on_multiple_turns(self, manager):
+        """Test system message is not duplicated when adding messages."""
+        conv = manager.create(
+            conversation_id="test",
+            model="gpt-4",
+            system_message="You are helpful.",
+        )
+
+        # Add multiple turns
+        conv.add_message("user", "First question")
+        conv.add_message("assistant", "First answer")
+        conv.add_message("user", "Second question")
+        conv.add_message("assistant", "Second answer")
+
+        # Count system messages - should only be 1
+        system_messages = [m for m in conv.messages if m["role"] == "system"]
+        assert len(system_messages) == 1
+        assert system_messages[0]["content"] == "You are helpful."
+        assert conv.messages[0]["role"] == "system"  # Should be first
+
+    def test_empty_system_message_not_added(self, manager):
+        """Test empty system message is not added."""
+        conv = manager.create(conversation_id="test", model="gpt-4", system_message="")
+
+        assert len(conv.messages) == 0
+        assert not conv.has_system_message()
+
+    def test_none_system_message_not_added(self, manager):
+        """Test None system message is not added."""
+        conv = manager.create(conversation_id="test", model="gpt-4", system_message=None)
+
+        assert len(conv.messages) == 0
+        assert not conv.has_system_message()

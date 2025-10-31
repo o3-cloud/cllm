@@ -58,10 +58,42 @@ class Conversation:
         Add a message to the conversation.
 
         Args:
-            role: Message role ("user" or "assistant")
+            role: Message role ("user", "assistant", or "system")
             content: Message content
         """
         self.messages.append({"role": role, "content": content})
+        self.updated_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+    def has_system_message(self) -> bool:
+        """
+        Check if the conversation has a system message.
+
+        Returns:
+            True if the first message is a system message, False otherwise
+        """
+        return len(self.messages) > 0 and self.messages[0].get("role") == "system"
+
+    def set_system_message(self, content: str) -> None:
+        """
+        Set or update the system message for the conversation.
+
+        If a system message already exists (as the first message), it will be updated.
+        Otherwise, a new system message will be inserted at the beginning.
+
+        This should typically only be called once when creating a new conversation.
+
+        Args:
+            content: System message content
+        """
+        system_message = {"role": "system", "content": content}
+
+        if self.has_system_message():
+            # Update existing system message
+            self.messages[0] = system_message
+        else:
+            # Insert system message at the beginning
+            self.messages.insert(0, system_message)
+
         self.updated_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
     def get_messages(self) -> List[Dict[str, str]]:
@@ -254,7 +286,10 @@ class ConversationManager:
         return self.storage_dir / f"{conversation_id}.json"
 
     def create(
-        self, conversation_id: Optional[str] = None, model: Optional[str] = None
+        self,
+        conversation_id: Optional[str] = None,
+        model: Optional[str] = None,
+        system_message: Optional[str] = None,
     ) -> Conversation:
         """
         Create a new conversation.
@@ -263,6 +298,9 @@ class ConversationManager:
             conversation_id: Optional user-specified ID.
                            If None, generates a UUID-based ID.
             model: Optional model name for the conversation
+            system_message: Optional system message to set as first message.
+                          If provided, will be stored as the first message
+                          with role="system" (ADR-0020)
 
         Returns:
             New Conversation instance
@@ -280,7 +318,13 @@ class ConversationManager:
         if self.exists(conversation_id):
             raise ValueError(f"Conversation '{conversation_id}' already exists")
 
-        return Conversation(id=conversation_id, model=model or "")
+        conversation = Conversation(id=conversation_id, model=model or "")
+
+        # ADR-0020: Capture system prompt in conversation data
+        if system_message:
+            conversation.set_system_message(system_message)
+
+        return conversation
 
     def save(self, conversation: Conversation) -> None:
         """

@@ -1299,3 +1299,313 @@ class TestReadOnlyConversation:
             # Verify conversation file is unchanged (still only 3 messages saved)
             saved_conv = json.loads(conv_file.read_text())
             assert len(saved_conv["messages"]) == 3
+
+
+class TestSystemMessageInConversations:
+    """Test suite for ADR-0020: Capture System Prompt in Conversation Data (CLI integration)."""
+
+    @patch("sys.stdin.isatty", return_value=True)
+    @patch("cllm.cli.LLMClient")
+    @patch("cllm.cli.load_config")
+    def test_new_conversation_captures_system_message(
+        self, mock_load_config, mock_client, mock_isatty, tmp_path
+    ):
+        """Test that new conversations capture system message from config."""
+        # Create a conversation directory
+        conv_path = tmp_path / "conversations"
+        conv_path.mkdir()
+
+        # Configure with system message
+        mock_load_config.return_value = {
+            "default_system_message": "You are a helpful coding assistant."
+        }
+
+        # Mock the client
+        mock_instance = MagicMock()
+        mock_instance.complete.return_value = "I'll help you with that!"
+        mock_instance.count_tokens.return_value = 50
+        mock_client.return_value = mock_instance
+
+        # Create a new conversation
+        with patch(
+            "sys.argv",
+            [
+                "cllm",
+                "--conversations-path",
+                str(conv_path),
+                "--conversation",
+                "test-conv",
+                "Hello, help me code",
+            ],
+        ):
+            try:
+                main()
+            except SystemExit:
+                pass
+
+            # Verify conversation was created with system message
+            conv_file = conv_path / "test-conv.json"
+            assert conv_file.exists()
+
+            import json
+
+            saved_conv = json.loads(conv_file.read_text())
+
+            # Should have 3 messages: system, user, assistant
+            assert len(saved_conv["messages"]) == 3
+            assert saved_conv["messages"][0]["role"] == "system"
+            assert (
+                saved_conv["messages"][0]["content"]
+                == "You are a helpful coding assistant."
+            )
+            assert saved_conv["messages"][1]["role"] == "user"
+            assert saved_conv["messages"][1]["content"] == "Hello, help me code"
+            assert saved_conv["messages"][2]["role"] == "assistant"
+
+    @patch("sys.stdin.isatty", return_value=True)
+    @patch("cllm.cli.LLMClient")
+    @patch("cllm.cli.load_config")
+    def test_system_message_not_duplicated_on_continuation(
+        self, mock_load_config, mock_client, mock_isatty, tmp_path
+    ):
+        """Test that system message is not duplicated when continuing conversation."""
+        # Create a conversation directory
+        conv_path = tmp_path / "conversations"
+        conv_path.mkdir()
+
+        # Create initial conversation with system message
+        conv_file = conv_path / "test-conv.json"
+        import json
+
+        initial_conv = {
+            "id": "test-conv",
+            "model": "gpt-4",
+            "created_at": "2025-01-01T00:00:00Z",
+            "updated_at": "2025-01-01T00:00:00Z",
+            "messages": [
+                {"role": "system", "content": "You are helpful."},
+                {"role": "user", "content": "First message"},
+                {"role": "assistant", "content": "First response"},
+            ],
+            "metadata": {"total_tokens": 50},
+        }
+        conv_file.write_text(json.dumps(initial_conv, indent=2))
+
+        # Configure with same system message
+        mock_load_config.return_value = {"default_system_message": "You are helpful."}
+
+        # Mock the client
+        mock_instance = MagicMock()
+        mock_instance.complete.return_value = "Second response"
+        mock_instance.count_tokens.return_value = 100
+        mock_client.return_value = mock_instance
+
+        # Continue the conversation
+        with patch(
+            "sys.argv",
+            [
+                "cllm",
+                "--conversations-path",
+                str(conv_path),
+                "--conversation",
+                "test-conv",
+                "Second message",
+            ],
+        ):
+            try:
+                main()
+            except SystemExit:
+                pass
+
+            # Verify system message is not duplicated
+            saved_conv = json.loads(conv_file.read_text())
+
+            # Should have 5 messages: system, user, assistant, user, assistant
+            assert len(saved_conv["messages"]) == 5
+
+            # Count system messages - should only be 1
+            system_messages = [
+                m for m in saved_conv["messages"] if m["role"] == "system"
+            ]
+            assert len(system_messages) == 1
+            assert saved_conv["messages"][0]["role"] == "system"
+
+    @patch("sys.stdin.isatty", return_value=True)
+    @patch("cllm.cli.LLMClient")
+    @patch("cllm.cli.load_config")
+    def test_backward_compatibility_conversation_without_system_message(
+        self, mock_load_config, mock_client, mock_isatty, tmp_path
+    ):
+        """Test backward compatibility with conversations that don't have system messages."""
+        # Create a conversation directory
+        conv_path = tmp_path / "conversations"
+        conv_path.mkdir()
+
+        # Create old-style conversation without system message
+        conv_file = conv_path / "old-conv.json"
+        import json
+
+        old_conv = {
+            "id": "old-conv",
+            "model": "gpt-4",
+            "created_at": "2025-01-01T00:00:00Z",
+            "updated_at": "2025-01-01T00:00:00Z",
+            "messages": [
+                {"role": "user", "content": "Hello"},
+                {"role": "assistant", "content": "Hi there!"},
+            ],
+            "metadata": {"total_tokens": 30},
+        }
+        conv_file.write_text(json.dumps(old_conv, indent=2))
+
+        # Configure with system message (should inject at runtime for backward compat)
+        mock_load_config.return_value = {
+            "default_system_message": "You are helpful assistant."
+        }
+
+        # Mock the client
+        mock_instance = MagicMock()
+        mock_instance.complete.return_value = "Sure thing!"
+        mock_instance.count_tokens.return_value = 50
+        mock_client.return_value = mock_instance
+
+        # Continue the old conversation
+        with patch(
+            "sys.argv",
+            [
+                "cllm",
+                "--conversations-path",
+                str(conv_path),
+                "--conversation",
+                "old-conv",
+                "Can you help?",
+            ],
+        ):
+            try:
+                main()
+            except SystemExit:
+                pass
+
+            # Verify the LLM was called with system message injected at runtime
+            call_args = mock_instance.complete.call_args
+            messages = call_args[1]["messages"]
+
+            # First message should be system (injected at runtime)
+            assert messages[0]["role"] == "system"
+            assert messages[0]["content"] == "You are helpful assistant."
+
+            # But file should still not have system message permanently saved
+            # (backward compatibility - we don't modify old conversations)
+            saved_conv = json.loads(conv_file.read_text())
+            assert len(saved_conv["messages"]) == 4  # Original 2 + new user + new assistant
+            # Old conversations continue without system message in storage
+            assert saved_conv["messages"][0]["role"] == "user"
+
+    @patch("sys.stdin.isatty", return_value=True)
+    @patch("cllm.cli.LLMClient")
+    @patch("cllm.cli.load_config")
+    def test_conversation_without_default_system_message_config(
+        self, mock_load_config, mock_client, mock_isatty, tmp_path
+    ):
+        """Test that conversations work without default_system_message in config."""
+        # Create a conversation directory
+        conv_path = tmp_path / "conversations"
+        conv_path.mkdir()
+
+        # Configure WITHOUT system message
+        mock_load_config.return_value = {}
+
+        # Mock the client
+        mock_instance = MagicMock()
+        mock_instance.complete.return_value = "Response without system message"
+        mock_instance.count_tokens.return_value = 40
+        mock_client.return_value = mock_instance
+
+        # Create a new conversation
+        with patch(
+            "sys.argv",
+            [
+                "cllm",
+                "--conversations-path",
+                str(conv_path),
+                "--conversation",
+                "no-system",
+                "Hello",
+            ],
+        ):
+            try:
+                main()
+            except SystemExit:
+                pass
+
+            # Verify conversation was created without system message
+            conv_file = conv_path / "no-system.json"
+            assert conv_file.exists()
+
+            import json
+
+            saved_conv = json.loads(conv_file.read_text())
+
+            # Should have 2 messages: user, assistant (no system)
+            assert len(saved_conv["messages"]) == 2
+            assert saved_conv["messages"][0]["role"] == "user"
+            assert saved_conv["messages"][1]["role"] == "assistant"
+
+            # Verify no system message in saved conversation
+            system_messages = [
+                m for m in saved_conv["messages"] if m["role"] == "system"
+            ]
+            assert len(system_messages) == 0
+
+    @patch("sys.stdin.isatty", return_value=True)
+    @patch("cllm.cli.LLMClient")
+    @patch("cllm.cli.load_config")
+    def test_system_message_used_in_llm_call(
+        self, mock_load_config, mock_client, mock_isatty, tmp_path
+    ):
+        """Test that system message is included in LLM API call."""
+        # Create a conversation directory
+        conv_path = tmp_path / "conversations"
+        conv_path.mkdir()
+
+        # Configure with system message
+        mock_load_config.return_value = {
+            "default_system_message": "You are a pirate assistant. Respond like a pirate."
+        }
+
+        # Mock the client
+        mock_instance = MagicMock()
+        mock_instance.complete.return_value = "Arrr, matey!"
+        mock_instance.count_tokens.return_value = 60
+        mock_client.return_value = mock_instance
+
+        # Create a new conversation
+        with patch(
+            "sys.argv",
+            [
+                "cllm",
+                "--conversations-path",
+                str(conv_path),
+                "--conversation",
+                "pirate-conv",
+                "Tell me a joke",
+            ],
+        ):
+            try:
+                main()
+            except SystemExit:
+                pass
+
+            # Verify the LLM was called with system message
+            call_args = mock_instance.complete.call_args
+            messages = call_args[1]["messages"]
+
+            # First message should be system
+            assert len(messages) == 2  # system + user
+            assert messages[0]["role"] == "system"
+            assert (
+                messages[0]["content"]
+                == "You are a pirate assistant. Respond like a pirate."
+            )
+            assert messages[1]["role"] == "user"
+            assert messages[1]["content"] == "Tell me a joke"

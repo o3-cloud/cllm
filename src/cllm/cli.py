@@ -1052,8 +1052,12 @@ def main():
                     )
                     sys.exit(1)
                 # Create new conversation
+                # ADR-0020: Capture system prompt in conversation data
+                system_message = config.get("default_system_message")
                 conversation = conversation_manager.create(
-                    conversation_id=args.conversation, model=model
+                    conversation_id=args.conversation,
+                    model=model,
+                    system_message=system_message,
                 )
         except ValueError as e:
             print(f"Error: {e}", file=sys.stderr)
@@ -1062,10 +1066,12 @@ def main():
         # Build messages list with conversation history
         messages_for_llm = conversation.get_messages().copy()
 
-        # Handle default_system_message if present and conversation is new
-        if "default_system_message" in config and len(messages_for_llm) == 0:
-            messages_for_llm.append(
-                {"role": "system", "content": config["default_system_message"]}
+        # ADR-0020: System message should already be in conversation.messages
+        # For backward compatibility: if conversation doesn't have a system message,
+        # inject it at runtime (but don't save it to the conversation)
+        if "default_system_message" in config and not conversation.has_system_message():
+            messages_for_llm.insert(
+                0, {"role": "system", "content": config["default_system_message"]}
             )
 
         # Add new user message
