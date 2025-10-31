@@ -10,6 +10,7 @@ on:
       - "created"
   workflow_dispatch:
     inputs:
+      # trunk-ignore(checkov/CKV_GHA_7)
       issue_number:
         description: "issue number to triage"
         required: true

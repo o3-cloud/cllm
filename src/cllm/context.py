@@ -67,11 +67,11 @@ class ContextCommand:
         on_failure_str = data.get("on_failure", "warn")
         try:
             on_failure = FailureMode(on_failure_str.lower())
-        except ValueError:
+        except ValueError as err:
             raise ValueError(
                 f"Invalid on_failure value: '{on_failure_str}'. "
                 f"Must be one of: warn, ignore, fail"
-            )
+            ) from err
 
         return cls(
             name=data["name"],
@@ -361,6 +361,6 @@ def parse_context_commands(config: Dict[str, Any]) -> List[ContextCommand]:
             cmd = ContextCommand.from_dict(cmd_data)
             commands.append(cmd)
         except ValueError as e:
-            raise ValueError(f"context_commands[{i}]: {e}")
+            raise ValueError(f"context_commands[{i}]: {e}") from e
 
     return commands

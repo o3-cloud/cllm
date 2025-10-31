@@ -82,9 +82,9 @@ def _load_yaml_file(file_path: Path) -> Dict[str, Any]:
                 )
             return _interpolate_env_vars(config)
     except yaml.YAMLError as e:
-        raise ConfigurationError(f"Error parsing YAML file {file_path}: {e}")
+        raise ConfigurationError(f"Error parsing YAML file {file_path}: {e}") from e
     except OSError as e:
-        raise ConfigurationError(f"Error reading file {file_path}: {e}")
+        raise ConfigurationError(f"Error reading file {file_path}: {e}") from e
 
 
 def get_cllm_base_path(cllm_path: Optional[str] = None) -> Optional[Path]:
@@ -389,7 +389,7 @@ def load_remote_schema(url: str) -> Dict[str, Any]:
                 f"Invalid JSON Schema from {url}\n"
                 f"Schema validation error: {e}\n"
                 f"Suggestion: Verify URL points to a valid JSON Schema file"
-            )
+            ) from e
 
         # Cache the validated schema
         CACHE_DIR.mkdir(parents=True, exist_ok=True)
@@ -398,7 +398,7 @@ def load_remote_schema(url: str) -> Dict[str, Any]:
 
         return schema
 
-    except requests.Timeout:
+    except requests.Timeout as e:
         # Try stale cache as fallback
         if cache_path.exists():
             try:
@@ -417,7 +417,7 @@ def load_remote_schema(url: str) -> Dict[str, Any]:
             f"Network error: Connection timeout (10s limit)\n"
             f"Cache miss: No cached version available\n"
             f"Suggestion: Check network connection or use a local schema file"
-        )
+        ) from e
 
     except requests.RequestException as e:
         # Try stale cache as fallback
@@ -438,14 +438,14 @@ def load_remote_schema(url: str) -> Dict[str, Any]:
             f"Network error: {e}\n"
             f"Cache miss: No cached version available\n"
             f"Suggestion: Check network connection or use a local schema file"
-        )
+        ) from e
 
     except json.JSONDecodeError as e:
         raise ConfigurationError(
             f"Invalid JSON from {url}\n"
             f"Parse error: {e}\n"
             f"Suggestion: Verify URL returns valid JSON content"
-        )
+        ) from e
 
 
 def clear_schema_cache() -> int:
@@ -537,7 +537,7 @@ def load_json_schema(schema_source: Any) -> Dict[str, Any]:
             jsonschema.Draft7Validator.check_schema(schema_source)
             return schema_source
         except jsonschema.exceptions.SchemaError as e:
-            raise ConfigurationError(f"Invalid JSON schema: {e}")
+            raise ConfigurationError(f"Invalid JSON schema: {e}") from e
 
     # If string or Path, check if it's a URL or local file
     if isinstance(schema_source, (str, Path)):
@@ -556,11 +556,17 @@ def load_json_schema(schema_source: Any) -> Dict[str, Any]:
             jsonschema.Draft7Validator.check_schema(schema)
             return schema
         except json.JSONDecodeError as e:
-            raise ConfigurationError(f"Invalid JSON in schema file {schema_path}: {e}")
+            raise ConfigurationError(
+                f"Invalid JSON in schema file {schema_path}: {e}"
+            ) from e
         except jsonschema.exceptions.SchemaError as e:
-            raise ConfigurationError(f"Invalid JSON schema in {schema_path}: {e}")
+            raise ConfigurationError(
+                f"Invalid JSON schema in {schema_path}: {e}"
+            ) from e
         except OSError as e:
-            raise ConfigurationError(f"Error reading schema file {schema_path}: {e}")
+            raise ConfigurationError(
+                f"Error reading schema file {schema_path}: {e}"
+            ) from e
 
     raise ConfigurationError(
         f"Invalid schema source type: {type(schema_source)}. "
@@ -581,4 +587,4 @@ def validate_against_schema(data: Any, schema: Dict[str, Any]) -> None:
     try:
         jsonschema.validate(instance=data, schema=schema)
     except jsonschema.exceptions.ValidationError as e:
-        raise ConfigurationError(f"Schema validation failed: {e.message}")
+        raise ConfigurationError(f"Schema validation failed: {e.message}") from e

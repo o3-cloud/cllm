@@ -160,7 +160,7 @@ def execute_with_dynamic_commands(
 
             response = litellm.completion(**kwargs)
         except Exception as e:
-            raise AgentExecutionError(f"LLM API call failed: {e}")
+            raise AgentExecutionError(f"LLM API call failed: {e}") from e
 
         # Extract response
         choice = response.choices[0]

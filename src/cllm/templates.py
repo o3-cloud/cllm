@@ -142,7 +142,7 @@ def render_command_template(command_template: str, context: Dict[str, Any]) -> s
             f"    - Conditionals: {{% if CONDITION %}}...{{% endif %}}\n"
             f"    - Filters: {{{{ VAR | filter }}}}\n\n"
             f"  See Jinja2 docs: https://jinja.palletsprojects.com/"
-        )
+        ) from e
     except UndefinedError as e:
         # Extract variable name from error message if possible
         error_msg = str(e)
@@ -153,10 +153,10 @@ def render_command_template(command_template: str, context: Dict[str, Any]) -> s
             f"  Or declare it in Cllmfile.yml:\n"
             f"    variables:\n"
             f"      VARIABLE_NAME: default_value"
-        )
+        ) from e
     except Exception as e:
         # Catch any other Jinja2 errors
-        raise TemplateError(f"Error rendering template: {e}")
+        raise TemplateError(f"Error rendering template: {e}") from e
 
 
 def get_available_variables_description(context: Dict[str, Any]) -> str:

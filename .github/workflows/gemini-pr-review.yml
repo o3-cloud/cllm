@@ -16,6 +16,7 @@ on:
       - "submitted"
   workflow_dispatch:
     inputs:
+      # trunk-ignore(checkov/CKV_GHA_7)
       pr_number:
         description: "PR number to review"
         required: true
