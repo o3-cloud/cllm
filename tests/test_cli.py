@@ -322,7 +322,9 @@ class TestDebugging:
     @patch("cllm.cli.LLMClient")
     @patch("cllm.cli.load_config", return_value={})
     @patch("cllm.cli.litellm")
-    def test_cli_debug_flag(self, mock_litellm, mock_load_config, mock_client, mock_isatty, capsys):
+    def test_cli_debug_flag(
+        self, mock_litellm, mock_load_config, mock_client, mock_isatty, capsys
+    ):
         """Test that --debug flag enables debug mode via CLI."""
         # Mock the client to avoid actual API calls
         mock_instance = MagicMock()
@@ -346,7 +348,9 @@ class TestDebugging:
     @patch("cllm.cli.LLMClient")
     @patch("cllm.cli.load_config", return_value={})
     @patch("cllm.cli.litellm")
-    def test_cli_json_logs_flag(self, mock_litellm, mock_load_config, mock_client, mock_isatty):
+    def test_cli_json_logs_flag(
+        self, mock_litellm, mock_load_config, mock_client, mock_isatty
+    ):
         """Test that --json-logs flag enables JSON logging via CLI."""
         # Mock the client to avoid actual API calls
         mock_instance = MagicMock()
@@ -365,12 +369,16 @@ class TestDebugging:
     @patch("cllm.cli.LLMClient")
     @patch("cllm.cli.load_config", return_value={})
     @patch("cllm.cli.litellm")
-    def test_cli_log_file_flag(self, mock_litellm, mock_load_config, mock_client, mock_isatty):
+    def test_cli_log_file_flag(
+        self, mock_litellm, mock_load_config, mock_client, mock_isatty
+    ):
         """Test that --log-file flag creates log file via CLI."""
         with tempfile.TemporaryDirectory() as tmpdir:
             log_file = Path(tmpdir) / "cli-test.log"
 
-            with patch("sys.argv", ["cllm", "--log-file", str(log_file), "test prompt"]):
+            with patch(
+                "sys.argv", ["cllm", "--log-file", str(log_file), "test prompt"]
+            ):
                 # Mock the client to avoid actual API calls
                 mock_instance = MagicMock()
                 mock_instance.complete.return_value = "test response"
@@ -388,7 +396,9 @@ class TestDebugging:
     @patch("cllm.cli.LLMClient")
     @patch("cllm.cli.load_config", return_value={})
     @patch("cllm.cli.litellm")
-    def test_debug_from_cllmfile(self, mock_litellm, mock_load_config, mock_client, mock_isatty):
+    def test_debug_from_cllmfile(
+        self, mock_litellm, mock_load_config, mock_client, mock_isatty
+    ):
         """Test that debug settings from Cllmfile are applied."""
         # Mock config to include debug settings
         mock_load_config.return_value = {
@@ -415,7 +425,9 @@ class TestDebugging:
     @patch("cllm.cli.LLMClient")
     @patch("cllm.cli.load_config", return_value={"debug": False})
     @patch("cllm.cli.litellm")
-    def test_cli_flag_overrides_cllmfile(self, mock_litellm, mock_load_config, mock_client, mock_isatty):
+    def test_cli_flag_overrides_cllmfile(
+        self, mock_litellm, mock_load_config, mock_client, mock_isatty
+    ):
         """Test that CLI flag overrides Cllmfile setting."""
         with patch("sys.argv", ["cllm", "--debug", "test prompt"]):
             # Mock the client to avoid actual API calls
@@ -435,7 +447,9 @@ class TestDebugging:
     @patch("cllm.cli.LLMClient")
     @patch("cllm.cli.load_config", return_value={})
     @patch("cllm.cli.litellm")
-    def test_environment_variable_debug(self, mock_litellm, mock_load_config, mock_client, mock_isatty):
+    def test_environment_variable_debug(
+        self, mock_litellm, mock_load_config, mock_client, mock_isatty
+    ):
         """Test that CLLM_DEBUG environment variable enables debug mode."""
         with patch.dict(os.environ, {"CLLM_DEBUG": "1"}):
             with patch("sys.argv", ["cllm", "test prompt"]):
@@ -456,7 +470,9 @@ class TestDebugging:
     @patch("cllm.cli.LLMClient")
     @patch("cllm.cli.load_config", return_value={})
     @patch("cllm.cli.litellm")
-    def test_environment_variable_json_logs(self, mock_litellm, mock_load_config, mock_client, mock_isatty):
+    def test_environment_variable_json_logs(
+        self, mock_litellm, mock_load_config, mock_client, mock_isatty
+    ):
         """Test that CLLM_JSON_LOGS environment variable enables JSON logging."""
         with patch.dict(os.environ, {"CLLM_JSON_LOGS": "1"}):
             with patch("sys.argv", ["cllm", "test prompt"]):
@@ -482,7 +498,9 @@ class TestContextInjection:
     @patch("cllm.cli.load_config", return_value={})
     def test_exec_flag_single_command(self, mock_load_config, mock_client, mock_isatty):
         """Test --exec flag with single command."""
-        with patch("sys.argv", ["cllm", "--exec", "echo 'test context'", "Analyze this"]):
+        with patch(
+            "sys.argv", ["cllm", "--exec", "echo 'test context'", "Analyze this"]
+        ):
             # Mock the client to capture what prompt was sent
             mock_instance = MagicMock()
             mock_instance.complete.return_value = "response"
@@ -506,7 +524,9 @@ class TestContextInjection:
     @patch("sys.stdin.isatty", return_value=True)
     @patch("cllm.cli.LLMClient")
     @patch("cllm.cli.load_config", return_value={})
-    def test_exec_flag_multiple_commands(self, mock_load_config, mock_client, mock_isatty):
+    def test_exec_flag_multiple_commands(
+        self, mock_load_config, mock_client, mock_isatty
+    ):
         """Test --exec flag with multiple commands."""
         with patch(
             "sys.argv",
@@ -606,7 +626,9 @@ class TestContextInjection:
     def test_config_and_cli_commands_precedence(self, mock_client, mock_isatty):
         """Test that config commands run first, then CLI commands."""
         config = {
-            "context_commands": [{"name": "Config Cmd", "command": "echo 'from config'"}]
+            "context_commands": [
+                {"name": "Config Cmd", "command": "echo 'from config'"}
+            ]
         }
 
         with patch("cllm.cli.load_config", return_value=config):
@@ -770,7 +792,10 @@ class TestDynamicCommandsWithJsonSchema:
             # Verify no warning about unsupported feature
             captured = capsys.readouterr()
             assert "not yet supported" not in captured.err
-            assert "not supported" not in captured.err or "Streaming is not supported" in captured.err
+            assert (
+                "not supported" not in captured.err
+                or "Streaming is not supported" in captured.err
+            )
 
     @patch("sys.stdin.isatty", return_value=True)
     @patch("cllm.cli.execute_with_dynamic_commands")
@@ -899,9 +924,7 @@ class TestConversationsPathConfiguration:
         config_conv_path = tmp_path / "config_conversations"
         config_conv_path.mkdir()
 
-        mock_load_config.return_value = {
-            "conversations_path": str(config_conv_path)
-        }
+        mock_load_config.return_value = {"conversations_path": str(config_conv_path)}
 
         with patch("sys.argv", ["cllm", "--show-config"]):
             with pytest.raises(SystemExit) as exc_info:
@@ -923,11 +946,12 @@ class TestConversationsPathConfiguration:
         cli_conv_path = tmp_path / "cli_conversations"
         cli_conv_path.mkdir()
 
-        mock_load_config.return_value = {
-            "conversations_path": str(config_conv_path)
-        }
+        mock_load_config.return_value = {"conversations_path": str(config_conv_path)}
 
-        with patch("sys.argv", ["cllm", "--conversations-path", str(cli_conv_path), "--show-config"]):
+        with patch(
+            "sys.argv",
+            ["cllm", "--conversations-path", str(cli_conv_path), "--show-config"],
+        ):
             with pytest.raises(SystemExit) as exc_info:
                 main()
 
@@ -937,20 +961,23 @@ class TestConversationsPathConfiguration:
             # Verify CLI flag overrides config
             captured = capsys.readouterr()
             assert str(cli_conv_path) in captured.out
-            assert str(config_conv_path) not in captured.out or "conversations_path" in captured.out  # May appear in config dump
+            assert (
+                str(config_conv_path) not in captured.out
+                or "conversations_path" in captured.out
+            )  # May appear in config dump
             assert "--conversations-path CLI flag" in captured.out
 
     @patch("cllm.cli.load_config")
-    def test_env_var_overrides_config(self, mock_load_config, tmp_path, capsys, monkeypatch):
+    def test_env_var_overrides_config(
+        self, mock_load_config, tmp_path, capsys, monkeypatch
+    ):
         """Test that CLLM_CONVERSATIONS_PATH env var overrides Cllmfile.yml."""
         config_conv_path = tmp_path / "config_conversations"
         config_conv_path.mkdir()
         env_conv_path = tmp_path / "env_conversations"
         env_conv_path.mkdir()
 
-        mock_load_config.return_value = {
-            "conversations_path": str(config_conv_path)
-        }
+        mock_load_config.return_value = {"conversations_path": str(config_conv_path)}
 
         monkeypatch.setenv("CLLM_CONVERSATIONS_PATH", str(env_conv_path))
 
@@ -965,3 +992,310 @@ class TestConversationsPathConfiguration:
             captured = capsys.readouterr()
             assert str(env_conv_path) in captured.out
             assert "CLLM_CONVERSATIONS_PATH environment variable" in captured.out
+
+
+class TestReadOnlyConversation:
+    """Integration tests for --read-only flag (ADR-0018)."""
+
+    @patch("sys.stdin.isatty", return_value=True)
+    def test_read_only_requires_conversation(self, mock_isatty, capsys):
+        """Test that --read-only requires --conversation flag."""
+        with patch("sys.argv", ["cllm", "--read-only", "Test prompt"]):
+            with pytest.raises(SystemExit) as exc_info:
+                main()
+
+            # Should exit with error
+            assert exc_info.value.code == 1
+
+            # Should show error message
+            captured = capsys.readouterr()
+            assert "--read-only requires --conversation" in captured.err
+
+    @patch("sys.stdin.isatty", return_value=True)
+    @patch("cllm.cli.LLMClient")
+    @patch("cllm.cli.load_config", return_value={})
+    def test_read_only_prevents_save(
+        self, mock_load_config, mock_client, mock_isatty, tmp_path
+    ):
+        """Test that --read-only prevents saving new messages."""
+        # Create a conversation directory
+        conv_path = tmp_path / "conversations"
+        conv_path.mkdir()
+
+        # Create an initial conversation
+        conv_file = conv_path / "test-conv.json"
+        import json
+
+        initial_conv = {
+            "id": "test-conv",
+            "model": "gpt-3.5-turbo",
+            "created_at": "2025-01-01T00:00:00Z",
+            "updated_at": "2025-01-01T00:00:00Z",
+            "messages": [
+                {"role": "user", "content": "Initial message"},
+                {"role": "assistant", "content": "Initial response"},
+            ],
+            "metadata": {"total_tokens": 0},
+        }
+        conv_file.write_text(json.dumps(initial_conv, indent=2))
+
+        # Mock the client
+        mock_instance = MagicMock()
+        mock_instance.complete.return_value = "Read-only response"
+        mock_instance.count_tokens.return_value = 100
+        mock_client.return_value = mock_instance
+
+        # Run with --read-only
+        with patch(
+            "sys.argv",
+            [
+                "cllm",
+                "--conversations-path",
+                str(conv_path),
+                "--conversation",
+                "test-conv",
+                "--read-only",
+                "New prompt",
+            ],
+        ):
+            try:
+                main()
+            except SystemExit:
+                pass
+
+            # Verify response was generated
+            mock_instance.complete.assert_called_once()
+
+            # Verify conversation file is unchanged
+            saved_conv = json.loads(conv_file.read_text())
+            assert saved_conv == initial_conv
+            assert len(saved_conv["messages"]) == 2  # Still only 2 messages
+            assert saved_conv["messages"][0]["content"] == "Initial message"
+
+    @patch("sys.stdin.isatty", return_value=True)
+    @patch("cllm.cli.LLMClient")
+    @patch("cllm.cli.load_config", return_value={})
+    def test_read_only_multiple_invocations(
+        self, mock_load_config, mock_client, mock_isatty, tmp_path
+    ):
+        """Test multiple --read-only invocations keep conversation unchanged."""
+        # Create a conversation directory
+        conv_path = tmp_path / "conversations"
+        conv_path.mkdir()
+
+        # Create an initial conversation
+        conv_file = conv_path / "base-context.json"
+        import json
+
+        initial_conv = {
+            "id": "base-context",
+            "model": "gpt-3.5-turbo",
+            "created_at": "2025-01-01T00:00:00Z",
+            "updated_at": "2025-01-01T00:00:00Z",
+            "messages": [
+                {"role": "system", "content": "You are a helpful assistant."},
+                {"role": "user", "content": "Context message"},
+                {"role": "assistant", "content": "Context response"},
+            ],
+            "metadata": {"total_tokens": 0},
+        }
+        conv_file.write_text(json.dumps(initial_conv, indent=2))
+
+        # Mock the client
+        mock_instance = MagicMock()
+        mock_instance.complete.return_value = "Response"
+        mock_instance.count_tokens.return_value = 100
+        mock_client.return_value = mock_instance
+
+        # Run multiple times with --read-only
+        for i in range(3):
+            with patch(
+                "sys.argv",
+                [
+                    "cllm",
+                    "--conversations-path",
+                    str(conv_path),
+                    "--conversation",
+                    "base-context",
+                    "--read-only",
+                    f"Prompt {i}",
+                ],
+            ):
+                try:
+                    main()
+                except SystemExit:
+                    pass
+
+        # Verify conversation file is still unchanged
+        saved_conv = json.loads(conv_file.read_text())
+        assert saved_conv == initial_conv
+        assert len(saved_conv["messages"]) == 3  # Still only 3 messages
+
+    @patch("sys.stdin.isatty", return_value=True)
+    @patch("cllm.cli.LLMClient")
+    @patch("cllm.cli.load_config", return_value={})
+    def test_normal_conversation_still_saves(
+        self, mock_load_config, mock_client, mock_isatty, tmp_path
+    ):
+        """Test that normal conversation mode (without --read-only) still saves."""
+        # Create a conversation directory
+        conv_path = tmp_path / "conversations"
+        conv_path.mkdir()
+
+        # Create an initial conversation
+        conv_file = conv_path / "normal-conv.json"
+        import json
+
+        initial_conv = {
+            "id": "normal-conv",
+            "model": "gpt-3.5-turbo",
+            "created_at": "2025-01-01T00:00:00Z",
+            "updated_at": "2025-01-01T00:00:00Z",
+            "messages": [
+                {"role": "user", "content": "First message"},
+                {"role": "assistant", "content": "First response"},
+            ],
+            "metadata": {"total_tokens": 0},
+        }
+        conv_file.write_text(json.dumps(initial_conv, indent=2))
+
+        # Mock the client
+        mock_instance = MagicMock()
+        mock_instance.complete.return_value = "New response"
+        mock_instance.count_tokens.return_value = 150
+        mock_client.return_value = mock_instance
+
+        # Run WITHOUT --read-only
+        with patch(
+            "sys.argv",
+            [
+                "cllm",
+                "--conversations-path",
+                str(conv_path),
+                "--conversation",
+                "normal-conv",
+                "Second message",
+            ],
+        ):
+            try:
+                main()
+            except SystemExit:
+                pass
+
+            # Verify response was generated
+            mock_instance.complete.assert_called_once()
+
+            # Verify conversation WAS updated
+            saved_conv = json.loads(conv_file.read_text())
+            assert len(saved_conv["messages"]) == 4  # Now 4 messages
+            assert saved_conv["messages"][2]["content"] == "Second message"
+            assert saved_conv["messages"][3]["content"] == "New response"
+
+    @patch("sys.stdin.isatty", return_value=True)
+    @patch("cllm.cli.LLMClient")
+    @patch("cllm.cli.load_config", return_value={})
+    def test_read_only_with_nonexistent_conversation(
+        self, mock_load_config, mock_client, mock_isatty, tmp_path, capsys
+    ):
+        """Test --read-only with non-existent conversation shows error."""
+        # Create a conversation directory
+        conv_path = tmp_path / "conversations"
+        conv_path.mkdir()
+
+        # Mock the client (shouldn't be called)
+        mock_instance = MagicMock()
+        mock_client.return_value = mock_instance
+
+        # Run with --read-only on non-existent conversation
+        with patch(
+            "sys.argv",
+            [
+                "cllm",
+                "--conversations-path",
+                str(conv_path),
+                "--conversation",
+                "nonexistent",
+                "--read-only",
+                "Test prompt",
+            ],
+        ):
+            with pytest.raises(SystemExit) as exc_info:
+                main()
+
+            # Should exit with error
+            assert exc_info.value.code == 1
+
+            # LLM should not be called
+            mock_instance.complete.assert_not_called()
+
+    @patch("sys.stdin.isatty", return_value=True)
+    @patch("cllm.cli.LLMClient")
+    @patch("cllm.cli.load_config", return_value={})
+    def test_read_only_context_is_used(
+        self, mock_load_config, mock_client, mock_isatty, tmp_path
+    ):
+        """Test that --read-only uses existing conversation as context."""
+        # Create a conversation directory
+        conv_path = tmp_path / "conversations"
+        conv_path.mkdir()
+
+        # Create a conversation with context
+        conv_file = conv_path / "with-context.json"
+        import json
+
+        initial_conv = {
+            "id": "with-context",
+            "model": "gpt-4",
+            "created_at": "2025-01-01T00:00:00Z",
+            "updated_at": "2025-01-01T00:00:00Z",
+            "messages": [
+                {"role": "system", "content": "You are a code reviewer."},
+                {"role": "user", "content": "Review this code"},
+                {"role": "assistant", "content": "I'll review it"},
+            ],
+            "metadata": {"total_tokens": 0},
+        }
+        conv_file.write_text(json.dumps(initial_conv, indent=2))
+
+        # Mock the client
+        mock_instance = MagicMock()
+        mock_instance.complete.return_value = "Review result"
+        mock_instance.count_tokens.return_value = 200
+        mock_client.return_value = mock_instance
+
+        # Run with --read-only
+        with patch(
+            "sys.argv",
+            [
+                "cllm",
+                "--conversations-path",
+                str(conv_path),
+                "--conversation",
+                "with-context",
+                "--read-only",
+                "New code to review",
+            ],
+        ):
+            try:
+                main()
+            except SystemExit:
+                pass
+
+            # Verify the LLM was called with full conversation history as context
+            call_args = mock_instance.complete.call_args
+            messages = call_args[1]["messages"]
+
+            # Should contain all original messages plus new one
+            assert len(messages) == 4
+            assert messages[0]["role"] == "system"
+            assert messages[0]["content"] == "You are a code reviewer."
+            assert messages[1]["role"] == "user"
+            assert messages[1]["content"] == "Review this code"
+            assert messages[2]["role"] == "assistant"
+            assert messages[2]["content"] == "I'll review it"
+            assert messages[3]["role"] == "user"
+            assert messages[3]["content"] == "New code to review"
+
+            # Verify conversation file is unchanged (still only 3 messages saved)
+            saved_conv = json.loads(conv_file.read_text())
+            assert len(saved_conv["messages"]) == 3

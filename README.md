@@ -291,6 +291,50 @@ cllm --conversation bug-123 "How should I fix this?"
 cllm --show-conversation bug-123
 ```
 
+#### Read-Only Conversations
+
+Use the `--read-only` flag to leverage existing conversation context without modifying it (ADR-0018). This is perfect for:
+
+- **Conversation templates**: Reuse a conversation as a template for similar tasks
+- **A/B testing prompts**: Experiment with different approaches against the same context
+- **Shared reference conversations**: Team members can use shared conversations without modification
+- **Report generation**: Generate multiple reports or analyses from the same conversation
+
+```bash
+# Create a conversation template with standard context
+cllm --conversation code-review-template "You are a code reviewer. Focus on security, performance, and maintainability."
+
+# Use the template repeatedly without modifying it
+cat file1.py | cllm --conversation code-review-template --read-only "Review this code"
+cat file2.py | cllm --conversation code-review-template --read-only "Review this code"
+cat file3.py | cllm --conversation code-review-template --read-only "Review this code"
+
+# The template remains unchanged - always has just the initial message
+cllm --show-conversation code-review-template  # Still only 1 message!
+
+# Test different approaches without polluting context
+cllm --conversation base-context "Here's the background: $(cat context.txt)"
+cllm --conversation base-context --read-only "Approach A: Try this solution"
+cllm --conversation base-context --read-only "Approach B: Try that solution"
+cllm --conversation base-context --read-only "Approach C: Try another solution"
+
+# The base context conversation still only has the initial message
+cllm --show-conversation base-context  # Just the background, no A/B/C prompts
+
+# Team collaboration: shared conversations on network storage
+export CLLM_CONVERSATIONS_PATH=/mnt/team-shared
+cllm --conversation team-guidelines --read-only "How should I handle errors?"
+# Other team members can also read, but no one accidentally modifies
+```
+
+**Key Points:**
+
+- `--read-only` requires `--conversation` (error if used without it)
+- The conversation history is used as context for the LLM
+- New messages are NOT saved to the conversation file
+- Responses are still generated and displayed normally
+- Perfect for preserving reference conversations or templates
+
 #### Configurable Conversations Path
 
 CLLM allows you to customize where conversations are stored independently of configuration files (ADR-0017). This enables powerful workflows like:
@@ -537,6 +581,7 @@ git diff main | ./examples/bash/git-diff-review.sh
 ```
 
 **Key features of example scripts:**
+
 - POSIX-compatible bash (`set -euo pipefail`)
 - Robust error handling
 - Environment variable configuration
@@ -643,6 +688,7 @@ cllm --show-config --config my-profile
 ```
 
 **File Precedence** (lowest to highest):
+
 1. `~/.cllm/Cllmfile.yml` (global defaults)
 2. `./.cllm/Cllmfile.yml` (project-specific)
 3. `./Cllmfile.yml` (current directory)
@@ -673,8 +719,8 @@ model: gpt-4
 context_commands:
   - name: "Git Status"
     command: "git status --short"
-    on_failure: "warn"  # "warn" | "ignore" | "fail"
-    timeout: 5          # seconds
+    on_failure: "warn" # "warn" | "ignore" | "fail"
+    timeout: 5 # seconds
 
   - name: "Recent Changes"
     command: "git diff HEAD~1"
@@ -726,10 +772,10 @@ cllm --var BRANCH=feature/auth \
 ```yaml
 # review-file.Cllmfile.yml
 variables:
-  FILE_PATH: "README.md"     # Default value
-  MAX_LINES: 50              # Numeric default
-  VERBOSE: false             # Boolean
-  TEST_NAME: null            # Required (no default)
+  FILE_PATH: "README.md" # Default value
+  MAX_LINES: 50 # Numeric default
+  VERBOSE: false # Boolean
+  TEST_NAME: null # Required (no default)
 
 context_commands:
   - name: "File Contents"
@@ -851,11 +897,11 @@ CLLM's command execution features (`--exec`, `context_commands`, `--allow-comman
 
 ### Command Execution Safety Levels
 
-| Feature | Safety Level | Use Case | Security Notes |
-|---------|--------------|----------|----------------|
-| `--exec` | Medium | Ad-hoc, known commands | You control what runs |
-| `context_commands` | Medium | Reusable workflows | Review shared configs |
-| `--allow-commands` | Requires Care | Exploratory debugging | LLM decides what runs |
+| Feature            | Safety Level  | Use Case               | Security Notes        |
+| ------------------ | ------------- | ---------------------- | --------------------- |
+| `--exec`           | Medium        | Ad-hoc, known commands | You control what runs |
+| `context_commands` | Medium        | Reusable workflows     | Review shared configs |
+| `--allow-commands` | Requires Care | Exploratory debugging  | LLM decides what runs |
 
 ### Protecting Against Dangerous Commands
 
@@ -886,8 +932,8 @@ command_deny:
   # File operations
   - "rm*"
   - "mv*"
-  - "cp*"  # Could overwrite files
-  - "dd*"  # Disk operations
+  - "cp*" # Could overwrite files
+  - "dd*" # Disk operations
   - "chmod*"
   - "chown*"
 
@@ -899,7 +945,7 @@ command_deny:
   - "shutdown*"
 
   # Network operations (context-dependent)
-  - "curl*"  # Could exfiltrate data
+  - "curl*" # Could exfiltrate data
   - "wget*"
   - "ssh*"
   - "scp*"
@@ -1006,7 +1052,7 @@ fi
 # CLLM automatically sandboxes Jinja2 templates
 # No code execution possible via templates
 variables:
-  SAFE_VAR: "{{ malicious }}"  # Cannot execute code
+  SAFE_VAR: "{{ malicious }}" # Cannot execute code
 ```
 
 ### API Key Protection
@@ -1133,13 +1179,13 @@ Bootstrap `.cllm` directory structure with configuration templates:
 cllm init [OPTIONS]
 ```
 
-| Option                  | Description                                           |
-| ----------------------- | ----------------------------------------------------- |
-| `--global`              | Initialize `~/.cllm` (global configuration)           |
-| `--local`               | Initialize `./.cllm` (project-specific, default)      |
-| `--template NAME`       | Use specific template (code-review, summarize, etc.)  |
-| `--list-templates`      | Show all available templates                          |
-| `--force`, `-f`         | Overwrite existing files                              |
+| Option             | Description                                          |
+| ------------------ | ---------------------------------------------------- |
+| `--global`         | Initialize `~/.cllm` (global configuration)          |
+| `--local`          | Initialize `./.cllm` (project-specific, default)     |
+| `--template NAME`  | Use specific template (code-review, summarize, etc.) |
+| `--list-templates` | Show all available templates                         |
+| `--force`, `-f`    | Overwrite existing files                             |
 
 **Examples:**
 
@@ -1159,31 +1205,31 @@ cllm init --list-templates
 
 ### Key Options
 
-| Option                         | Description                                      |
-| ------------------------------ | ------------------------------------------------ |
-| `--model MODEL`                | Specify LLM model (default: gpt-3.5-turbo)      |
-| `--list-models`                | List all available models across providers       |
-| `--stream`                     | Stream response in real-time                     |
-| `--temperature FLOAT`          | Control randomness (0.0-2.0)                     |
-| `--max-tokens INT`             | Maximum response length                          |
-| `--conversation ID`            | Continue/create multi-turn conversation          |
-| `--list-conversations`         | List all saved conversations                     |
-| `--show-conversation ID`       | Display conversation history                     |
-| `--delete-conversation ID`     | Delete a conversation                            |
-| `--config NAME`                | Load named Cllmfile configuration                |
-| `--show-config`                | Display effective configuration                  |
-| `--json-schema FILE/URL`       | Enforce JSON schema for structured output        |
-| `--validate-schema`            | Validate schema without making API call          |
-| `--exec COMMAND`               | Execute command and inject output as context     |
-| `--no-context-exec`            | Disable context commands from config             |
-| `--var KEY=VALUE`              | Set template variable (repeatable)               |
-| `--allow-commands`             | Enable LLM-driven dynamic command execution      |
-| `--command-allow PATTERN`      | Allowlist commands (wildcards supported)         |
-| `--command-deny PATTERN`       | Denylist commands (wildcards supported)          |
-| `--debug`                      | Enable debug mode (⚠️ logs API keys)             |
-| `--json-logs`                  | Enable structured JSON logging                   |
-| `--log-file PATH`              | Write debug output to file                       |
-| `--help`                       | Show help message                                |
+| Option                     | Description                                  |
+| -------------------------- | -------------------------------------------- |
+| `--model MODEL`            | Specify LLM model (default: gpt-3.5-turbo)   |
+| `--list-models`            | List all available models across providers   |
+| `--stream`                 | Stream response in real-time                 |
+| `--temperature FLOAT`      | Control randomness (0.0-2.0)                 |
+| `--max-tokens INT`         | Maximum response length                      |
+| `--conversation ID`        | Continue/create multi-turn conversation      |
+| `--list-conversations`     | List all saved conversations                 |
+| `--show-conversation ID`   | Display conversation history                 |
+| `--delete-conversation ID` | Delete a conversation                        |
+| `--config NAME`            | Load named Cllmfile configuration            |
+| `--show-config`            | Display effective configuration              |
+| `--json-schema FILE/URL`   | Enforce JSON schema for structured output    |
+| `--validate-schema`        | Validate schema without making API call      |
+| `--exec COMMAND`           | Execute command and inject output as context |
+| `--no-context-exec`        | Disable context commands from config         |
+| `--var KEY=VALUE`          | Set template variable (repeatable)           |
+| `--allow-commands`         | Enable LLM-driven dynamic command execution  |
+| `--command-allow PATTERN`  | Allowlist commands (wildcards supported)     |
+| `--command-deny PATTERN`   | Denylist commands (wildcards supported)      |
+| `--debug`                  | Enable debug mode (⚠️ logs API keys)         |
+| `--json-logs`              | Enable structured JSON logging               |
+| `--log-file PATH`          | Write debug output to file                   |
+| `--help`                   | Show help message                            |
 
 ## Providers & Models
 

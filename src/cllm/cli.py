@@ -187,6 +187,12 @@ For full provider list: https://docs.litellm.ai/docs/providers
         help="Delete conversation and exit",
     )
 
+    parser.add_argument(
+        "--read-only",
+        action="store_true",
+        help="Load conversation context without saving new messages (requires --conversation)",
+    )
+
     # Debugging and logging arguments (ADR-0009)
     parser.add_argument(
         "--debug",
@@ -805,8 +811,7 @@ def main():
         cllm_path = Path(args.cllm_path)
 
     conversation_manager = ConversationManager(
-        cllm_path=cllm_path,
-        conversations_path=conversations_path
+        cllm_path=cllm_path, conversations_path=conversations_path
     )
 
     # Handle --list-conversations
@@ -823,6 +828,11 @@ def main():
     if args.delete_conversation:
         delete_conversation(conversation_manager, args.delete_conversation)
         sys.exit(0)
+
+    # Validate --read-only requires --conversation (ADR-0018)
+    if args.read_only and not args.conversation:
+        print("Error: --read-only requires --conversation", file=sys.stderr)
+        sys.exit(1)
 
     # Build template context for variable expansion (ADR-0012)
     cli_vars = parse_variables(args.variables)
@@ -871,17 +881,17 @@ def main():
         # Show effective conversations path (ADR-0017)
         print(f"\nEffective conversations path: {conversation_manager.storage_dir}")
         if args.conversations_path:
-            print(f"  Source: --conversations-path CLI flag")
+            print("  Source: --conversations-path CLI flag")
         elif os.getenv("CLLM_CONVERSATIONS_PATH"):
-            print(f"  Source: CLLM_CONVERSATIONS_PATH environment variable")
+            print("  Source: CLLM_CONVERSATIONS_PATH environment variable")
         elif "conversations_path" in config:
-            print(f"  Source: conversations_path in Cllmfile.yml")
+            print("  Source: conversations_path in Cllmfile.yml")
         elif args.cllm_path or os.getenv("CLLM_PATH"):
-            print(f"  Source: Custom .cllm path")
+            print("  Source: Custom .cllm path")
         elif (Path.cwd() / ".cllm").exists():
-            print(f"  Source: Local .cllm directory")
+            print("  Source: Local .cllm directory")
         else:
-            print(f"  Source: Global home directory")
+            print("  Source: Global home directory")
         print("\nEffective configuration:")
         print(json.dumps(config, indent=2))
         print("\nResolved variables:")
@@ -1033,6 +1043,14 @@ def main():
                     )
                     model = conversation.model
             else:
+                # ADR-0018: --read-only requires an existing conversation
+                if args.read_only:
+                    print(
+                        f"Error: Conversation '{args.conversation}' not found. "
+                        f"--read-only requires an existing conversation.",
+                        file=sys.stderr,
+                    )
+                    sys.exit(1)
                 # Create new conversation
                 conversation = conversation_manager.create(
                     conversation_id=args.conversation, model=model
@@ -1095,7 +1113,11 @@ def main():
 
             # Execute with dynamic commands (ADR-0014: now supports JSON schema)
             response = execute_with_dynamic_commands(
-                prompt=prompt if messages_for_llm is None or isinstance(messages_for_llm, str) else messages_for_llm[-1]["content"],
+                prompt=(
+                    prompt
+                    if messages_for_llm is None or isinstance(messages_for_llm, str)
+                    else messages_for_llm[-1]["content"]
+                ),
                 config=config,
                 require_confirmation=config.get("dynamic_commands", {}).get(
                     "require_confirmation", args.confirm_commands
@@ -1106,8 +1128,8 @@ def main():
 
             print(response)
 
-            # Save conversation if in conversation mode
-            if conversation is not None:
+            # Save conversation if in conversation mode (ADR-0018: skip if read-only)
+            if conversation is not None and not args.read_only:
                 conversation.add_message("user", prompt)
                 conversation.add_message("assistant", response)
                 # Update token count
@@ -1161,8 +1183,8 @@ def main():
                     print(f"\nValidation error: {e}", file=sys.stderr)
                     sys.exit(1)
 
-            # Save conversation if in conversation mode
-            if conversation is not None:
+            # Save conversation if in conversation mode (ADR-0018: skip if read-only)
+            if conversation is not None and not args.read_only:
                 conversation.add_message("user", prompt)
                 conversation.add_message("assistant", complete_response)
                 # Update token count
@@ -1197,8 +1219,8 @@ def main():
 
                 print(response)
 
-                # Save conversation if in conversation mode
-                if conversation is not None:
+                # Save conversation if in conversation mode (ADR-0018: skip if read-only)
+                if conversation is not None and not args.read_only:
                     conversation.add_message("user", prompt)
                     conversation.add_message("assistant", response)
                     # Update token count
