@@ -130,16 +130,16 @@ def get_cllm_base_path(cllm_path: Optional[str] = None) -> Optional[Path]:
                 f"Suggestion: Create the directory, unset CLLM_PATH, or verify the path"
             )
         if not custom_path.is_dir():
-            raise ConfigurationError(
-                f"CLLM_PATH is not a directory: {env_path}"
-            )
+            raise ConfigurationError(f"CLLM_PATH is not a directory: {env_path}")
         return custom_path
 
     # No custom path specified, use default search order
     return None
 
 
-def _find_config_files(config_name: Optional[str] = None, cllm_path: Optional[str] = None) -> list[Path]:
+def _find_config_files(
+    config_name: Optional[str] = None, cllm_path: Optional[str] = None
+) -> list[Path]:
     """Find all applicable configuration files in order of precedence.
 
     Implements ADR-0016: Configurable .cllm Directory Path
@@ -185,7 +185,9 @@ def _find_config_files(config_name: Optional[str] = None, cllm_path: Optional[st
     return [path for path in search_paths if path.exists() and path.is_file()]
 
 
-def load_config(config_name: Optional[str] = None, cllm_path: Optional[str] = None) -> Dict[str, Any]:
+def load_config(
+    config_name: Optional[str] = None, cllm_path: Optional[str] = None
+) -> Dict[str, Any]:
     """Load and merge configuration files.
 
     Implements ADR-0016: Configurable .cllm Directory Path
@@ -254,7 +256,9 @@ def merge_config_with_args(
     return result
 
 
-def get_config_sources(config_name: Optional[str] = None, cllm_path: Optional[str] = None) -> list[str]:
+def get_config_sources(
+    config_name: Optional[str] = None, cllm_path: Optional[str] = None
+) -> list[str]:
     """Get list of configuration file paths that would be loaded.
 
     Implements ADR-0016: Configurable .cllm Directory Path

@@ -1,30 +1,30 @@
-name: '💬 Gemini CLI'
+name: "💬 Gemini CLI"
 
 on:
   pull_request_review_comment:
     types:
-      - 'created'
+      - "created"
   pull_request_review:
     types:
-      - 'submitted'
+      - "submitted"
   issue_comment:
     types:
-      - 'created'
+      - "created"
 
 concurrency:
-  group: '${{ github.workflow }}-${{ github.event.issue.number }}'
+  group: "${{ github.workflow }}-${{ github.event.issue.number }}"
   cancel-in-progress: |-
     ${{ github.event.sender.type == 'User' && ( github.event.issue.author_association == 'OWNER' || github.event.issue.author_association == 'MEMBER' || github.event.issue.author_association == 'COLLABORATOR') }}
 
 defaults:
   run:
-    shell: 'bash'
+    shell: "bash"
 
 permissions:
-  contents: 'write'
-  id-token: 'write'
-  pull-requests: 'write'
-  issues: 'write'
+  contents: "write"
+  id-token: "write"
+  pull-requests: "write"
+  issues: "write"
 
 jobs:
   gemini-cli:
@@ -67,22 +67,22 @@ jobs:
         )
       )
     timeout-minutes: 10
-    runs-on: 'ubuntu-latest'
+    runs-on: "ubuntu-latest"
     steps:
-      - name: 'Generate GitHub App Token'
-        id: 'generate_token'
+      - name: "Generate GitHub App Token"
+        id: "generate_token"
         if: |-
           ${{ vars.APP_ID }}
-        uses: 'actions/create-github-app-token@df432ceedc7162793a195dd1713ff69aefc7379e' # ratchet:actions/create-github-app-token@v2
+        uses: "actions/create-github-app-token@df432ceedc7162793a195dd1713ff69aefc7379e" # ratchet:actions/create-github-app-token@v2
         with:
-          app-id: '${{ vars.APP_ID }}'
-          private-key: '${{ secrets.APP_PRIVATE_KEY }}'
+          app-id: "${{ vars.APP_ID }}"
+          private-key: "${{ secrets.APP_PRIVATE_KEY }}"
 
-      - name: 'Get context from event'
-        id: 'get_context'
+      - name: "Get context from event"
+        id: "get_context"
         env:
-          EVENT_NAME: '${{ github.event_name }}'
-          EVENT_PAYLOAD: '${{ toJSON(github.event) }}'
+          EVENT_NAME: "${{ github.event_name }}"
+          EVENT_PAYLOAD: "${{ toJSON(github.event) }}"
         run: |-
           set -euo pipefail
 
@@ -118,37 +118,37 @@ jobs:
             echo "is_pr=${IS_PR}"
           } >> "${GITHUB_OUTPUT}"
 
-      - name: 'Set up git user for commits'
+      - name: "Set up git user for commits"
         run: |-
           git config --global user.name 'gemini-cli[bot]'
           git config --global user.email 'gemini-cli[bot]@users.noreply.github.com'
 
-      - name: 'Checkout PR branch'
+      - name: "Checkout PR branch"
         if: |-
           ${{  steps.get_context.outputs.is_pr == 'true' }}
-        uses: 'actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683' # ratchet:actions/checkout@v4
+        uses: "actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683" # ratchet:actions/checkout@v4
         with:
-          token: '${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}'
-          repository: '${{ github.repository }}'
-          ref: 'refs/pull/${{ steps.get_context.outputs.issue_number }}/head'
+          token: "${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}"
+          repository: "${{ github.repository }}"
+          ref: "refs/pull/${{ steps.get_context.outputs.issue_number }}/head"
           fetch-depth: 0
 
-      - name: 'Checkout main branch'
+      - name: "Checkout main branch"
         if: |-
           ${{  steps.get_context.outputs.is_pr == 'false' }}
-        uses: 'actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683' # ratchet:actions/checkout@v4
+        uses: "actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683" # ratchet:actions/checkout@v4
         with:
-          token: '${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}'
-          repository: '${{ github.repository }}'
+          token: "${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}"
+          repository: "${{ github.repository }}"
           fetch-depth: 0
 
-      - name: 'Acknowledge request'
+      - name: "Acknowledge request"
         env:
-          GITHUB_ACTOR: '${{ github.actor }}'
-          GITHUB_TOKEN: '${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}'
-          ISSUE_NUMBER: '${{ steps.get_context.outputs.issue_number }}'
-          REPOSITORY: '${{ github.repository }}'
-          REQUEST_TYPE: '${{ steps.get_context.outputs.request_type }}'
+          GITHUB_ACTOR: "${{ github.actor }}"
+          GITHUB_TOKEN: "${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}"
+          ISSUE_NUMBER: "${{ steps.get_context.outputs.issue_number }}"
+          REPOSITORY: "${{ github.repository }}"
+          REQUEST_TYPE: "${{ steps.get_context.outputs.request_type }}"
         run: |-
           set -euo pipefail
           MESSAGE="@${GITHUB_ACTOR} I've received your request and I'm working on it now! 🤖"
@@ -158,12 +158,12 @@ jobs:
               --repo "${REPOSITORY}"
           fi
 
-      - name: 'Get description'
-        id: 'get_description'
+      - name: "Get description"
+        id: "get_description"
         env:
-          GITHUB_TOKEN: '${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}'
-          IS_PR: '${{ steps.get_context.outputs.is_pr }}'
-          ISSUE_NUMBER: '${{ steps.get_context.outputs.issue_number }}'
+          GITHUB_TOKEN: "${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}"
+          IS_PR: "${{ steps.get_context.outputs.is_pr }}"
+          ISSUE_NUMBER: "${{ steps.get_context.outputs.issue_number }}"
         run: |-
           set -euo pipefail
           if [[ "${IS_PR}" == "true" ]]; then
@@ -177,12 +177,12 @@ jobs:
             echo "EOF"
           } >> "${GITHUB_OUTPUT}"
 
-      - name: 'Get comments'
-        id: 'get_comments'
+      - name: "Get comments"
+        id: "get_comments"
         env:
-          GITHUB_TOKEN: '${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}'
-          IS_PR: '${{ steps.get_context.outputs.is_pr }}'
-          ISSUE_NUMBER: '${{ steps.get_context.outputs.issue_number }}'
+          GITHUB_TOKEN: "${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}"
+          IS_PR: "${{ steps.get_context.outputs.is_pr }}"
+          ISSUE_NUMBER: "${{ steps.get_context.outputs.issue_number }}"
         run: |-
           set -euo pipefail
           if [[ "${IS_PR}" == "true" ]]; then
@@ -196,23 +196,23 @@ jobs:
             echo "EOF"
           } >> "${GITHUB_OUTPUT}"
 
-      - name: 'Run Gemini'
-        id: 'run_gemini'
-        uses: 'google-github-actions/run-gemini-cli@v0'
+      - name: "Run Gemini"
+        id: "run_gemini"
+        uses: "google-github-actions/run-gemini-cli@v0"
         env:
-          GITHUB_TOKEN: '${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}'
-          REPOSITORY: '${{ github.repository }}'
-          USER_REQUEST: '${{ steps.get_context.outputs.user_request }}'
-          ISSUE_NUMBER: '${{ steps.get_context.outputs.issue_number }}'
-          IS_PR: '${{ steps.get_context.outputs.is_pr }}'
+          GITHUB_TOKEN: "${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}"
+          REPOSITORY: "${{ github.repository }}"
+          USER_REQUEST: "${{ steps.get_context.outputs.user_request }}"
+          ISSUE_NUMBER: "${{ steps.get_context.outputs.issue_number }}"
+          IS_PR: "${{ steps.get_context.outputs.is_pr }}"
         with:
-          gemini_api_key: '${{ secrets.GEMINI_API_KEY }}'
-          gcp_workload_identity_provider: '${{ vars.GCP_WIF_PROVIDER }}'
-          gcp_project_id: '${{ vars.GOOGLE_CLOUD_PROJECT }}'
-          gcp_location: '${{ vars.GOOGLE_CLOUD_LOCATION }}'
-          gcp_service_account: '${{ vars.SERVICE_ACCOUNT_EMAIL }}'
-          use_vertex_ai: '${{ vars.GOOGLE_GENAI_USE_VERTEXAI }}'
-          use_gemini_code_assist: '${{ vars.GOOGLE_GENAI_USE_GCA }}'
+          gemini_api_key: "${{ secrets.GEMINI_API_KEY }}"
+          gcp_workload_identity_provider: "${{ vars.GCP_WIF_PROVIDER }}"
+          gcp_project_id: "${{ vars.GOOGLE_CLOUD_PROJECT }}"
+          gcp_location: "${{ vars.GOOGLE_CLOUD_LOCATION }}"
+          gcp_service_account: "${{ vars.SERVICE_ACCOUNT_EMAIL }}"
+          use_vertex_ai: "${{ vars.GOOGLE_GENAI_USE_VERTEXAI }}"
+          use_gemini_code_assist: "${{ vars.GOOGLE_GENAI_USE_GCA }}"
           settings: |-
             {
               "debug": ${{ fromJSON(env.DEBUG || env.ACTIONS_STEP_DEBUG || false) }},

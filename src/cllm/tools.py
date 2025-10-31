@@ -50,9 +50,7 @@ def generate_command_tool(config: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         LiteLLM tool definition dictionary
     """
-    base_description = (
-        "Execute a bash command to gather information needed to answer the user's question.\n\n"
-    )
+    base_description = "Execute a bash command to gather information needed to answer the user's question.\n\n"
 
     dynamic_commands = config.get("dynamic_commands", {})
     available_commands = dynamic_commands.get("available_commands", [])
@@ -64,9 +62,7 @@ def generate_command_tool(config: Dict[str, Any]) -> Dict[str, Any]:
                 cmd = cmd_def.get("command", "")
                 desc = cmd_def.get("description", "No description provided")
                 base_description += f"- `{cmd}`: {desc}\n"
-        base_description += (
-            "\nYou can also use variations of these commands with different arguments if needed.\n\n"
-        )
+        base_description += "\nYou can also use variations of these commands with different arguments if needed.\n\n"
     else:
         base_description += """
 Common use cases:

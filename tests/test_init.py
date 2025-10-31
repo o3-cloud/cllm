@@ -4,8 +4,6 @@ Tests for init module.
 Implements test cases specified in ADR-0015.
 """
 
-import shutil
-import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
@@ -154,7 +152,9 @@ class TestTemplateCopying:
 
         # Verify it's the code-review template
         content = target_file.read_text()
-        assert "Code Review Configuration" in content or "code review" in content.lower()
+        assert (
+            "Code Review Configuration" in content or "code review" in content.lower()
+        )
 
     def test_copy_invalid_template(self, tmp_path):
         """Test error when template doesn't exist."""
@@ -179,7 +179,7 @@ class TestTemplateCopying:
         cllm_dir.mkdir()
         (cllm_dir / "Cllmfile.yml").write_text("existing")
 
-        messages = copy_template(cllm_dir, template_name=None, force=True)
+        copy_template(cllm_dir, template_name=None, force=True)
 
         target_file = cllm_dir / "Cllmfile.yml"
         assert target_file.exists()

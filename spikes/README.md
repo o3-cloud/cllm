@@ -35,6 +35,7 @@ uv run python spikes/streaming_spike.py claude-3-5-sonnet-20241022
 ### Next Steps
 
 If this spike succeeds:
+
 1. Integrate the sync wrapper pattern into `src/cllm/client.py`
 2. Update `src/cllm/cli.py` if needed (should already pass stream flag)
 3. Add proper unit tests with mocked async generators

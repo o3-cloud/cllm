@@ -112,14 +112,18 @@ class LLMClient:
 
         # Handle streaming with async wrapper (ADR-0010 TEST 2)
         if stream:
+
             async def _async_stream():
                 response = await acompletion(**params, stream=True)
                 chunks = []
                 async for chunk in response:
                     chunks.append(chunk)
-                    content = chunk.get('choices', [{}])[0].get('delta', {}).get('content') or ''
+                    content = (
+                        chunk.get("choices", [{}])[0].get("delta", {}).get("content")
+                        or ""
+                    )
                     if content:
-                        print(content, end='', flush=True)
+                        print(content, end="", flush=True)
                 print()  # Final newline
                 return stream_chunk_builder(chunks, messages=messages)
 
@@ -185,9 +189,11 @@ class LLMClient:
             chunks = []
             async for chunk in response:
                 chunks.append(chunk)
-                content = chunk.get('choices', [{}])[0].get('delta', {}).get('content') or ''
+                content = (
+                    chunk.get("choices", [{}])[0].get("delta", {}).get("content") or ""
+                )
                 if content:
-                    print(content, end='', flush=True)
+                    print(content, end="", flush=True)
             print()  # Final newline
             complete_response = stream_chunk_builder(chunks, messages=messages)
 

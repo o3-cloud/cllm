@@ -53,6 +53,7 @@ Chosen option: **"Both CLI flag and environment variable"**, because it provides
    - Follows standard Cllmfile.yml precedence and merging rules
 
 4. **Precedence order** (highest to lowest):
+
    ```
    1. CLI flag: --conversations-path
    2. Environment variable: CLLM_CONVERSATIONS_PATH
@@ -117,6 +118,7 @@ This ADR will be validated through:
    - Show effective conversation path in `--show-config` output
 
 Success criteria:
+
 - All precedence scenarios tested and passing
 - No regression in existing conversation management tests
 - Clear documentation with real-world examples
@@ -203,6 +205,7 @@ Use composite path syntax like `CLLM_PATH=/config:CONVERSATIONS=/data`.
 ### Example Usage
 
 **Configuration file (Cllmfile.yml):**
+
 ```yaml
 # .cllm/Cllmfile.yml - Project-specific conversation storage
 
@@ -223,6 +226,7 @@ conversations_path: ./data/conversations
 ```
 
 **Shared conversations across projects (env var):**
+
 ```bash
 # Set up shared conversation storage once
 export CLLM_CONVERSATIONS_PATH=~/shared-conversations
@@ -236,6 +240,7 @@ cllm --conversation code-review "Continue reviewing"  # Same conversation!
 ```
 
 **Cloud-backed storage (NFS/S3 mount):**
+
 ```bash
 # Mount S3 bucket or NFS share
 export CLLM_CONVERSATIONS_PATH=/mnt/s3-conversations
@@ -245,6 +250,7 @@ cllm --conversation important-decisions "Document our architecture choice"
 ```
 
 **Team collaboration (shared network drive):**
+
 ```bash
 # All team members point to shared drive
 export CLLM_CONVERSATIONS_PATH=/network/team/cllm-conversations
@@ -254,6 +260,7 @@ cllm --conversation team-brainstorm "Let's explore this feature"
 ```
 
 **Different storage tiers:**
+
 ```bash
 # Fast local config, durable remote conversations
 export CLLM_PATH=~/.cllm                        # Local config
@@ -263,6 +270,7 @@ cllm "Process large document"  # Config is fast, conversations are durable
 ```
 
 **Docker with separate volumes:**
+
 ```dockerfile
 # Fast local volume for config, persistent volume for conversations
 VOLUME /config/.cllm
@@ -273,6 +281,7 @@ ENV CLLM_CONVERSATIONS_PATH=/data/conversations
 ```
 
 **Per-invocation override (testing):**
+
 ```bash
 # Normal usage stores in default location
 cllm --conversation prod "Production conversation"
@@ -282,17 +291,19 @@ cllm --conversations-path /tmp/test-conv --conversation test "Test conversation"
 ```
 
 **CI/CD with ephemeral config, persistent conversations:**
+
 ```yaml
 - name: Run AI analysis
   env:
-    CLLM_PATH: ${{ runner.temp }}/.cllm          # Ephemeral config
-    CLLM_CONVERSATIONS_PATH: /shared/conversations  # Persistent storage
+    CLLM_PATH: ${{ runner.temp }}/.cllm # Ephemeral config
+    CLLM_CONVERSATIONS_PATH: /shared/conversations # Persistent storage
   run: cllm --conversation ci-analysis "Analyze code changes"
 ```
 
 ### Testing Strategy
 
 **Unit tests** (`test_conversation.py`):
+
 ```python
 def test_conversations_path_precedence():
     """CLI flag > env var > cllm-path > defaults"""
@@ -312,6 +323,7 @@ def test_conversations_path_validation():
 ```
 
 **Integration tests**:
+
 ```python
 def test_shared_conversations_workflow():
     """Multiple projects sharing same conversation storage"""
@@ -324,19 +336,19 @@ def test_split_config_and_conversations():
 
 ### Precedence Interaction Matrix
 
-| Scenario | --cllm-path | --conversations-path | Cllmfile.yml | Env Var | Result |
-|----------|-------------|---------------------|--------------|---------|--------|
-| Default | Not set | Not set | Not set | Not set | `./.cllm/conversations/` or `~/.cllm/conversations/` |
-| Config file only | Not set | Not set | `/shared` | Not set | `/shared/` |
-| Env var only | Not set | Not set | Not set | `/env` | `/env/` |
-| CLI flag only | Not set | `/cli` | Not set | Not set | `/cli/` |
-| Env var overrides config | Not set | Not set | `/shared` | `/env` | `/env/` (env var wins) |
-| CLI overrides env var | Not set | `/cli` | Not set | `/env` | `/cli/` (CLI wins) |
-| CLI overrides config | Not set | `/cli` | `/shared` | Not set | `/cli/` (CLI wins) |
-| All set | Not set | `/cli` | `/shared` | `/env` | `/cli/` (CLI wins) |
-| Custom .cllm path | `/custom` | Not set | Not set | Not set | `/custom/conversations/` |
-| Config overrides .cllm | `/custom` | Not set | `/shared` | Not set | `/shared/` (config wins) |
-| Split config & conversations | `/custom` | `/conv` | Not set | Not set | Config: `/custom/`, Conversations: `/conv/` |
+| Scenario                     | --cllm-path | --conversations-path | Cllmfile.yml | Env Var | Result                                               |
+| ---------------------------- | ----------- | -------------------- | ------------ | ------- | ---------------------------------------------------- |
+| Default                      | Not set     | Not set              | Not set      | Not set | `./.cllm/conversations/` or `~/.cllm/conversations/` |
+| Config file only             | Not set     | Not set              | `/shared`    | Not set | `/shared/`                                           |
+| Env var only                 | Not set     | Not set              | Not set      | `/env`  | `/env/`                                              |
+| CLI flag only                | Not set     | `/cli`               | Not set      | Not set | `/cli/`                                              |
+| Env var overrides config     | Not set     | Not set              | `/shared`    | `/env`  | `/env/` (env var wins)                               |
+| CLI overrides env var        | Not set     | `/cli`               | Not set      | `/env`  | `/cli/` (CLI wins)                                   |
+| CLI overrides config         | Not set     | `/cli`               | `/shared`    | Not set | `/cli/` (CLI wins)                                   |
+| All set                      | Not set     | `/cli`               | `/shared`    | `/env`  | `/cli/` (CLI wins)                                   |
+| Custom .cllm path            | `/custom`   | Not set              | Not set      | Not set | `/custom/conversations/`                             |
+| Config overrides .cllm       | `/custom`   | Not set              | `/shared`    | Not set | `/shared/` (config wins)                             |
+| Split config & conversations | `/custom`   | `/conv`              | Not set      | Not set | Config: `/custom/`, Conversations: `/conv/`          |
 
 ---
 
@@ -347,6 +359,7 @@ def test_split_config_and_conversations():
 **Chosen level: Flexible**
 
 AI agents should follow the precedence rules strictly but may adapt implementation details such as:
+
 - Error message wording for missing/inaccessible paths
 - Path normalization/canonicalization approaches
 - Auto-creation logic for missing directories
@@ -473,6 +486,7 @@ Expected test coverage:
 #### Actual Outcomes
 
 **✅ Core functionality fully delivered:**
+
 - All three configuration mechanisms implemented:
   - `--conversations-path` CLI flag (src/cllm/cli.py:129-133)
   - `CLLM_CONVERSATIONS_PATH` environment variable (src/cllm/cli.py:796-798)
@@ -482,6 +496,7 @@ Expected test coverage:
 - Full backwards compatibility maintained with `storage_dir` parameter
 
 **✅ Test coverage exceeded expectations:**
+
 - 19 tests added specifically for ADR-0017:
   - 12 tests in `TestConversationPathPrecedence` class
   - 4 tests in `TestConversationPathFromConfig` class
@@ -491,11 +506,13 @@ Expected test coverage:
 - Precedence matrix fully validated through tests
 
 **✅ Performance impact: Negligible**
+
 - Path resolution happens once at initialization
 - No measurable overhead in conversation operations
 - Test suite execution time unchanged (~4.3 seconds)
 
 **✅ Documentation completed comprehensively:**
+
 - ADR-0017 created with full MADR template
 - README.md updated with examples and precedence table
 - CLAUDE.md updated with component descriptions and examples
@@ -505,16 +522,19 @@ Expected test coverage:
 #### Challenges Encountered
 
 **Challenge 1: Cllmfile.yml support was initially missing**
+
 - **Issue**: Original implementation only supported CLI flag and env var, not config file
 - **Resolution**: Extended implementation to read `conversations_path` from config with proper precedence
 - **Impact**: Required additional tests and documentation updates, but improved feature completeness
 
 **Challenge 2: Relative path resolution behavior**
+
 - **Issue**: Needed to clarify whether relative paths should be stored as-is or resolved immediately
 - **Resolution**: Decided to store paths as-is (using pathlib.Path), letting them resolve relative to cwd
 - **Impact**: Added test case for relative path behavior, documented in examples
 
 **Challenge 3: --show-config source attribution**
+
 - **Issue**: Initially unclear which precedence level was actually used
 - **Resolution**: Added detailed source display in `--show-config` output with if/elif chain
 - **Impact**: Greatly improved debuggability for users
@@ -522,6 +542,7 @@ Expected test coverage:
 #### Lessons Learned
 
 **What worked well:**
+
 - Starting with comprehensive ADR before implementation provided clear roadmap
 - Test-driven approach caught edge cases early (precedence interactions, env var handling)
 - Precedence matrix in ADR was invaluable for implementation verification
@@ -529,16 +550,19 @@ Expected test coverage:
 - Parallel test execution strategy validated all scenarios efficiently
 
 **What could be improved:**
+
 - Could have implemented Cllmfile.yml support in initial iteration (was added as enhancement)
 - More explicit validation of path existence could be added (currently relies on auto-creation)
 - Consider adding warning for ephemeral paths like /tmp (risk mitigation from ADR)
 
 **Unexpected discoveries:**
+
 - Environment variable interpolation in Cllmfile.yml works automatically for conversations_path (inherits from config system)
 - Relative paths are more commonly desired than initially expected - good thing we documented them clearly
 - The feature enables powerful workflows not originally considered (e.g., Docker multi-stage builds with split volumes)
 
 **Better approaches identified:**
+
 - ConversationManager API design with separate `cllm_path` and `conversations_path` parameters is clean and extensible
 - CLI precedence resolution before ConversationManager instantiation keeps separation of concerns
 - Comprehensive `--show-config` output is essential for complex precedence hierarchies
@@ -546,6 +570,7 @@ Expected test coverage:
 #### Suggested Improvements
 
 **For future enhancements:**
+
 1. **Path validation warning**: Add optional validation to warn when using ephemeral paths like `/tmp` (mitigates Risk 2 from Business Risks)
 2. **Symlink control**: Add `--no-follow-symlinks` flag for enhanced security (mitigates Risk 5 from Technical Risks)
 3. **Path existence pre-check**: Add `--validate-paths` flag to check path accessibility before operations
@@ -553,15 +578,18 @@ Expected test coverage:
 5. **Migration tool**: Add `cllm migrate-conversations --from <old> --to <new>` for moving conversation storage
 
 **Refactoring opportunities:**
+
 - Path resolution logic could be extracted to a dedicated `PathResolver` class if more path types are added
 - Consider caching resolved paths to avoid repeated environment variable lookups
 
 **Documentation gaps identified:**
+
 - Could add troubleshooting section for common permission issues
 - Windows UNC path examples would be helpful for Windows users
 - Docker Compose example with volumes would be valuable
 
 **Testing improvements:**
+
 - Add integration test for actual file I/O with different paths
 - Add Windows path compatibility tests (UNC paths, drive letters)
 - Consider performance benchmarks for network filesystem scenarios
@@ -569,6 +597,7 @@ Expected test coverage:
 #### Confirmation Status
 
 **✅ All precedence scenarios tested**
+
 - CLI flag override: Tested ✓
 - Env var override: Tested ✓
 - Config file usage: Tested ✓
@@ -577,32 +606,38 @@ Expected test coverage:
 - Full precedence chain: Tested ✓
 
 **✅ No regressions in existing conversation tests**
+
 - All 50 conversation tests passing
 - Backwards compatibility verified with `storage_dir` parameter test
 - Total suite: 271 tests passing (up from 264, +7 net new functionality tests)
 
 **✅ Documentation completed with examples**
+
 - README.md: Configurable Conversations Path section added
 - CLAUDE.md: Component descriptions and ADR examples updated
 - ADR-0017: Complete with examples, precedence matrix, and use cases
 - Examples cover: relative paths, absolute paths, env vars, config file, CLI flags
 
 **✅ `--show-config` shows conversations path with source**
+
 - Displays effective path: ✓
 - Shows source (CLI flag / env var / config file / cllm path / default): ✓
 - Verified with manual testing across all precedence levels
 
 **✅ Shared storage scenario validated**
+
 - Test cases demonstrate shared path configuration
 - Examples documented for team collaboration use case
 - Precedence ensures team can share via env var while individuals override via CLI
 
 **⚠️ Network filesystem scenario tested (partially)**
+
 - Logic implemented and working
 - No actual NFS/S3 integration testing performed (acceptable for MVP)
 - Recommendation: Add to CI with mocked network paths or optional extended test suite
 
 **✅ Performance benchmarks within acceptable range**
+
 - No measurable overhead introduced
 - Test suite execution time unchanged
 - Path resolution is O(1) at initialization

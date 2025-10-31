@@ -128,7 +128,7 @@ dynamic_commands:
 
   timeout: 60
   max_commands: 8
-  require_confirmation: false  # Set to true for scripts that modify data
+  require_confirmation: false # Set to true for scripts that modify data
 
 # Note: For production use, you might want to:
 # 1. Create the actual scripts in ./scripts/

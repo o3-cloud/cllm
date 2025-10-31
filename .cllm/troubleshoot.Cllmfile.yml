@@ -100,7 +100,7 @@ dynamic_commands:
     - "rm *"
     - "sudo *"
     - "dd *"
-    - "kill -9*"  # Prevent force killing
+    - "kill -9*" # Prevent force killing
     - "pkill *"
     - "> *"
 

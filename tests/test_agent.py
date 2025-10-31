@@ -49,10 +49,12 @@ class TestExecuteWithDynamicCommands:
                         MagicMock(
                             id="call_123",
                             function=MagicMock(
-                                arguments=json.dumps({
-                                    "command": "echo test",
-                                    "reason": "Testing",
-                                })
+                                arguments=json.dumps(
+                                    {
+                                        "command": "echo test",
+                                        "reason": "Testing",
+                                    }
+                                )
                             ),
                         )
                     ]
@@ -91,10 +93,12 @@ class TestExecuteWithDynamicCommands:
                         MagicMock(
                             id="call_123",
                             function=MagicMock(
-                                arguments=json.dumps({
-                                    "command": "rm -rf /",
-                                    "reason": "Cleanup",
-                                })
+                                arguments=json.dumps(
+                                    {
+                                        "command": "rm -rf /",
+                                        "reason": "Cleanup",
+                                    }
+                                )
                             ),
                         )
                     ]
@@ -134,10 +138,12 @@ class TestExecuteWithDynamicCommands:
                         MagicMock(
                             id="call_123",
                             function=MagicMock(
-                                arguments=json.dumps({
-                                    "command": "echo test",
-                                    "reason": "Testing",
-                                })
+                                arguments=json.dumps(
+                                    {
+                                        "command": "echo test",
+                                        "reason": "Testing",
+                                    }
+                                )
                             ),
                         )
                     ]
@@ -216,10 +222,12 @@ class TestExecuteWithDynamicCommands:
                         MagicMock(
                             id="call_1",
                             function=MagicMock(
-                                arguments=json.dumps({
-                                    "command": "echo first",
-                                    "reason": "First test",
-                                })
+                                arguments=json.dumps(
+                                    {
+                                        "command": "echo first",
+                                        "reason": "First test",
+                                    }
+                                )
                             ),
                         )
                     ]
@@ -237,10 +245,12 @@ class TestExecuteWithDynamicCommands:
                         MagicMock(
                             id="call_2",
                             function=MagicMock(
-                                arguments=json.dumps({
-                                    "command": "echo second",
-                                    "reason": "Second test",
-                                })
+                                arguments=json.dumps(
+                                    {
+                                        "command": "echo second",
+                                        "reason": "Second test",
+                                    }
+                                )
                             ),
                         )
                     ]
@@ -280,19 +290,23 @@ class TestExecuteWithDynamicCommands:
                         MagicMock(
                             id="call_1",
                             function=MagicMock(
-                                arguments=json.dumps({
-                                    "command": "echo first",
-                                    "reason": "First parallel command",
-                                })
+                                arguments=json.dumps(
+                                    {
+                                        "command": "echo first",
+                                        "reason": "First parallel command",
+                                    }
+                                )
                             ),
                         ),
                         MagicMock(
                             id="call_2",
                             function=MagicMock(
-                                arguments=json.dumps({
-                                    "command": "echo second",
-                                    "reason": "Second parallel command",
-                                })
+                                arguments=json.dumps(
+                                    {
+                                        "command": "echo second",
+                                        "reason": "Second parallel command",
+                                    }
+                                )
                             ),
                         ),
                     ]
@@ -351,10 +365,12 @@ class TestExecuteWithDynamicCommands:
                         MagicMock(
                             id="call_123",
                             function=MagicMock(
-                                arguments=json.dumps({
-                                    "command": "echo test",
-                                    "reason": "Testing",
-                                })
+                                arguments=json.dumps(
+                                    {
+                                        "command": "echo test",
+                                        "reason": "Testing",
+                                    }
+                                )
                             ),
                         )
                     ]
@@ -367,7 +383,9 @@ class TestExecuteWithDynamicCommands:
         final_response.choices = [
             MagicMock(
                 finish_reason="stop",
-                message=MagicMock(content='{"result": "test output", "status": "success"}'),
+                message=MagicMock(
+                    content='{"result": "test output", "status": "success"}'
+                ),
             )
         ]
 
@@ -399,7 +417,10 @@ class TestExecuteWithDynamicCommands:
             call_kwargs = call[1]
             assert "response_format" in call_kwargs
             assert call_kwargs["response_format"]["type"] == "json_schema"
-            assert call_kwargs["response_format"]["json_schema"]["name"] == "response_schema"
+            assert (
+                call_kwargs["response_format"]["json_schema"]["name"]
+                == "response_schema"
+            )
             assert call_kwargs["response_format"]["json_schema"]["schema"] == schema
 
     @patch("cllm.agent.litellm.completion")
@@ -410,7 +431,9 @@ class TestExecuteWithDynamicCommands:
         final_response.choices = [
             MagicMock(
                 finish_reason="stop",
-                message=MagicMock(content='{"answer": 42, "explanation": "The answer to everything"}'),
+                message=MagicMock(
+                    content='{"answer": 42, "explanation": "The answer to everything"}'
+                ),
             )
         ]
 
@@ -427,7 +450,9 @@ class TestExecuteWithDynamicCommands:
             "required": ["answer"],
         }
 
-        result = execute_with_dynamic_commands("What is the answer?", config, schema=schema)
+        result = execute_with_dynamic_commands(
+            "What is the answer?", config, schema=schema
+        )
 
         # Verify result is JSON
         assert "42" in result

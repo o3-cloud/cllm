@@ -40,6 +40,7 @@ Chosen option: **"Option 4: Multi-flag approach"**, because it provides the most
 ### Confirmation
 
 This decision will be validated through:
+
 - All existing tests continue to pass without debug flags
 - New integration tests verify debug output format and content
 - Documentation includes examples of common debugging scenarios
@@ -60,6 +61,7 @@ Simple flag that directly enables LiteLLM's built-in verbose logging.
 - Bad, because no control over log format or destination
 
 **Example usage:**
+
 ```bash
 cllm --debug "Explain quantum computing"
 # Output includes: request details, headers, API calls, response metadata
@@ -77,6 +79,7 @@ Graduated logging levels for different amounts of detail.
 - Bad, because LiteLLM doesn't natively support log levels (would need translation layer)
 
 **Example usage:**
+
 ```bash
 cllm --verbose=info "Summarize this text"    # Basic info only
 cllm --verbose=debug "Summarize this text"   # Full debug output
@@ -94,6 +97,7 @@ Debugging controlled entirely through environment variable.
 - Bad, because users may forget it's enabled (persistent across commands)
 
 **Example usage:**
+
 ```bash
 export CLLM_DEBUG=true
 cllm "What is 2+2?"  # Debug output automatically enabled
@@ -113,6 +117,7 @@ Multiple flags for different debugging needs.
 - Bad, because users need to understand which combination to use
 
 **Example usage:**
+
 ```bash
 # Quick debugging during development
 cllm --debug "Explain quantum computing"
@@ -136,6 +141,7 @@ Expose LiteLLM's `logger_fn` parameter for custom logging.
 - Bad, because doesn't help CLI users who just want quick debugging
 
 **Example usage (Python API):**
+
 ```python
 def my_logger(model_call_dict):
     logging.info(f"LLM call: {model_call_dict}")
@@ -150,7 +156,7 @@ client.complete("gpt-4", "prompt", logger_fn=my_logger)
 **Flags to implement:**
 
 1. **`--debug`**: Enables `litellm.set_verbose = True`
-   - Shows warning: "⚠️  Debug mode enabled. API keys may appear in output."
+   - Shows warning: "⚠️ Debug mode enabled. API keys may appear in output."
    - Output goes to stderr by default (preserves stdout piping)
    - Disables streaming mode warnings (debug mode overrides)
 
@@ -168,9 +174,9 @@ client.complete("gpt-4", "prompt", logger_fn=my_logger)
 
 ```yaml
 # Cllmfile.yml
-debug: false          # Enable debug mode (default: false)
-json_logs: false      # Enable JSON logging (default: false)
-log_file: null        # Log file path (default: null)
+debug: false # Enable debug mode (default: false)
+json_logs: false # Enable JSON logging (default: false)
+log_file: null # Log file path (default: null)
 ```
 
 **Environment variable support:**
@@ -185,7 +191,7 @@ log_file: null        # Log file path (default: null)
 
 1. **API Key Exposure**: `--debug` will log API keys (LiteLLM behavior)
    - Show prominent warning when flag is used
-   - Document in `--help` output: "⚠️  Logs API keys - NOT for production"
+   - Document in `--help` output: "⚠️ Logs API keys - NOT for production"
    - Consider adding `--safe-debug` flag in future (filters sensitive data)
 
 2. **Prompt Confidentiality**: Debug logs include full prompts/responses
@@ -212,6 +218,7 @@ log_file: null        # Log file path (default: null)
 **Chosen level: Flexible**
 
 Follow the core decision (multi-flag approach with `--debug`, `--json-logs`, `--log-file`) but adapt implementation details as needed. For example:
+
 - Output format details can be refined during implementation
 - Error handling patterns can be improved
 - Performance optimizations are encouraged
@@ -229,6 +236,7 @@ Follow the core decision (multi-flag approach with `--debug`, `--json-logs`, `--
 ### Test Expectations
 
 **Unit Tests:**
+
 - `test_cli_debug_flag()`: Verify `--debug` enables `litellm.set_verbose`
 - `test_cli_json_logs_flag()`: Verify `--json-logs` enables structured logging
 - `test_cli_log_file_flag()`: Verify `--log-file` creates file and writes output
@@ -237,12 +245,14 @@ Follow the core decision (multi-flag approach with `--debug`, `--json-logs`, `--
 - `test_config_file_debug_settings()`: Verify Cllmfile.yml debug settings work
 
 **Integration Tests:**
+
 - Test debug output doesn't break stdin piping: `echo "test" | cllm --debug`
 - Test JSON logs are valid JSON and parsable with `jq`
 - Test log file permissions are restrictive (0600)
 - Test combined flags: `--debug --json-logs --log-file`
 
 **Performance Tests:**
+
 - Verify minimal overhead when debugging is disabled (< 1% latency increase)
 - Verify log file writes don't block main thread
 
@@ -311,6 +321,7 @@ Follow the core decision (multi-flag approach with `--debug`, `--json-logs`, `--
 #### Actual Outcomes
 
 ✅ **Core Features Implemented Successfully:**
+
 - **Three CLI Flags**: `--debug`, `--json-logs`, `--log-file` all implemented and working
   - Evidence: `src/cllm/cli.py:165-177` contains argument definitions
   - Help text includes security warnings: "⚠️ Logs API keys - NOT for production"
@@ -328,6 +339,7 @@ Follow the core decision (multi-flag approach with `--debug`, `--json-logs`, `--
   - Evidence: `src/cllm/cli.py:771-784` ensures cleanup
 
 ✅ **Test Coverage Achieved:**
+
 - **13 new tests added** to `tests/test_cli.py::TestDebugging` (all passing)
 - **Unit tests** for configure_debugging function (6 tests)
 - **Integration tests** for CLI flags (7 tests)
@@ -406,22 +418,27 @@ Follow the core decision (multi-flag approach with `--debug`, `--json-logs`, `--
 #### Confirmation Status
 
 ✅ **All existing tests continue to pass without debug flags**
+
 - 131/132 tests passing (1 pre-existing failure in `test_bash_examples.py` unrelated to this ADR)
 
 ✅ **New integration tests verify debug output format and content**
+
 - 13 comprehensive tests cover all three flags, combinations, and precedence
 
 ⚠️ **Documentation includes examples of common debugging scenarios**
+
 - Example config file created: `examples/configs/debug.Cllmfile.yml`
 - Help text includes warnings and usage
 - **Missing**: Dedicated troubleshooting guide or README section
 
 ✅ **Security review confirms API keys are only logged when explicitly enabled**
+
 - Warning appears in help text: "⚠️ Logs API keys - NOT for production"
 - Warning printed to stderr when debug mode activated
 - Documentation clear about security implications
 
 ⚠️ **Performance tests show minimal overhead when debugging is disabled**
+
 - **Not implemented**: No explicit performance benchmarks
 - **Low risk**: Simple boolean checks unlikely to cause performance issues
 - **Evidence**: No performance regression observed in test suite execution
@@ -429,25 +446,30 @@ Follow the core decision (multi-flag approach with `--debug`, `--json-logs`, `--
 #### Risk Mitigation Review
 
 ✅ **API Key Exposure (HIGH) - Mitigated**
+
 - Prominent warning in help text and runtime output
 - Clear documentation that this is expected LiteLLM behavior
 - Future consideration: `--safe-debug` flag noted for implementation
 
 ✅ **Performance Impact (LOW) - Mitigated**
+
 - Debug mode only enabled when flag explicitly set
 - No performance tests, but simple conditional checks have negligible overhead
 
 ⚠️ **Log File Growth (MEDIUM) - Partially Mitigated**
+
 - Log files created with append mode (allows multiple runs)
 - **Missing**: Documentation about log rotation strategies
 - **Recommendation**: Add note in README about using logrotate or similar tools
 
 ✅ **User Confusion (LOW) - Mitigated**
+
 - Clear help text for each flag
 - Example configuration file provided
 - Flag names follow CLI conventions
 
 ✅ **Support Burden (LOW) - Mitigated**
+
 - Comprehensive test coverage reduces likelihood of bugs
 - Example config demonstrates usage patterns
 

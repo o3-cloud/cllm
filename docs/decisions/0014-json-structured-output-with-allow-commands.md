@@ -37,6 +37,7 @@ Chosen option: "Enable JSON schema with --allow-commands", because it provides t
 ### Confirmation
 
 The implementation will be validated by:
+
 - Unit tests verifying both flags can be used together without errors
 - Integration tests showing commands execute and JSON schema is applied to final output
 - Example workflows demonstrating common use cases (e.g., context gathering + structured analysis)
@@ -92,18 +93,21 @@ Implementation: Extend JSON schema support to include command execution metadata
 ## More Information
 
 This ADR builds on:
+
 - **ADR-0005**: Structured Output (JSON Schema) - Base JSON schema support
 - **ADR-0011**: Dynamic Context Injection via Command Execution
 - **ADR-0012**: Jinja2 Templating for Context Commands
 - **ADR-0013**: LLM-Driven Dynamic Command Execution
 
 The implementation should ensure that:
+
 1. Command execution happens first (maintaining ADR-0011 behavior)
 2. Command outputs are injected into the prompt as context
 3. The LLM generates a response conforming to the provided schema
 4. Schema validation errors are reported clearly with context about command execution status
 
 Example usage:
+
 ```bash
 # Get structured analysis after gathering dynamic context
 cllm --allow-commands --json-schema analysis-schema.json \
@@ -126,6 +130,7 @@ cllm --allow-commands --json-schema bug-report.json \
 Chosen level: **Flexible**
 
 Implementation details may vary (e.g., how errors are formatted, exact validation timing), but core principles must be maintained:
+
 - Both flags must work together without conflicts
 - Command execution always precedes LLM inference
 - Final output must conform to provided JSON schema

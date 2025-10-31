@@ -146,7 +146,6 @@ model: "gpt-3.5-turbo"
 # Default parameters
 temperature: 0.7
 max_tokens: 1000
-
 # Optional: System message
 # default_system_message: "You are a helpful assistant."
 
@@ -413,17 +412,20 @@ Implementation should follow the core design (command structure, directory creat
 **Design Iteration**: Template file naming improvement
 
 **Issue Identified**:
+
 - Initial implementation had `cllm init --template code-review` create `.cllm/Cllmfile.yml`, overwriting any existing default config
 - This was inconsistent with the config system's naming convention where `--config <name>` loads `<name>.Cllmfile.yml`
 - Users couldn't have both a default config and template configs in the same directory
 
 **Solution Implemented**:
+
 - Changed template behavior to create named config files: `cllm init --template code-review` now creates `.cllm/code-review.Cllmfile.yml`
 - Default behavior unchanged: `cllm init` (no template) creates `.cllm/Cllmfile.yml`
 - Updated next-step guidance to show `cllm --config <template-name>` usage
 - Users can now initialize multiple templates in the same directory
 
 **Changes Made**:
+
 1. **`src/cllm/init.py`**: Modified `copy_template()` to use `{template_name}.Cllmfile.yml` naming
 2. **`src/cllm/init.py`**: Updated `print_next_steps()` to show correct config flag usage
 3. **`tests/test_init.py`**: Updated 2 tests to expect named config files
@@ -431,6 +433,7 @@ Implementation should follow the core design (command structure, directory creat
 5. **`README.md`**: Updated documentation with correct usage patterns
 
 **Test Results**:
+
 - All 239 tests passing ✅
 - Manual testing confirmed correct behavior:
   - `cllm init` → Creates `Cllmfile.yml` ✅
@@ -438,6 +441,7 @@ Implementation should follow the core design (command structure, directory creat
   - Next-step output shows `cllm --config code-review` ✅
 
 **Benefits**:
+
 - ✅ **More intuitive**: Matches existing config system conventions
 - ✅ **Prevents confusion**: Default template remains untouched when using templates
 - ✅ **Enables multiple templates**: Users can have code-review, summarize, debug configs simultaneously
@@ -445,6 +449,7 @@ Implementation should follow the core design (command structure, directory creat
 - ✅ **Consistent naming**: `--template X` creates `X.Cllmfile.yml`, `--config X` uses `X.Cllmfile.yml`
 
 **Lesson Learned**:
+
 - Design decisions should align with existing system conventions to reduce cognitive load
 - User testing (even informal) can quickly identify UX inconsistencies
 - Early-stage refinements are much easier than post-release changes

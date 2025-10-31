@@ -74,6 +74,7 @@ class TestLLMClient:
     @patch("cllm.client.acompletion")
     def test_streaming_response(self, mock_acompletion, mock_stream_chunk_builder):
         """Test streaming completion with async wrapper (ADR-0010)."""
+
         # Mock streaming chunks
         async def mock_async_gen():
             chunks = [
@@ -89,9 +90,17 @@ class TestLLMClient:
         # Mock stream_chunk_builder to return a proper response object
         class MockResponse:
             def __init__(self):
-                self.choices = [type('obj', (object,), {
-                    'message': type('obj', (object,), {'content': 'Hello world!'})()
-                })()]
+                self.choices = [
+                    type(
+                        "obj",
+                        (object,),
+                        {
+                            "message": type(
+                                "obj", (object,), {"content": "Hello world!"}
+                            )()
+                        },
+                    )()
+                ]
 
         mock_stream_chunk_builder.return_value = MockResponse()
 

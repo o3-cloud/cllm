@@ -5,6 +5,7 @@
 When interacting with LLMs via the CLI, users frequently need to include dynamic context from their system or codebase—such as git status, file contents, test results, or system diagnostics. Currently, users must manually execute commands, copy their output, and paste it into prompts. This workflow is tedious, error-prone, and breaks the flow of bash-centric scripting that CLLM is designed to enable.
 
 For example, a developer debugging a failing test might need to include:
+
 - The test output (`npm test`)
 - The git diff (`git diff`)
 - The error log (`cat error.log`)
@@ -30,16 +31,19 @@ Manually gathering this context before every LLM call is inefficient and makes i
 Allow command execution directly in prompts using `$(command)` or similar syntax.
 
 **Example:**
+
 ```bash
 cllm "Here's the git status: $(git status). What should I commit?"
 ```
 
 **Pros:**
+
 - Familiar bash syntax
 - Simple for ad-hoc use
 - No new CLI flags needed
 
 **Cons:**
+
 - Shell already handles this (redundant)
 - Hard to control execution timing
 - Limited formatting options
@@ -50,6 +54,7 @@ cllm "Here's the git status: $(git status). What should I commit?"
 Define context commands in Cllmfile.yml that execute before every LLM call.
 
 **Example Cllmfile.yml:**
+
 ```yaml
 model: gpt-4
 context_commands:
@@ -60,12 +65,14 @@ context_commands:
 ```
 
 **Pros:**
+
 - Reusable across invocations
 - Shareable in project configs
 - Structured output formatting
 - Clear separation of concerns
 
 **Cons:**
+
 - Not flexible for one-off commands
 - Requires config file setup
 - Commands run even when not needed
@@ -75,16 +82,19 @@ context_commands:
 Add `--exec` or `--context-exec` flag to run commands before the LLM call.
 
 **Example:**
+
 ```bash
 cllm "Analyze this" --exec "git status" --exec "git diff"
 ```
 
 **Pros:**
+
 - Flexible for one-off use
 - No config file needed
 - Explicit about what's executed
 
 **Cons:**
+
 - Verbose for repeated workflows
 - No reusability
 - Hard to share across team
@@ -95,7 +105,8 @@ Combine configuration-based context hooks with CLI flags for flexibility.
 
 **Example:**
 
-*Cllmfile.yml (reusable workflows):*
+_Cllmfile.yml (reusable workflows):_
+
 ```yaml
 model: gpt-4
 context_commands:
@@ -103,10 +114,11 @@ context_commands:
     command: "git status --short"
   - name: "Test Results"
     command: "npm test --silent"
-    on_failure: "warn"  # Don't block if tests fail
+    on_failure: "warn" # Don't block if tests fail
 ```
 
-*CLI (ad-hoc additions):*
+_CLI (ad-hoc additions):_
+
 ```bash
 # Use config hooks + add one-time context
 cllm "Analyze this bug" --exec "cat error.log"
@@ -119,12 +131,14 @@ cllm "Debug" --exec "git diff HEAD~1" --exec "cat stack-trace.txt"
 ```
 
 **Pros:**
+
 - Best of both worlds: reusability + flexibility
 - Consistent with ADR-0003 (Cllmfile precedence)
 - Team can share common workflows
 - Users can override/extend per invocation
 
 **Cons:**
+
 - More complex implementation
 - Need clear precedence rules
 - More documentation required
@@ -206,14 +220,14 @@ This decision will be validated through:
 ```yaml
 # New top-level key: context_commands
 context_commands:
-  - name: "Git Status"             # Label for LLM context
-    command: "git status --short"  # Command to execute
-    on_failure: "warn"             # "warn" | "ignore" | "fail" (default: "warn")
-    timeout: 5                     # Seconds (default: 10)
+  - name: "Git Status" # Label for LLM context
+    command: "git status --short" # Command to execute
+    on_failure: "warn" # "warn" | "ignore" | "fail" (default: "warn")
+    timeout: 5 # Seconds (default: 10)
 
   - name: "Test Results"
     command: "npm test --silent"
-    on_failure: "ignore"           # Don't include if tests fail
+    on_failure: "ignore" # Don't include if tests fail
 ```
 
 **2. CLI Flag Design**
@@ -290,12 +304,14 @@ Expected: 42, Got: 43
 ### Test Expectations
 
 **Unit tests:**
+
 - Parse `context_commands` from Cllmfile.yml correctly
 - Handle `--exec` CLI flag and build command list
 - Apply precedence rules (config + CLI overrides)
 - Format output blocks with proper labels
 
 **Integration tests:**
+
 - Execute commands and capture output
 - Handle command failures per `on_failure` setting
 - Inject context into prompt correctly
@@ -303,11 +319,13 @@ Expected: 42, Got: 43
 - Test timeout protection
 
 **End-to-end tests:**
+
 - Real workflow: `git status` + `git diff` → code review prompt
 - Real workflow: `pytest` output → test failure analysis
 - Error handling: Non-existent command, timeout, permission denied
 
 **Security tests:**
+
 - Verify no shell injection vulnerabilities
 - Confirm commands run in CWD only
 - Validate `--confirm-context-exec` blocks untrusted configs
@@ -339,18 +357,18 @@ Expected: 42, Got: 43
 #### Technical Risks
 
 - **Command execution failures**:
-  - *Mitigation*: Timeout protection, `on_failure` settings, clear error messages
+  - _Mitigation_: Timeout protection, `on_failure` settings, clear error messages
 - **Performance overhead**:
-  - *Mitigation*: Parallel execution, configurable timeouts, `--no-context-exec` flag
+  - _Mitigation_: Parallel execution, configurable timeouts, `--no-context-exec` flag
 - **Output size explosion**:
-  - *Mitigation*: Document best practices (use `--short`, `--quiet` flags), consider max output size limits
+  - _Mitigation_: Document best practices (use `--short`, `--quiet` flags), consider max output size limits
 
 #### Business Risks
 
 - **Security concerns**:
-  - *Mitigation*: Clear documentation, explicit execution model, optional confirmation flag
+  - _Mitigation_: Clear documentation, explicit execution model, optional confirmation flag
 - **Complexity for new users**:
-  - *Mitigation*: Start with simple examples, provide templates, make CLI flag optional
+  - _Mitigation_: Start with simple examples, provide templates, make CLI flag optional
 
 ### Human Review
 
@@ -364,7 +382,7 @@ Expected: 42, Got: 43
 
 ### Feedback Log
 
-*To be filled after implementation*
+_To be filled after implementation_
 
 - **Implementation date**: TBD
 - **Actual outcomes**: TBD

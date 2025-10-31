@@ -5,14 +5,10 @@ Tests dynamic context injection via command execution.
 """
 
 import pytest
-from pathlib import Path
-from unittest.mock import AsyncMock, patch
-
-from cllm.templates import TemplateError
 
 from cllm.context import (
-    ContextCommand,
     CommandResult,
+    ContextCommand,
     FailureMode,
     execute_commands,
     format_context_block,
@@ -20,6 +16,7 @@ from cllm.context import (
     inject_context,
     parse_context_commands,
 )
+from cllm.templates import TemplateError
 
 
 class TestContextCommand:
@@ -87,9 +84,7 @@ class TestExecuteCommands:
 
     def test_execute_simple_command(self):
         """Test executing a simple successful command."""
-        cmd = ContextCommand(
-            name="Echo Test", command="echo 'hello world'", timeout=5
-        )
+        cmd = ContextCommand(name="Echo Test", command="echo 'hello world'", timeout=5)
 
         results = execute_commands([cmd])
 
@@ -101,9 +96,7 @@ class TestExecuteCommands:
 
     def test_execute_failing_command(self):
         """Test executing a command that fails."""
-        cmd = ContextCommand(
-            name="Failing Command", command="exit 1", timeout=5
-        )
+        cmd = ContextCommand(name="Failing Command", command="exit 1", timeout=5)
 
         results = execute_commands([cmd])
 
@@ -403,7 +396,9 @@ class TestParseContextCommands:
         """Test error when command entry is not a dict."""
         config = {"context_commands": ["not a dict"]}
 
-        with pytest.raises(ValueError, match="context_commands\\[0\\] must be a dictionary"):
+        with pytest.raises(
+            ValueError, match="context_commands\\[0\\] must be a dictionary"
+        ):
             parse_context_commands(config)
 
     def test_parse_invalid_command_missing_field(self):

@@ -7,6 +7,7 @@ to handle streaming responses correctly.
 """
 
 import asyncio
+
 from litellm import acompletion, stream_chunk_builder
 
 
@@ -21,15 +22,15 @@ async def test_async_streaming(model: str, prompt: str):
         model=model,
         messages=messages,
         stream=True,
-        max_tokens=100  # Keep it short for testing
+        max_tokens=100,  # Keep it short for testing
     )
 
     chunks = []
     async for chunk in response:
         chunks.append(chunk)
-        content = chunk.get('choices', [{}])[0].get('delta', {}).get('content') or ''
+        content = chunk.get("choices", [{}])[0].get("delta", {}).get("content") or ""
         if content:
-            print(content, end='', flush=True)
+            print(content, end="", flush=True)
 
     print("\n" + "-" * 60)
 
@@ -44,15 +45,20 @@ def test_sync_streaming_wrapper(model: str, prompt: str):
     Synchronous wrapper for async streaming.
     This is what we'll integrate into client.complete() for stream=True
     """
+
     async def _async_stream():
         messages = [{"role": "user", "content": prompt}]
-        response = await acompletion(model=model, messages=messages, stream=True, max_tokens=100)
+        response = await acompletion(
+            model=model, messages=messages, stream=True, max_tokens=100
+        )
         chunks = []
         async for chunk in response:
             chunks.append(chunk)
-            content = chunk.get('choices', [{}])[0].get('delta', {}).get('content') or ''
+            content = (
+                chunk.get("choices", [{}])[0].get("delta", {}).get("content") or ""
+            )
             if content:
-                print(content, end='', flush=True)
+                print(content, end="", flush=True)
         print()  # Final newline
         return stream_chunk_builder(chunks, messages=messages)
 
@@ -77,11 +83,12 @@ if __name__ == "__main__":
         result = asyncio.run(test_async_streaming(model, prompt))
         print(f"\nComplete response type: {type(result)}")
         print(f"Response has choices: {hasattr(result, 'choices')}")
-        if hasattr(result, 'choices'):
+        if hasattr(result, "choices"):
             print(f"Content: {result.choices[0].message.content[:100]}...")
     except Exception as e:
         print(f"\n❌ ERROR: {e}")
         import traceback
+
         traceback.print_exc()
 
     print("\n" + "=" * 60)
@@ -93,12 +100,13 @@ if __name__ == "__main__":
         result = test_sync_streaming_wrapper(model, prompt)
         print(f"\nComplete response type: {type(result)}")
         print(f"Response has choices: {hasattr(result, 'choices')}")
-        if hasattr(result, 'choices'):
+        if hasattr(result, "choices"):
             print(f"Content: {result.choices[0].message.content[:100]}...")
         print("\n✅ SUCCESS: Streaming works with async wrapper!")
     except Exception as e:
         print(f"\n❌ ERROR: {e}")
         import traceback
+
         traceback.print_exc()
 
     print("\n" + "=" * 60)

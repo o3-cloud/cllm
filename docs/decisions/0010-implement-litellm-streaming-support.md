@@ -291,6 +291,7 @@ def test_streaming_with_conversation():
 **Implementation Date**: 2025-10-28
 
 **Actual Outcomes**:
+
 - ✅ Streaming functionality fully implemented and operational
 - ✅ Real-time output verified with live API calls to gpt-3.5-turbo
 - ✅ Complete response reconstruction using `stream_chunk_builder()`
@@ -299,6 +300,7 @@ def test_streaming_with_conversation():
 - ✅ All 132 tests passing, including updated streaming test
 
 **Implementation Approach**:
+
 - Used `asyncio.run()` wrapper pattern (TEST 2 from verification spike)
 - Implemented async generator handling with `acompletion()` and `async for` loop
 - Real-time display via `print()` during chunk iteration
@@ -306,6 +308,7 @@ def test_streaming_with_conversation():
 - Updated CLI to handle complete response string (not iterator)
 
 **Files Modified**:
+
 1. `src/cllm/client.py` (lines 9-13, 56-141, 143-207):
    - Added `asyncio` and `stream_chunk_builder` imports
    - Refactored `complete()` with async wrapper for streaming
@@ -324,6 +327,7 @@ def test_streaming_with_conversation():
    - Verifies complete response return (not chunks)
 
 **Challenges Encountered**:
+
 - **Initial Issue**: LiteLLM v1.79.0 returns async generators from `completion(stream=True)`, causing `'async_generator' object has no attribute '__next__'` error
 - **Root Cause**: Undocumented API behavior change in LiteLLM requiring async handling
 - **Solution**: Switched from synchronous `completion()` to `acompletion()` with `asyncio.run()` wrapper
@@ -331,6 +335,7 @@ def test_streaming_with_conversation():
 - **Resolution**: Updated CLI to recognize `complete()` now returns string, not iterator
 
 **Lessons Learned**:
+
 1. **LiteLLM API Evolution**: Library behaviors can change between versions; spike testing with real API calls is essential
 2. **Mock Testing Limitations**: Unit tests with mocks passed while real implementation failed; need integration tests
 3. **Async Wrapper Pattern**: `asyncio.run()` effectively bridges sync/async boundary for streaming
@@ -338,6 +343,7 @@ def test_streaming_with_conversation():
 5. **Real-time Verification**: Manual CLI testing with live API calls catches issues mocks miss
 
 **Suggested Improvements**:
+
 - ✅ **Completed**: Async wrapper implementation for streaming support
 - **Future**: Add integration tests with actual LiteLLM API calls (not just mocks)
 - **Future**: Document streaming behavior in README.md with examples
@@ -371,6 +377,7 @@ def test_streaming_with_conversation():
 **Issue**: LiteLLM v1.79.0 appears to have changed behavior where `completion(stream=True)` returns an async generator instead of a regular iterator.
 
 **Verified Fix**: Using `acompletion()` with `asyncio.run()` works correctly:
+
 ```python
 async def _async_stream():
     response = await acompletion(model=model, messages=messages, stream=True)

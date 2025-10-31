@@ -200,9 +200,7 @@ def copy_template(
 
     # Check if file exists
     if target_file.exists() and not force:
-        raise InitError(
-            f"File {target_file} already exists. Use --force to overwrite."
-        )
+        raise InitError(f"File {target_file} already exists. Use --force to overwrite.")
 
     # Get source template
     if template_name is None:
@@ -303,7 +301,7 @@ def print_next_steps(cllm_dir: Path, template_name: Optional[str] = None) -> Non
         # Named template was created
         config_file = f"{cllm_dir}/{template_name}.Cllmfile.yml"
         print(f"1. Review {config_file}")
-        print("2. Set your API key: export OPENAI_API_KEY=\"sk-...\"")
+        print('2. Set your API key: export OPENAI_API_KEY="sk-..."')
 
         # Template-specific usage guidance
         if template_name == "code-review":
@@ -311,16 +309,18 @@ def print_next_steps(cllm_dir: Path, template_name: Optional[str] = None) -> Non
         elif template_name == "summarize":
             print(f"3. Try it out: cat document.txt | cllm --config {template_name}")
         elif template_name == "creative":
-            print(f"3. Try it out: echo \"Write a story about...\" | cllm --config {template_name}")
+            print(
+                f'3. Try it out: echo "Write a story about..." | cllm --config {template_name}'
+            )
         elif template_name == "debug":
             print(f"3. Try it out: cat error.log | cllm --config {template_name}")
         else:
-            print(f"3. Try it out: echo \"Hello\" | cllm --config {template_name}")
+            print(f'3. Try it out: echo "Hello" | cllm --config {template_name}')
     else:
         # Default Cllmfile.yml was created
         print(f"1. Edit {cllm_dir}/Cllmfile.yml to configure your defaults")
-        print("2. Set your API key: export OPENAI_API_KEY=\"sk-...\"")
-        print("3. Try it out: echo \"Hello\" | cllm")
+        print('2. Set your API key: export OPENAI_API_KEY="sk-..."')
+        print('3. Try it out: echo "Hello" | cllm')
 
     print()
     print("Documentation: https://github.com/owenzanzal/cllm")
@@ -373,7 +373,9 @@ def initialize(
 
         try:
             # Create directory structure
-            created_new, dir_messages = create_directory_structure(cllm_dir, force=force)
+            created_new, dir_messages = create_directory_structure(
+                cllm_dir, force=force
+            )
             for msg in dir_messages:
                 print(msg)
 

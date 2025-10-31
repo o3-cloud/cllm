@@ -10,12 +10,14 @@ Users frequently ask CLLM questions that require dynamic information from their 
 - Complex workflows require multiple manual invocations
 
 For example, a user might ask: "Why is my build failing?" The LLM needs to:
+
 1. Check the build output (`npm run build` or `make`)
 2. If tests are failing, examine test results (`npm test`)
 3. If there are type errors, inspect the specific files mentioned
 4. If dependencies are missing, check `package.json`
 
 Currently, users must either:
+
 - Pre-configure all possible context commands (wasteful, slow)
 - Manually run commands based on LLM suggestions (tedious, breaks flow)
 - Use multiple CLLM invocations in a loop (inefficient, loses context)
@@ -41,6 +43,7 @@ We need a mechanism for the LLM to **dynamically choose and execute commands** d
 Use LiteLLM's native tool calling support to provide the LLM with command execution capabilities.
 
 **Example:**
+
 ```python
 tools = [
     {
@@ -66,12 +69,14 @@ tools = [
 ```
 
 **Pros:**
+
 - Native LLM capability (GPT-4, Claude, Gemini support tool calling)
 - Well-defined interface and error handling
 - LLM can chain multiple tool calls
 - Industry-standard pattern
 
 **Cons:**
+
 - Not all providers support tool calling equally
 - Requires structured outputs (may not work with all models)
 - More complex implementation
@@ -81,6 +86,7 @@ tools = [
 Define a special syntax in prompts where the LLM can request command execution.
 
 **Example:**
+
 ```markdown
 LLM Output:
 To answer this question, I need to check the build output.
@@ -93,11 +99,13 @@ Based on the build output showing "Module not found: react-router", ...
 ```
 
 **Pros:**
+
 - Works with any LLM (no tool calling required)
 - Simple to implement
 - Easy to debug (visible in conversation)
 
 **Cons:**
+
 - Fragile parsing (LLM might not follow format)
 - Hard to distinguish commands from markdown code blocks
 - No structured metadata (timeouts, error handling preferences)
@@ -108,21 +116,24 @@ Based on the build output showing "Module not found: react-router", ...
 LLM first outputs a JSON plan of commands to execute, then all commands run, then LLM processes results.
 
 **Example:**
+
 ```json
 {
   "plan": [
-    {"command": "git status", "reason": "Check current state"},
-    {"command": "npm test", "reason": "Verify test failures"}
+    { "command": "git status", "reason": "Check current state" },
+    { "command": "npm test", "reason": "Verify test failures" }
   ]
 }
 ```
 
 **Pros:**
+
 - Clear separation of planning and execution
 - All commands run in parallel (fast)
 - Easy to review/approve before execution
 
 **Cons:**
+
 - No iterative refinement (LLM can't adjust based on results)
 - Requires LLM to predict all needed information upfront
 - Less flexible than agentic loop
@@ -132,6 +143,7 @@ LLM first outputs a JSON plan of commands to execute, then all commands run, the
 Use tool calling when available, fall back to prompt-based requests for providers without support.
 
 **Example:**
+
 ```bash
 # With tool-calling capable model (GPT-4, Claude, Gemini)
 cllm "Why is my build failing?" --allow-commands
@@ -141,11 +153,13 @@ cllm "Why is my build failing?" --allow-commands --command-syntax prompt
 ```
 
 **Pros:**
+
 - Best experience on capable models
 - Degrades gracefully for simpler models
 - Maximum provider compatibility
 
 **Cons:**
+
 - Two codepaths to maintain
 - Inconsistent behavior across providers
 - More complex testing
@@ -309,11 +323,11 @@ dynamic_commands:
 
   # Option 2: Simple allowlist with wildcard patterns (less guidance for LLM)
   allow:
-    - "git*"           # All git commands
-    - "npm test"       # Exact match
-    - "pytest*"        # Pattern match
-    - "cat *.py"       # File reading
-    - "ls*"            # Directory listing
+    - "git*" # All git commands
+    - "npm test" # Exact match
+    - "pytest*" # Pattern match
+    - "cat *.py" # File reading
+    - "ls*" # Directory listing
 
   # Denylist dangerous commands (always checked regardless of above options)
   deny:
@@ -321,19 +335,19 @@ dynamic_commands:
     - "sudo *"
     - "dd *"
     - "mv *"
-    - "> *"            # Prevent redirects that overwrite files
+    - "> *" # Prevent redirects that overwrite files
 
   # Require confirmation
-  require_confirmation: false  # true = prompt before each command
+  require_confirmation: false # true = prompt before each command
 
   # Timeout for each command
-  timeout: 30  # seconds
+  timeout: 30 # seconds
 
   # Max number of command executions per LLM call
   max_commands: 10
 
   # Working directory restriction
-  working_directory: "."  # Restrict to current directory and subdirectories
+  working_directory: "." # Restrict to current directory and subdirectories
 ```
 
 **3. Tool Definition for LLM**
@@ -576,26 +590,31 @@ This will add the missing dependency and resolve the import error.
 Using structured `available_commands` with descriptions provides several advantages over simple allowlist patterns:
 
 **Improved LLM Decision-Making:**
+
 - The LLM can see exactly what each command does before choosing it
 - Reduces trial-and-error by helping the LLM select the right command on the first try
 - Example: LLM knows `git diff` shows changes vs `git log` shows history
 
 **Better User Experience:**
+
 - More accurate command selection means faster answers
 - Fewer unnecessary commands executed (saves time and tokens)
 - LLM explains why it chose each command (transparency)
 
 **Self-Documenting Configuration:**
+
 - Team members can understand what commands are available at a glance
 - Easy to audit security implications (see exactly what each command does)
 - Reduces need for separate documentation
 
 **Flexibility with Guidance:**
+
 - LLM can use variations (e.g., `git log --oneline -5` based on `git log --oneline -10`)
 - Descriptions guide usage patterns without being overly restrictive
 - Combines structure with adaptability
 
 **Critical for Custom Scripts and Uncommon Commands:**
+
 - **Parameter guidance**: Descriptions explain required/optional parameters for bash scripts
   - Example: `"./scripts/analyze-logs.sh <log_file>"` with description showing usage
 - **Tool-specific syntax**: Uncommon commands (jq, fd, rg) need syntax examples
@@ -607,17 +626,19 @@ Using structured `available_commands` with descriptions provides several advanta
 **Example Comparison:**
 
 Without descriptions (simple allowlist):
+
 ```yaml
 allow:
-  - "git*"             # Which git command? For what purpose?
-  - "npm*"             # Build? Test? Install?
-  - "./scripts/*"      # What do these scripts do? What parameters?
-  - "jq*"              # How to use jq syntax?
+  - "git*" # Which git command? For what purpose?
+  - "npm*" # Build? Test? Install?
+  - "./scripts/*" # What do these scripts do? What parameters?
+  - "jq*" # How to use jq syntax?
 ```
 
 **Problem**: LLM must guess which command to use and how to invoke it. May try `npm install` when `npm test` was needed, or invoke `./scripts/deploy.sh` without required parameters.
 
 With descriptions (structured):
+
 ```yaml
 available_commands:
   - command: "git status"
@@ -640,13 +661,14 @@ available_commands:
 ```
 
 **Benefit**: The LLM can now make informed decisions:
+
 - For "Why is my build failing?", it will choose `npm run build` (not `npm test`) because the description indicates it shows compilation errors
 - For "Check if dependencies are outdated", it will use `./scripts/check-deps.sh` and know it can add `--fix` to auto-update
 - For "What are my dev dependencies?", it will use `jq '.devDependencies' package.json` by adapting the provided example
 
 **8. Integration with Existing Features**
 
-- **ADR-0011 (Context Injection)**: Pre-configured context commands run *before* LLM processing; dynamic commands run *during* LLM processing
+- **ADR-0011 (Context Injection)**: Pre-configured context commands run _before_ LLM processing; dynamic commands run _during_ LLM processing
 - **ADR-0003 (Cllmfile)**: Dynamic command settings configured in Cllmfile.yml with standard precedence rules
 - **ADR-0007 (Conversations)**: Command execution history stored in conversation threads; LLM can reference previous commands
 
@@ -654,16 +676,16 @@ available_commands:
 
 Tool calling support across LiteLLM providers:
 
-| Provider | Tool Calling Support | Notes |
-|----------|---------------------|-------|
-| OpenAI (GPT-4, GPT-3.5) | ✅ Yes | Native function calling |
-| Anthropic (Claude 3+) | ✅ Yes | Native tool use |
-| Google (Gemini) | ✅ Yes | Function calling |
-| Groq | ✅ Yes | Via function calling API |
-| Cohere | ✅ Yes | Tool use API |
-| Mistral | ✅ Yes | Function calling |
-| Local models (Ollama) | ⚠️ Partial | Depends on model |
-| Azure OpenAI | ✅ Yes | Same as OpenAI |
+| Provider                | Tool Calling Support | Notes                    |
+| ----------------------- | -------------------- | ------------------------ |
+| OpenAI (GPT-4, GPT-3.5) | ✅ Yes               | Native function calling  |
+| Anthropic (Claude 3+)   | ✅ Yes               | Native tool use          |
+| Google (Gemini)         | ✅ Yes               | Function calling         |
+| Groq                    | ✅ Yes               | Via function calling API |
+| Cohere                  | ✅ Yes               | Tool use API             |
+| Mistral                 | ✅ Yes               | Function calling         |
+| Local models (Ollama)   | ⚠️ Partial           | Depends on model         |
+| Azure OpenAI            | ✅ Yes               | Same as OpenAI           |
 
 For providers without tool calling, CLLM will show:
 
@@ -679,11 +701,13 @@ Try: cllm "your prompt" --model gpt-4 --allow-commands
 When writing command descriptions, especially for custom scripts and uncommon tools:
 
 **1. Include What AND How:**
+
 - State what the command does (purpose)
 - Explain how to use it (parameters, syntax)
 - Provide examples when syntax is non-obvious
 
 **2. Document Parameters:**
+
 ```yaml
 # Bad: Missing parameter guidance
 - command: "./scripts/deploy.sh"
@@ -695,6 +719,7 @@ When writing command descriptions, especially for custom scripts and uncommon to
 ```
 
 **3. Show Syntax Variations:**
+
 ```yaml
 # Good: Helps LLM adapt the command
 - command: "jq '.dependencies' package.json"
@@ -702,6 +727,7 @@ When writing command descriptions, especially for custom scripts and uncommon to
 ```
 
 **4. Explain Optional Flags:**
+
 ```yaml
 # Good: Documents optional behavior
 - command: "./scripts/check-deps.sh"
@@ -709,6 +735,7 @@ When writing command descriptions, especially for custom scripts and uncommon to
 ```
 
 **5. Clarify Tool-Specific Syntax:**
+
 ```yaml
 # Good: Explains uncommon command usage
 - command: "fd -e py -x wc -l"
@@ -716,6 +743,7 @@ When writing command descriptions, especially for custom scripts and uncommon to
 ```
 
 **6. Indicate Side Effects:**
+
 ```yaml
 # Good: Warns about non-read-only operations
 - command: "./scripts/cleanup-logs.sh"
@@ -723,6 +751,7 @@ When writing command descriptions, especially for custom scripts and uncommon to
 ```
 
 **7. Mention Common Pitfalls:**
+
 ```yaml
 # Good: Prevents common errors
 - command: "docker ps --format '{{.Names}}'"
@@ -730,11 +759,13 @@ When writing command descriptions, especially for custom scripts and uncommon to
 ```
 
 **8. Keep It Concise:**
+
 - Aim for 1-3 sentences
 - Focus on essentials (what, required params, key options)
 - Avoid redundant information already in the command itself
 
 **Example: Well-Documented Custom Script**
+
 ```yaml
 - command: "./scripts/db-backup.sh <database_name> [--compress]"
   description: |
@@ -766,6 +797,7 @@ When writing command descriptions, especially for custom scripts and uncommon to
 ### Test Expectations
 
 **Unit tests:**
+
 - Parse `allow_dynamic_commands` and `dynamic_commands` from Cllmfile.yml
 - Parse `available_commands` with descriptions from config
 - Validate `--allow-commands` CLI flag
@@ -774,6 +806,7 @@ When writing command descriptions, especially for custom scripts and uncommon to
 - Verify descriptions are properly included in tool definitions
 
 **Integration tests:**
+
 - LiteLLM tool calling with mock LLM responses
 - Agentic loop execution (multiple tool calls)
 - Command execution and output capture
@@ -783,6 +816,7 @@ When writing command descriptions, especially for custom scripts and uncommon to
 - Tool definition generation includes command descriptions in prompt
 
 **End-to-end tests:**
+
 - Real workflow: "Why is my build failing?" → executes `npm run build` → analyzes output
 - Real workflow: "What changed in the last commit?" → executes `git show` → summarizes
 - Safety: Attempt denied command → proper error message
@@ -791,6 +825,7 @@ When writing command descriptions, especially for custom scripts and uncommon to
 - Verify LLM can use command variations (e.g., `git log -5` based on `git log --oneline -10`)
 
 **Provider compatibility tests:**
+
 - Test with OpenAI (gpt-4)
 - Test with Anthropic (claude-3-opus)
 - Test with Google (gemini-pro)
@@ -829,22 +864,22 @@ When writing command descriptions, especially for custom scripts and uncommon to
 #### Technical Risks
 
 - **Tool calling API differences across providers**:
-  - *Mitigation*: Use LiteLLM's unified interface, test with multiple providers, document provider-specific limitations
+  - _Mitigation_: Use LiteLLM's unified interface, test with multiple providers, document provider-specific limitations
 - **Agentic loop divergence (LLM executes unnecessary commands)**:
-  - *Mitigation*: Set `max_commands` limit, monitor token usage, provide clear tool descriptions
+  - _Mitigation_: Set `max_commands` limit, monitor token usage, provide clear tool descriptions
 - **Command execution failures**:
-  - *Mitigation*: Timeout protection, error message injection into LLM context, fallback strategies
+  - _Mitigation_: Timeout protection, error message injection into LLM context, fallback strategies
 - **Token usage explosion**:
-  - *Mitigation*: Limit max iterations, provide `--no-allow-commands` to disable, document cost implications
+  - _Mitigation_: Limit max iterations, provide `--no-allow-commands` to disable, document cost implications
 
 #### Business Risks
 
 - **Security concerns (arbitrary command execution)**:
-  - *Mitigation*: Allowlist/denylist validation, user confirmation option, safe defaults, clear documentation of risks
+  - _Mitigation_: Allowlist/denylist validation, user confirmation option, safe defaults, clear documentation of risks
 - **User trust issues (LLM executing commands without visibility)**:
-  - *Mitigation*: Show all executed commands, require `--allow-commands` opt-in, provide `--confirm-commands` for interactive approval
+  - _Mitigation_: Show all executed commands, require `--allow-commands` opt-in, provide `--confirm-commands` for interactive approval
 - **Cost implications (increased token usage)**:
-  - *Mitigation*: Document token usage patterns, provide cost estimates, make feature opt-in
+  - _Mitigation_: Document token usage patterns, provide cost estimates, make feature opt-in
 
 ### Human Review
 
@@ -859,7 +894,7 @@ When writing command descriptions, especially for custom scripts and uncommon to
 
 ### Feedback Log
 
-*To be filled after implementation*
+_To be filled after implementation_
 
 - **Implementation date**: TBD
 - **Actual outcomes**: TBD

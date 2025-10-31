@@ -125,7 +125,9 @@ def execute_with_dynamic_commands(
 
     # Add system message if configured
     if "default_system_message" in config:
-        messages.insert(0, {"role": "system", "content": config["default_system_message"]})
+        messages.insert(
+            0, {"role": "system", "content": config["default_system_message"]}
+        )
 
     commands_executed = 0
 
@@ -178,11 +180,13 @@ def execute_with_dynamic_commands(
                     reason = args.get("reason", "No reason provided")
                 except (json.JSONDecodeError, KeyError) as e:
                     # Add error response for this tool call
-                    messages.append({
-                        "role": "tool",
-                        "tool_call_id": tool_call.id,
-                        "content": f"Failed to parse tool call arguments: {e}",
-                    })
+                    messages.append(
+                        {
+                            "role": "tool",
+                            "tool_call_id": tool_call.id,
+                            "content": f"Failed to parse tool call arguments: {e}",
+                        }
+                    )
                     continue
 
                 if verbose:
@@ -195,11 +199,13 @@ def execute_with_dynamic_commands(
                 except CommandValidationError as e:
                     # Return error to LLM so it can try a different approach
                     error_result = f"Command validation failed: {e}"
-                    messages.append({
-                        "role": "tool",
-                        "tool_call_id": tool_call.id,
-                        "content": error_result,
-                    })
+                    messages.append(
+                        {
+                            "role": "tool",
+                            "tool_call_id": tool_call.id,
+                            "content": error_result,
+                        }
+                    )
                     continue
 
                 # Optional user confirmation
@@ -217,11 +223,13 @@ def execute_with_dynamic_commands(
                     print(f"Output:\n{output}\n", file=sys.stderr)
 
                 # Add tool result to message history
-                messages.append({
-                    "role": "tool",
-                    "tool_call_id": tool_call.id,
-                    "content": output,
-                })
+                messages.append(
+                    {
+                        "role": "tool",
+                        "tool_call_id": tool_call.id,
+                        "content": output,
+                    }
+                )
 
                 commands_executed += 1
 

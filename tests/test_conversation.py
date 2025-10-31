@@ -404,8 +404,7 @@ class TestConversationPathPrecedence:
 
         # conversations_path should take precedence over cllm_path
         manager = ConversationManager(
-            cllm_path=cllm_dir,
-            conversations_path=conversations_dir
+            cllm_path=cllm_dir, conversations_path=conversations_dir
         )
 
         assert manager.storage_dir == conversations_dir
@@ -463,14 +462,15 @@ class TestConversationPathPrecedence:
         cllm_dir.mkdir()
 
         manager = ConversationManager(
-            cllm_path=cllm_dir,
-            conversations_path=conversations_dir
+            cllm_path=cllm_dir, conversations_path=conversations_dir
         )
 
         # conversations_path should win
         assert manager.storage_dir == conversations_dir
 
-    def test_conversations_path_precedence_over_cllm_path_env(self, tmp_path, monkeypatch):
+    def test_conversations_path_precedence_over_cllm_path_env(
+        self, tmp_path, monkeypatch
+    ):
         """Test that CLLM_CONVERSATIONS_PATH takes precedence over CLLM_PATH."""
         conversations_dir = tmp_path / "conversations"
         conversations_dir.mkdir()
@@ -501,8 +501,7 @@ class TestConversationPathPrecedence:
 
         # Test 1: CLI conversations_path wins over everything
         manager1 = ConversationManager(
-            cllm_path=cllm_path_dir,
-            conversations_path=cli_conversations
+            cllm_path=cllm_path_dir, conversations_path=cli_conversations
         )
         assert manager1.storage_dir == cli_conversations
 
@@ -613,6 +612,7 @@ class TestConversationPathFromConfig:
 
         # Relative path should be stored as-is and work correctly
         from pathlib import Path
+
         relative_path = Path("./conversations")
 
         manager = ConversationManager(conversations_path=relative_path)

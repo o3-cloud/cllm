@@ -7,7 +7,6 @@ into LLM prompts for enhanced context-aware interactions.
 """
 
 import asyncio
-import subprocess
 from dataclasses import dataclass, replace
 from enum import Enum
 from pathlib import Path

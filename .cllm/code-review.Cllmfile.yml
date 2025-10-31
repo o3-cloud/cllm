@@ -63,7 +63,6 @@ num_retries: 2
 
 json_schema_file: https://raw.githubusercontent.com/o3-cloud/artifact-specs/refs/heads/main/specs/artifacts/pr_review_summary.schema.json
 
-
 # Fallback models
 fallbacks:
   - "gpt-4.1"

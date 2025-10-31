@@ -13,6 +13,7 @@ ADR-0011 introduced dynamic context injection via command execution, allowing us
 - Transformations: `cat {{ FILE_PATH | upper }}` or `git log -n {{ MAX_COMMITS | default(10) }}`
 
 Currently, users must:
+
 1. Create separate Cllmfile configurations for each parameter combination, OR
 2. Manually construct `--exec` commands with hardcoded values each time, OR
 3. Use environment variables (which pollute the shell environment)
@@ -37,6 +38,7 @@ This limits reusability and makes it difficult to create generic, shareable work
 Leverage existing environment variable interpolation from ADR-0003, requiring users to set shell env vars.
 
 **Example:**
+
 ```bash
 # Set env vars in shell
 export FILE_PATH="src/main.py"
@@ -47,11 +49,13 @@ cllm "Review this" --exec "cat ${FILE_PATH}" --exec "git diff main..${BRANCH}"
 ```
 
 **Pros:**
+
 - Already implemented (no new code needed)
 - Standard Unix approach
 - Works in scripts naturally
 
 **Cons:**
+
 - Pollutes shell environment with temporary variables
 - Not user-friendly for interactive use
 - No way to document expected variables in Cllmfile.yml
@@ -63,6 +67,7 @@ cllm "Review this" --exec "cat ${FILE_PATH}" --exec "git diff main..${BRANCH}"
 Add `--var KEY=VALUE` or `--define KEY=VALUE` flags to set variables that are expanded in context commands using simple string substitution or basic template syntax.
 
 **Example:**
+
 ```bash
 # Define variables via CLI
 cllm "Review this" \
@@ -73,12 +78,13 @@ cllm "Review this" \
 ```
 
 **Cllmfile.yml with variable declarations:**
+
 ```yaml
 # Declare expected variables with defaults
 variables:
-  FILE_PATH: "README.md"      # Default value
-  BRANCH: "main"              # Default value
-  TEST_NAME: null             # Required (no default)
+  FILE_PATH: "README.md" # Default value
+  BRANCH: "main" # Default value
+  TEST_NAME: null # Required (no default)
 
 context_commands:
   - name: "File Contents"
@@ -88,6 +94,7 @@ context_commands:
 ```
 
 **Pros:**
+
 - Explicit and self-documenting
 - Variables scoped to single invocation (no shell pollution)
 - Easy to validate and provide defaults in config
@@ -95,6 +102,7 @@ context_commands:
 - Can document required vs optional variables
 
 **Cons:**
+
 - More verbose CLI for multiple variables
 - Requires new parsing logic
 - Another CLI flag to remember
@@ -104,6 +112,7 @@ context_commands:
 Use positional arguments or a special syntax to pass parameters.
 
 **Example:**
+
 ```bash
 # Positional style
 cllm "Review this" --exec "cat {1}" --exec "git diff main..{2}" src/main.py feature/new-feature
@@ -113,10 +122,12 @@ cllm "Review this" --param file=src/main.py --param branch=feature/new-feature
 ```
 
 **Pros:**
+
 - Concise for simple cases
 - Familiar from shell scripting
 
 **Cons:**
+
 - Positional args are fragile (order matters)
 - Hard to understand without context
 - Doesn't work well with Cllmfile.yml declarations
@@ -136,6 +147,7 @@ Use Jinja2 as the template engine, combining `--var` CLI flags with environment 
 - Well-documented and battle-tested
 
 **Variable Resolution Order:**
+
 1. CLI flags (`--var KEY=VALUE`) - highest precedence
 2. Environment variables (`$KEY`)
 3. Cllmfile.yml defaults (`variables:` section)
@@ -143,15 +155,16 @@ Use Jinja2 as the template engine, combining `--var` CLI flags with environment 
 
 **Example:**
 
-*Cllmfile.yml:*
+_Cllmfile.yml:_
+
 ```yaml
 # Document expected variables
 variables:
-  FILE_PATH: "README.md"           # Default value
-  BRANCH: "main"                   # Default value
-  TEST_NAME: null                  # Required (must be provided)
-  VERBOSE: false                   # Boolean flag
-  MAX_LINES: 50                    # Numeric value
+  FILE_PATH: "README.md" # Default value
+  BRANCH: "main" # Default value
+  TEST_NAME: null # Required (must be provided)
+  VERBOSE: false # Boolean flag
+  MAX_LINES: 50 # Numeric value
 
 context_commands:
   - name: "File Contents"
@@ -164,7 +177,8 @@ context_commands:
     command: "pytest -k {{ TEST_NAME }} {% if VERBOSE %}-vv{% else %}-v{% endif %}"
 ```
 
-*CLI Usage:*
+_CLI Usage:_
+
 ```bash
 # Override with CLI flags
 cllm "Review" --var FILE_PATH=src/app.py --var TEST_NAME=test_login
@@ -178,6 +192,7 @@ cllm "Review" --var FILE_PATH=src/auth.py  # Uses CLI file, env branch
 ```
 
 **Pros:**
+
 - Maximum flexibility: CLI for one-offs, config for shared workflows, env for scripting
 - Clear precedence rules consistent with ADR-0003
 - Self-documenting (variables declared in Cllmfile.yml)
@@ -186,6 +201,7 @@ cllm "Review" --var FILE_PATH=src/auth.py  # Uses CLI file, env branch
 - Backward compatible (env vars still work)
 
 **Cons:**
+
 - Most complex implementation
 - Users need to understand three-layer precedence
 - More documentation required
@@ -500,6 +516,7 @@ Error: Template syntax error in command: unexpected end of template (line 1)
 - **Sensitive variables**: Support marking variables as sensitive (e.g., `API_KEY: !sensitive`) to redact from logs
 
 **Example - Security:**
+
 ```bash
 # Safe: Jinja2 sandboxing prevents code execution
 cllm --var FILE="test.txt; rm -rf /" --exec "cat {{ FILE }}"
@@ -551,6 +568,7 @@ cllm --exec "{% include '/etc/passwd' %}"
 ### Test Expectations
 
 **Unit tests:**
+
 - Parse `variables:` section from Cllmfile.yml correctly
 - Resolve variables with correct precedence (CLI > config > env)
 - Handle required variables (null defaults) with proper errors
@@ -562,6 +580,7 @@ cllm --exec "{% include '/etc/passwd' %}"
 - Raise TemplateSyntaxError for invalid Jinja2 syntax
 
 **Integration tests:**
+
 - Load config, pass CLI vars, render templates in context commands
 - Override config defaults with CLI flags
 - Fall back to environment variables correctly
@@ -570,6 +589,7 @@ cllm --exec "{% include '/etc/passwd' %}"
 - Complex templates with multiple conditionals and filters
 
 **Security tests:**
+
 - Sandboxed environment blocks file access attempts
 - Sandboxed environment blocks attribute access (`__class__`, etc.)
 - Sandboxed environment blocks module imports
@@ -579,6 +599,7 @@ cllm --exec "{% include '/etc/passwd' %}"
 - Sensitive variables can be redacted from logs
 
 **End-to-end tests:**
+
 - Real workflow: `--var FILE_PATH=src/main.py` → `cat {{ FILE_PATH }}` → correct file content
 - Real workflow: Git diff with parameterized branches and conditionals
 - Real workflow: Using filters for transformations (`{{ BRANCH | upper }}`)
@@ -616,28 +637,28 @@ cllm --exec "{% include '/etc/passwd' %}"
 #### Technical Risks
 
 - **Command injection vulnerabilities**:
-  - *Mitigation*: Use Jinja2's `SandboxedEnvironment`, provide `shellquote` filter, validate variable names, encourage best practices in docs
+  - _Mitigation_: Use Jinja2's `SandboxedEnvironment`, provide `shellquote` filter, validate variable names, encourage best practices in docs
 - **Variable resolution bugs**:
-  - *Mitigation*: Comprehensive tests for all precedence combinations, leverage Jinja2's `StrictUndefined` for early error detection
+  - _Mitigation_: Comprehensive tests for all precedence combinations, leverage Jinja2's `StrictUndefined` for early error detection
 - **Performance overhead**:
-  - *Mitigation*: Cache Jinja2 environment instance, cache resolved variable context per invocation, Jinja2 is highly optimized
+  - _Mitigation_: Cache Jinja2 environment instance, cache resolved variable context per invocation, Jinja2 is highly optimized
 - **Template complexity leading to errors**:
-  - *Mitigation*: Clear error messages from Jinja2, provide examples in docs, start with simple templates
+  - _Mitigation_: Clear error messages from Jinja2, provide examples in docs, start with simple templates
 - **Dependency on external package**:
-  - *Mitigation*: Jinja2 is stable, widely-used, and well-maintained; version pin in requirements
+  - _Mitigation_: Jinja2 is stable, widely-used, and well-maintained; version pin in requirements
 
 #### Business Risks
 
 - **User confusion about precedence**:
-  - *Mitigation*: Clear documentation, `--show-config` debugging output, helpful error messages
+  - _Mitigation_: Clear documentation, `--show-config` debugging output, helpful error messages
 - **User confusion about Jinja2 syntax**:
-  - *Mitigation*: Provide clear examples, link to Jinja2 docs, start with simple variable substitution examples
+  - _Mitigation_: Provide clear examples, link to Jinja2 docs, start with simple variable substitution examples
 - **Breaking changes to existing workflows**:
-  - *Mitigation*: This is a new feature, no existing workflows use templating yet
+  - _Mitigation_: This is a new feature, no existing workflows use templating yet
 - **Feature complexity creep**:
-  - *Mitigation*: Start with core Jinja2 features (variables, conditionals, basic filters), document advanced features separately
+  - _Mitigation_: Start with core Jinja2 features (variables, conditionals, basic filters), document advanced features separately
 - **Adoption resistance due to new syntax**:
-  - *Mitigation*: Jinja2 is familiar to many developers, provide migration examples, show benefits in docs
+  - _Mitigation_: Jinja2 is familiar to many developers, provide migration examples, show benefits in docs
 
 ### Human Review
 

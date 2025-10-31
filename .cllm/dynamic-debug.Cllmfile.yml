@@ -74,8 +74,8 @@ dynamic_commands:
     - "sudo *"
     - "dd *"
     - "mv *"
-    - "> *"  # Prevent file overwrites
-    - ">>*"  # Prevent file appends
+    - "> *" # Prevent file overwrites
+    - ">>*" # Prevent file appends
 
   # Require user confirmation before each command (optional)
   require_confirmation: false

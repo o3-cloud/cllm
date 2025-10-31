@@ -328,11 +328,9 @@ cllm "Show me how streaming is implemented" --config research --allow-commands
 > 1. **Config Loading** (`src/cllm/config.py:119`)
 >    - `load_config()` finds and merges Cllmfile.yml files
 >    - Precedence: ~/.cllm/ → ./.cllm/ → ./
->
 > 2. **Environment Variable Interpolation** (`src/cllm/config.py:33`)
 >    - Supports `${VAR_NAME}` syntax
 >    - Handled by `_interpolate_env_vars()`
->
 > 3. **CLI Integration** (`src/cllm/cli.py:564`)
 >    - Loaded via `load_config(config_name=args.config)`
 >    - Merged with CLI args in `merge_config_with_args()`
@@ -340,6 +338,7 @@ cllm "Show me how streaming is implemented" --config research --allow-commands
 > See ADR-0003 for design rationale.
 
 **Best for:**
+
 - Understanding how features work
 - Finding code examples
 - Exploring unfamiliar codebases

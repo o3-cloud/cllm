@@ -43,6 +43,7 @@ Chosen option: **"Both CLI flag and environment variable"**, because it provides
    - Accepts absolute or relative paths
 
 3. **Precedence order** (highest to lowest):
+
    ```
    1. CLI flag: --cllm-path
    2. Environment variable: CLLM_PATH
@@ -83,6 +84,7 @@ This ADR will be validated through:
 5. **Error messages**: Validate clear errors when specified paths don't exist
 
 Success criteria:
+
 - All 4 precedence scenarios tested and passing
 - Docker example runs successfully
 - No regression in default behavior when override not specified
@@ -151,12 +153,14 @@ Support both mechanisms with clear precedence.
 ### Example Usage
 
 **Docker deployment:**
+
 ```dockerfile
 ENV CLLM_PATH=/app/config/.cllm
 COPY .cllm/ /app/config/.cllm/
 ```
 
 **CI/CD (GitHub Actions):**
+
 ```yaml
 - name: Run CLLM analysis
   env:
@@ -165,6 +169,7 @@ COPY .cllm/ /app/config/.cllm/
 ```
 
 **Testing (pytest):**
+
 ```python
 def test_custom_config(tmp_path):
     cllm_dir = tmp_path / ".cllm"
@@ -177,6 +182,7 @@ def test_custom_config(tmp_path):
 ```
 
 **Per-invocation override:**
+
 ```bash
 # Use project config by default
 cllm "analyze this"
@@ -194,6 +200,7 @@ cllm --cllm-path /tmp/experiment/.cllm "try experimental config"
 **Chosen level: Flexible**
 
 AI agents should follow the precedence rules strictly but may adapt implementation details such as:
+
 - Error message wording for missing paths
 - Path normalization/canonicalization approaches
 - Logging verbosity and format
@@ -296,11 +303,13 @@ Expected test coverage:
 **Review Date**: 2025-10-30
 
 #### Implementation Date
+
 Implemented on 2025-10-30 (same-day implementation and review)
 
 #### Actual Outcomes
 
 **✅ Core Functionality Implemented:**
+
 - `get_cllm_base_path()` function added to `config.py` (lines 90-139)
   - Implements correct precedence: CLI flag > `CLLM_PATH` > default search
   - Validates paths exist and are directories
@@ -319,6 +328,7 @@ Implemented on 2025-10-30 (same-day implementation and review)
   - Handles both CLI flag and `CLLM_PATH` env var
 
 **✅ Testing:**
+
 - 13 new unit tests added to `test_config.py` (TestCustomCllmPath class)
 - All 252 tests passing (no regressions)
 - Test coverage includes:
@@ -329,11 +339,13 @@ Implemented on 2025-10-30 (same-day implementation and review)
   - Error handling with clear messages
 
 **✅ Documentation:**
+
 - CLAUDE.md updated with ADR-0016 references (6 locations)
 - Comprehensive examples added for Docker, CI/CD, testing, and per-invocation overrides
 - Component descriptions updated to reference custom path support
 
 **✅ Error Handling:**
+
 - Clear, actionable error messages implemented
 - Examples verified:
   - `"Custom .cllm path does not exist: /nonexistent/path\nSuggestion: Create the directory or verify the path is correct"`
@@ -379,6 +391,7 @@ Implemented on 2025-10-30 (same-day implementation and review)
 #### Confirmation Status
 
 **Unit Tests (test_config.py):**
+
 - ✅ CLI flag takes precedence over env var - `test_get_cllm_base_path_cli_overrides_env`
 - ✅ Env var takes precedence over default search - `test_get_cllm_base_path_with_env_var`
 - ✅ Default search works when neither override specified - `test_get_cllm_base_path_no_override_returns_none`
@@ -387,16 +400,19 @@ Implemented on 2025-10-30 (same-day implementation and review)
 - ⚠️ Symlinks are followed correctly - Implementation follows symlinks via `pathlib.Path.exists()`, but no explicit test (acceptable - OS-level behavior)
 
 **Integration Tests:**
+
 - ✅ Full workflow with custom path (config + conversation storage) - Verified manually with `/tmp/test-adr-review`
 - ✅ Init command creates structure at custom path - Verified with `cllm init --cllm-path /tmp/test-adr-review`
 - ✅ Multiple invocations with same CLLM_PATH share state - Confirmed by design (same storage dir)
 
 **Success Criteria (from ADR):**
+
 - ✅ All 4 precedence scenarios tested and passing - 13/13 tests pass, manual verification successful
 - ⚠️ Docker example runs successfully - Examples in CLAUDE.md but no actual Dockerfile created
 - ✅ No regression in default behavior when override not specified - All 252 tests pass
 
 **Risk Mitigations:**
+
 - ✅ Precedence confusion mitigation - `--show-config` displays source, clear documentation
 - ⚠️ Path traversal vulnerabilities - Basic validation (exists, is_dir) but no hardening for symlink escapes
 - ✅ Windows path compatibility - Uses `pathlib.Path` throughout
@@ -408,6 +424,7 @@ Implemented on 2025-10-30 (same-day implementation and review)
 **Implementation Status: ✅ Fully Implemented**
 
 The ADR has been successfully implemented with all core requirements met. The implementation is production-ready with:
+
 - Correct precedence order
 - Comprehensive test coverage (13 new tests, 252 total passing)
 - Clear error handling

@@ -17,7 +17,7 @@ context_commands:
   # System information
   - name: "System Info"
     command: "uname -a"
-    on_failure: "warn"  # Include error message if command fails
+    on_failure: "warn" # Include error message if command fails
     timeout: 5
 
   # Current directory structure
@@ -29,7 +29,7 @@ context_commands:
   # Git status (if in a git repo)
   - name: "Git Status"
     command: "git status --short 2>/dev/null || echo 'Not a git repository'"
-    on_failure: "ignore"  # Skip if not in git repo
+    on_failure: "ignore" # Skip if not in git repo
     timeout: 5
 
   # Recent git commits (if in a git repo)

@@ -883,7 +883,9 @@ class TestCustomCllmPath:
         nonexistent = tmp_path / "does-not-exist"
 
         with patch.dict(os.environ, {"CLLM_PATH": str(nonexistent)}):
-            with pytest.raises(ConfigurationError, match="CLLM_PATH directory does not exist"):
+            with pytest.raises(
+                ConfigurationError, match="CLLM_PATH directory does not exist"
+            ):
                 get_cllm_base_path(cllm_path=None)
 
     def test_get_cllm_base_path_file_instead_of_dir_raises_error(self, tmp_path):

@@ -4,7 +4,6 @@ from pathlib import Path
 
 import pytest
 
-
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPTS_DIR = REPO_ROOT / "examples" / "bash"
 
@@ -44,7 +43,9 @@ SCRIPTS_DIR = REPO_ROOT / "examples" / "bash"
         ),
     ],
 )
-def test_bash_scripts_support_dry_run(script, args, stdin, env_overrides, expect_substring):
+def test_bash_scripts_support_dry_run(
+    script, args, stdin, env_overrides, expect_substring
+):
     script_path = SCRIPTS_DIR / script
     assert script_path.exists(), f"Missing script: {script}"
 
