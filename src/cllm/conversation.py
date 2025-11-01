@@ -73,6 +73,22 @@ class Conversation:
         """
         return len(self.messages) > 0 and self.messages[0].get("role") == "system"
 
+    def has_context_in_system_message(self) -> bool:
+        """
+        Check if the conversation's system message contains context command output.
+
+        Context commands produce distinctive markers: "--- Context:" and "--- End Context ---"
+        This allows detection of whether context was already executed and stored.
+
+        Returns:
+            True if system message contains context markers, False otherwise
+        """
+        if not self.has_system_message():
+            return False
+
+        system_content = self.messages[0].get("content", "")
+        return "--- Context:" in system_content and "--- End Context ---" in system_content
+
     def set_system_message(self, content: str) -> None:
         """
         Set or update the system message for the conversation.

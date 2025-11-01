@@ -951,7 +951,7 @@ def main():
     # Read prompt (not needed for --show-config, --list-models, or --validate-schema)
     prompt = read_prompt(args.prompt)
 
-    # Handle context injection (ADR-0011)
+    # Parse context commands (ADR-0011, ADR-0021)
     context_commands = []
 
     # Parse context_commands from config (if not disabled)
@@ -975,24 +975,9 @@ def main():
             )
             context_commands.append(cli_cmd)
 
-    # Inject context if we have any commands
-    if context_commands:
-        try:
-            prompt = inject_context(
-                prompt=prompt,
-                commands=context_commands,
-                cwd=Path.cwd(),
-                parallel=True,
-                template_context=template_context,  # Pass template context for variable expansion
-            )
-        except RuntimeError as e:
-            # This happens when a command with on_failure=FAIL fails
-            print(f"Context error: {e}", file=sys.stderr)
-            sys.exit(1)
-        except TemplateError as e:
-            # Template rendering errors
-            print(f"Template error: {e}", file=sys.stderr)
-            sys.exit(1)
+    # ADR-0021: Context will be handled differently for conversation vs stateless mode
+    # - Conversation mode: Execute once during creation, store in system message
+    # - Stateless mode: Inject into prompt (current behavior)
 
     # Initialize client
     client = LLMClient()
@@ -1051,13 +1036,66 @@ def main():
                         file=sys.stderr,
                     )
                     sys.exit(1)
+
                 # Create new conversation
-                # ADR-0020: Capture system prompt in conversation data
-                system_message = config.get("default_system_message")
+                # ADR-0020 + ADR-0021: Build combined system message (system prompt + context)
+                system_parts = []
+
+                # Part 1: System prompt (if configured)
+                if "default_system_message" in config:
+                    system_parts.append(config["default_system_message"])
+
+                # Part 2: Context commands (if configured)
+                if context_commands:
+                    try:
+                        # Execute context commands in parallel (ADR-0021)
+                        from .context import execute_commands, format_context_block, format_error_block
+                        from dataclasses import replace
+                        from .templates import render_command_template, TemplateError
+
+                        # Render command templates
+                        rendered_commands = []
+                        for cmd in context_commands:
+                            try:
+                                rendered_command = render_command_template(cmd.command, template_context)
+                                rendered_commands.append(replace(cmd, command=rendered_command))
+                            except TemplateError as err:
+                                print(f"Template error in context command '{cmd.name}': {err}", file=sys.stderr)
+                                sys.exit(1)
+
+                        # Execute all commands in parallel
+                        results = execute_commands(rendered_commands, cwd=Path.cwd(), parallel=True)
+
+                        # Format context blocks
+                        context_blocks = []
+                        for cmd, result in zip(rendered_commands, results):
+                            if result.success:
+                                context_blocks.append(format_context_block(result))
+                            else:
+                                # Handle failure according to on_failure setting
+                                if cmd.on_failure == FailureMode.FAIL:
+                                    print(f"Context error: Command '{cmd.name}' failed: {result.error_message}", file=sys.stderr)
+                                    sys.exit(1)
+                                elif cmd.on_failure == FailureMode.WARN:
+                                    context_blocks.append(format_error_block(result))
+                                # IGNORE: skip this command's output
+
+                        # Add context to system message if any succeeded
+                        if context_blocks:
+                            context_content = "\n\n".join(context_blocks)
+                            system_parts.append(context_content)
+
+                    except RuntimeError as e:
+                        print(f"Context error: {e}", file=sys.stderr)
+                        sys.exit(1)
+
+                # Combine system prompt and context
+                combined_system_message = "\n\n".join(system_parts) if system_parts else None
+
                 conversation = conversation_manager.create(
                     conversation_id=args.conversation,
                     model=model,
-                    system_message=system_message,
+                    system_message=combined_system_message,
                 )
         except ValueError as e:
             print(f"Error: {e}", file=sys.stderr)
@@ -1066,19 +1104,61 @@ def main():
         # Build messages list with conversation history
         messages_for_llm = conversation.get_messages().copy()
 
-        # ADR-0020: System message should already be in conversation.messages
-        # For backward compatibility: if conversation doesn't have a system message,
-        # inject it at runtime (but don't save it to the conversation)
+        # ADR-0020 + ADR-0021: System message (with context) should already be in conversation.messages
+        # For backward compatibility: if conversation doesn't have system message or context,
+        # inject at runtime (but don't save to conversation)
+        needs_runtime_injection = False
+        runtime_system_parts = []
+
+        # Check if we need to inject system prompt at runtime (backward compat)
         if "default_system_message" in config and not conversation.has_system_message():
-            messages_for_llm.insert(
-                0, {"role": "system", "content": config["default_system_message"]}
-            )
+            runtime_system_parts.append(config["default_system_message"])
+            needs_runtime_injection = True
+
+        # Check if we need to inject context at runtime (backward compat)
+        if context_commands and not conversation.has_context_in_system_message():
+            try:
+                # Execute and inject context at runtime (transient, not saved)
+                prompt = inject_context(
+                    prompt=prompt,
+                    commands=context_commands,
+                    cwd=Path.cwd(),
+                    parallel=True,
+                    template_context=template_context,
+                )
+            except RuntimeError as e:
+                print(f"Context error: {e}", file=sys.stderr)
+                sys.exit(1)
+            except TemplateError as e:
+                print(f"Template error: {e}", file=sys.stderr)
+                sys.exit(1)
+
+        # Inject system message at runtime if needed (backward compat for old conversations)
+        if needs_runtime_injection:
+            combined = "\n\n".join(runtime_system_parts)
+            messages_for_llm.insert(0, {"role": "system", "content": combined})
 
         # Add new user message
         messages_for_llm.append({"role": "user", "content": prompt})
 
     else:
-        # Stateless mode - use prompt directly
+        # Stateless mode - inject context into prompt (ADR-0021: stateless keeps current behavior)
+        if context_commands:
+            try:
+                prompt = inject_context(
+                    prompt=prompt,
+                    commands=context_commands,
+                    cwd=Path.cwd(),
+                    parallel=True,
+                    template_context=template_context,
+                )
+            except RuntimeError as e:
+                print(f"Context error: {e}", file=sys.stderr)
+                sys.exit(1)
+            except TemplateError as e:
+                print(f"Template error: {e}", file=sys.stderr)
+                sys.exit(1)
+
         # Handle default_system_message if present
         if "default_system_message" in config:
             # Prepend system message to prompt

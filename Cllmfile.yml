@@ -16,3 +16,14 @@ fallbacks:
 # Default system message for CLLM development
 default_system_message: |
   You are a helpful assistant.
+
+context_commands:
+  - name: "Get details about this project"
+    command: "cat README.md"
+    on_failure: "ignore"
+    timeout: 10
+
+dynamic_context:
+  - command: "date"
+    description: "Current date and time"
+    timeout: 5

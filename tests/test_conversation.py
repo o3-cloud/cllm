@@ -813,3 +813,93 @@ class TestSystemMessageCapture:
 
         assert len(conv.messages) == 0
         assert not conv.has_system_message()
+
+
+class TestContextInSystemMessage:
+    """Test suite for ADR-0021: Context Injection as Persistent System Context."""
+
+    def test_has_context_empty_conversation(self):
+        """Test has_context_in_system_message returns False for empty conversation."""
+        conv = Conversation(id="test", model="gpt-4")
+        assert not conv.has_context_in_system_message()
+
+    def test_has_context_no_system_message(self):
+        """Test has_context_in_system_message returns False when no system message."""
+        conv = Conversation(
+            id="test",
+            model="gpt-4",
+            messages=[
+                {"role": "user", "content": "Hello"},
+                {"role": "assistant", "content": "Hi!"},
+            ],
+        )
+        assert not conv.has_context_in_system_message()
+
+    def test_has_context_system_message_without_context(self):
+        """Test has_context_in_system_message returns False for system message without context."""
+        conv = Conversation(
+            id="test",
+            model="gpt-4",
+            messages=[{"role": "system", "content": "You are a helpful assistant."}],
+        )
+        assert not conv.has_context_in_system_message()
+
+    def test_has_context_with_context_markers(self):
+        """Test has_context_in_system_message returns True when context markers present."""
+        conv = Conversation(
+            id="test",
+            model="gpt-4",
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are helpful.\n\n--- Context: Test ---\nSome context\n--- End Context ---",
+                }
+            ],
+        )
+        assert conv.has_context_in_system_message()
+
+    def test_has_context_only_context_no_prompt(self):
+        """Test has_context_in_system_message returns True for context-only system message."""
+        conv = Conversation(
+            id="test",
+            model="gpt-4",
+            messages=[
+                {
+                    "role": "system",
+                    "content": "--- Context: Git Status ---\nM file.py\n--- End Context ---",
+                }
+            ],
+        )
+        assert conv.has_context_in_system_message()
+
+    def test_has_context_multiple_context_blocks(self):
+        """Test has_context_in_system_message with multiple context blocks."""
+        conv = Conversation(
+            id="test",
+            model="gpt-4",
+            messages=[
+                {
+                    "role": "system",
+                    "content": "--- Context: Time ---\n2025-10-31\n--- End Context ---\n\n--- Context: Git ---\nM file.py\n--- End Context ---",
+                }
+            ],
+        )
+        assert conv.has_context_in_system_message()
+
+    def test_has_context_partial_markers(self):
+        """Test has_context_in_system_message returns False with only partial markers."""
+        # Only start marker
+        conv1 = Conversation(
+            id="test1",
+            model="gpt-4",
+            messages=[{"role": "system", "content": "--- Context: Test ---\nNo end marker"}],
+        )
+        assert not conv1.has_context_in_system_message()
+
+        # Only end marker
+        conv2 = Conversation(
+            id="test2",
+            model="gpt-4",
+            messages=[{"role": "system", "content": "No start\n--- End Context ---"}],
+        )
+        assert not conv2.has_context_in_system_message()
